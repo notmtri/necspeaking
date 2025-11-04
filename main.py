@@ -1,18 +1,26 @@
+import sys
 import os
-from dotenv import load_dotenv
-from groq import Groq
 
+# Add the project directory to Python path
+project_dir = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, project_dir)
+
+from dotenv import load_dotenv
+from api.chat import get_response
+
+# Load environment variables from .env
 load_dotenv()
 
-client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+def main():
+    print("SpeakUp AI – type 'quit' or 'exit' to stop.\n")
+    while True:
+        user_msg = input("You: ")
+        if user_msg.lower() in ["quit", "exit"]:
+            print("Goodbye!")
+            break
+        
+        reply = get_response(user_msg)
+        print("AI:", reply)
 
-response = client.chat.completions.create(
-    model="llama-3.1-8b-instant",  # ✅ new working model
-    messages=[
-        {"role": "system", "content": "You are a helpful assistant."},
-        {"role": "user", "content": "Hello!"}
-    ]
-)
-
-
-print(response.choices[0].message.content)
+if __name__ == "__main__":
+    main()
