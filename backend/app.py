@@ -1,0 +1,728 @@
+from flask import Flask, request, jsonify, send_file
+from flask_cors import CORS
+from dotenv import load_dotenv
+import os
+import warnings
+
+warnings.filterwarnings("ignore", message="Core Pydantic V1 functionality")
+
+from werkzeug.utils import secure_filename
+from groq import Groq
+import json
+from datetime import datetime
+from pydub import AudioSegment
+from docx import Document
+from docx.shared import Inches, Pt, RGBColor
+from docx.enum.text import WD_ALIGN_PARAGRAPH
+import io
+import re
+import random
+
+load_dotenv()
+
+app = Flask(__name__)
+CORS(app)
+
+app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024
+app.config['UPLOAD_FOLDER'] = 'uploads'
+ALLOWED_EXTENSIONS = {'wav', 'mp3', 'm4a', 'webm', 'ogg'}
+
+os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+
+groq_client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+
+def clean_metadata_file():
+    path = 'uploads/samples/metadata.json'
+    if os.path.exists(path):
+        with open(path, 'r', encoding='utf-8') as f:
+            raw = f.read()
+        cleaned = re.sub(r'[\x00-\x09\x0B\x0C\x0E-\x1F]', '', raw)
+        with open(path, 'w', encoding='utf-8') as f:
+            f.write(cleaned)
+
+clean_metadata_file()
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+def cleanup_old_files():
+    try:
+        current_time = datetime.now().timestamp()
+        for filename in os.listdir(app.config['UPLOAD_FOLDER']):
+            filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            if filename in ['samples', 'simulations', 'questions.json', 'metadata.json']:
+                continue
+            if os.path.isfile(filepath):
+                file_age = current_time - os.path.getmtime(filepath)
+                if file_age > 3600:
+                    os.remove(filepath)
+                    print(f"Cleaned up old file: {filename}")
+    except Exception as e:
+        print(f"Cleanup error: {e}")
+
+def get_audio_duration(file_path):
+    audio = AudioSegment.from_file(file_path)
+    return len(audio) / 1000.0
+
+def convert_to_wav(input_path, output_path):
+    audio = AudioSegment.from_file(input_path)
+    audio = audio.set_frame_rate(16000).set_channels(1)
+    audio.export(output_path, format="wav")
+    return output_path
+
+def transcribe_audio(file_path):
+    try:
+        with open(file_path, 'rb') as audio_file:
+            transcription = groq_client.audio.transcriptions.create(
+                file=("audio.wav", audio_file.read()),
+                model="whisper-large-v3-turbo",
+                response_format="json",
+            )
+        
+        duration = get_audio_duration(file_path)
+        transcript_text = transcription.text if hasattr(transcription, 'text') else str(transcription)
+        
+        return {
+            "text": transcript_text,
+            "words": [],
+            "duration": duration
+        }
+    except Exception as e:
+        print(f"Transcription error: {str(e)}")
+        raise Exception(f"Transcription failed: {str(e)}")
+
+def grade_speech(topic, transcript_data):
+    transcript_text = transcript_data["text"]
+    words = transcript_data.get("words", [])
+    total_words = len(transcript_text.split())
+    duration = transcript_data["duration"]
+    words_per_minute = (total_words / duration * 60) if duration > 0 else 0
+    
+    prompt = f"""You are an expert English speaking examiner. Grade the following speech response based on this rubric:
+
+**Rubric (Total: 2.0 points)**
+1. Content (0.9/2.0 points)
+   - Sufficiently address all requirements of the test question
+   - Develop supporting ideas with relevant reasons and examples
+   - Display a range of original and practical ideas
+
+2. Accuracy (0.6/2.0 points)
+   - Demonstrate a wide variety of vocabulary and grammatical structures
+   - Make correct use of words, grammatical structures and linking devices
+   - Demonstrate correct pronunciation with appropriate intonation
+
+3. Delivery (0.5/2.0 points)
+   - Maintain fluency throughout
+   - Demonstrate effective use of presentation skills
+
+**Topic/Question:** {topic}
+
+**Speech Transcript:** {transcript_text}
+
+**Speech Metrics:**
+- Total words: {total_words}
+- Duration: {duration:.1f} seconds
+- Speaking pace: {words_per_minute:.0f} words/minute
+
+**Instructions:**
+1. Provide scores for each criterion (rounded to 2 decimal places)
+2. Give detailed feedback for each criterion with specific examples from the transcript
+3. Point out both strengths and areas for improvement
+4. Generate a comprehensive sample 2.0/2.0 response to the same topic that would take approximately 5 minutes to speak (around 600-750 words). The sample should:
+   - Start with "My question is... (if question number is provided), and the prompt is... Here is my response." and then answer the question fully
+   - End with "This is the end of my speech. Thank you."
+   - Be detailed and well-structured with clear introduction, body paragraphs, and conclusion
+   - Include specific examples, explanations, and supporting details
+   - Demonstrate sophisticated vocabulary and varied sentence structures
+   - Show natural flow with appropriate transitions
+   - Be comprehensive enough to fill a 5-minute speaking time
+   - Be creative in the introduction to hook the listener's attention
+
+Note: 
+- Return feedback in bullet points when appropriate to maximize clarity (Strengths, Weaknesses, Suggestions)
+- Grade at C2 level of the CEFR framework
+
+**Return your response in this EXACT JSON format:**
+{{
+    "scores": {{
+        "content": 0.00,
+        "accuracy": 0.00,
+        "delivery": 0.00,
+        "total": 0.00
+    }},
+    "feedback": {{
+        "content": "Detailed feedback with examples...",
+        "accuracy": "Detailed feedback with examples...",
+        "delivery": "Detailed feedback with examples..."
+    }},
+    "sample_response": "A complete 2.0/2.0 sample response to the topic..."
+}}"""
+
+    response = groq_client.chat.completions.create(
+        model="llama-3.3-70b-versatile",
+        messages=[{"role": "user", "content": prompt}],
+        temperature=0.3
+    )
+    
+    result_text = response.choices[0].message.content
+    
+    if "```json" in result_text:
+        result_text = result_text.split("```json")[1].split("```")[0].strip()
+    elif "```" in result_text:
+        result_text = result_text.split("```")[1].split("```")[0].strip()
+    
+    result_text = result_text.replace('"', '"').replace('"', '"')
+    result_text = result_text.replace(''', "'").replace(''', "'")
+    result_text = result_text.replace('—', '-').replace('–', '-')
+    result_text = result_text.replace('\u2018', "'").replace('\u2019', "'")
+    result_text = result_text.replace('\u201c', '"').replace('\u201d', '"')
+    result_text = result_text.replace('\u2013', '-').replace('\u2014', '-')
+    result_text = re.sub(r'[\u200b-\u200f\u202a-\u202e\u2060\uFEFF]', '', result_text)
+    result_text = result_text.replace('\u202f', ' ')
+    result_text = result_text.replace('\ufeff', '')
+    result_text = result_text.replace('\u00A0', ' ')
+    result_text = re.sub(r'[^\x00-\x7F]+', '', result_text)
+    result_text = re.sub(r'[\x00-\x1F\x7F]', '', result_text)
+    
+    return json.loads(result_text)
+
+def generate_docx(topic, transcript, grading_result):
+    doc = Document()
+    
+    title = doc.add_heading('necs. - Speech Feedback Report', 0)
+    title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    
+    doc.add_paragraph(f"Date: {datetime.now().strftime('%B %d, %Y')}")
+    doc.add_paragraph(f"Topic: {topic}")
+    doc.add_paragraph()
+    
+    doc.add_heading('Score Summary', 1)
+    scores = grading_result['scores']
+    
+    table = doc.add_table(rows=5, cols=2)
+    table.style = 'Light Grid Accent 1'
+    
+    score_data = [
+        ('Content', f"{scores['content']}/0.9"),
+        ('Accuracy', f"{scores['accuracy']}/0.6"),
+        ('Delivery', f"{scores['delivery']}/0.5"),
+        ('', ''),
+        ('TOTAL SCORE', f"{scores['total']}/2.0")
+    ]
+    
+    for i, (criterion, score) in enumerate(score_data):
+        table.rows[i].cells[0].text = criterion
+        table.rows[i].cells[1].text = score
+        if i == 4:
+            for cell in table.rows[i].cells:
+                for paragraph in cell.paragraphs:
+                    for run in paragraph.runs:
+                        run.bold = True
+    
+    doc.add_paragraph()
+    
+    doc.add_heading('Detailed Feedback', 1)
+    feedback = grading_result['feedback']
+    
+    doc.add_heading('1. Content', 2)
+    doc.add_paragraph(feedback['content'])
+    
+    doc.add_heading('2. Accuracy', 2)
+    doc.add_paragraph(feedback['accuracy'])
+    
+    doc.add_heading('3. Delivery', 2)
+    doc.add_paragraph(feedback['delivery'])
+    
+    doc.add_page_break()
+    
+    doc.add_heading('Your Speech Transcript', 1)
+    doc.add_paragraph(transcript)
+    
+    doc.add_page_break()
+    
+    doc.add_heading('Sample 2.0/2.0 Response', 1)
+    doc.add_paragraph(grading_result['sample_response'])
+    
+    file_stream = io.BytesIO()
+    doc.save(file_stream)
+    file_stream.seek(0)
+    
+    return file_stream
+
+@app.route('/', methods=['GET'])
+def home():
+    return jsonify({
+        "message": "necs. API is running!",
+        "version": "1.0",
+        "endpoints": [
+            "/api/analyze",
+            "/api/samples",
+            "/api/questions",
+            "/api/simulation",
+            "/api/health"
+        ]
+    })
+
+@app.route('/api/health', methods=['GET'])
+def health_check():
+    return jsonify({"status": "healthy"})
+
+@app.route('/api/analyze', methods=['POST'])
+def analyze_speech():
+    try:
+        cleanup_old_files()
+        
+        if 'audio' not in request.files:
+            return jsonify({
+                "error": "No audio file provided",
+                "received_files": list(request.files.keys())
+            }), 400
+        
+        if 'topic' not in request.form:
+            return jsonify({"error": "No topic provided"}), 400
+        
+        audio_file = request.files['audio']
+        topic = request.form['topic']
+        
+        if audio_file.filename == '':
+            return jsonify({"error": "No file selected"}), 400
+        
+        if not allowed_file(audio_file.filename):
+            return jsonify({"error": "Invalid file format"}), 400
+        
+        filename = secure_filename(audio_file.filename)
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        filename = f"{timestamp}_{filename}"
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        audio_file.save(filepath)
+        
+        duration = get_audio_duration(filepath)
+        if duration > 320:
+            os.remove(filepath)
+            return jsonify({"error": "Audio file exceeds 5 minute limit"}), 400
+        
+        wav_filepath = filepath.rsplit('.', 1)[0] + '_compressed.wav'
+        convert_to_wav(filepath, wav_filepath)
+        if filepath != wav_filepath:
+            os.remove(filepath)
+        filepath = wav_filepath
+        
+        file_size_mb = os.path.getsize(filepath) / (1024 * 1024)
+        print(f"Compressed file size: {file_size_mb:.2f} MB")
+        
+        if file_size_mb > 20:
+            os.remove(filepath)
+            return jsonify({"error": "Audio file too large even after compression"}), 400
+        
+        transcript_data = transcribe_audio(filepath)
+        grading_result = grade_speech(topic, transcript_data)
+        doc_stream = generate_docx(topic, transcript_data["text"], grading_result)
+        
+        os.remove(filepath)
+        
+        doc_filename = f"feedback_{timestamp}.docx"
+        doc_path = os.path.join(app.config['UPLOAD_FOLDER'], doc_filename)
+        with open(doc_path, 'wb') as f:
+            f.write(doc_stream.getvalue())
+        
+        return jsonify({
+            "success": True,
+            "transcript": transcript_data["text"],
+            "duration": transcript_data["duration"],
+            "scores": grading_result["scores"],
+            "feedback": grading_result["feedback"],
+            "sample_response": grading_result["sample_response"],
+            "document_url": f"/api/download/{doc_filename}"
+        })
+    
+    except Exception as e:
+        if 'filepath' in locals() and os.path.exists(filepath):
+            os.remove(filepath)
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/download/<filename>', methods=['GET'])
+def download_document(filename):
+    try:
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], secure_filename(filename))
+        
+        response = send_file(
+            filepath,
+            as_attachment=True,
+            download_name=filename,
+            mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+        )
+        
+        @response.call_on_close
+        def cleanup():
+            try:
+                if os.path.exists(filepath):
+                    os.remove(filepath)
+                    print(f"Cleaned up: {filename}")
+            except Exception as e:
+                print(f"Cleanup error: {e}")
+        
+        return response
+    except Exception as e:
+        return jsonify({"error": str(e)}), 404
+
+# Sample Library Routes
+
+@app.route('/api/samples', methods=['GET'])
+def get_samples():
+    try:
+        samples_dir = os.path.join(app.config['UPLOAD_FOLDER'], 'samples')
+        metadata_file = os.path.join(samples_dir, 'metadata.json')
+        
+        samples = []
+        if os.path.exists(metadata_file):
+            with open(metadata_file, 'r', encoding='utf-8') as f:
+                samples = json.load(f)
+            
+            for sample in samples:
+                sample['audioUrl'] = f"{request.host_url}api/samples/download/{sample['filename']}"
+                sample['tags'] = [sample['topic'], sample['speaker'], f"{sample['score']}/2.0"]
+        
+        return jsonify({"samples": samples})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/samples/upload', methods=['POST'])
+def upload_sample():
+    try:
+        if 'audio' not in request.files:
+            return jsonify({"error": "No audio file provided"}), 400
+        
+        audio_file = request.files['audio']
+        topic = request.form.get('topic')
+        question = request.form.get('question', '')
+        speaker = request.form.get('speaker')
+        score = float(request.form.get('score', 2.0))
+        transcript = request.form.get('transcript', '')
+        feedback = request.form.get('feedback', '')
+        
+        if not all([topic, speaker, transcript, feedback]):
+            return jsonify({"error": "All fields are required"}), 400
+        
+        samples_dir = os.path.join(app.config['UPLOAD_FOLDER'], 'samples')
+        os.makedirs(samples_dir, exist_ok=True)
+        
+        filename = secure_filename(audio_file.filename)
+        filepath = os.path.join(samples_dir, filename)
+        audio_file.save(filepath)
+        
+        duration = int(get_audio_duration(filepath))
+        
+        metadata_file = os.path.join(samples_dir, 'metadata.json')
+        metadata = []
+        if os.path.exists(metadata_file):
+            with open(metadata_file, 'r', encoding='utf-8') as f:
+                metadata = json.load(f)
+        
+        sample_id = len(metadata) + 1
+        metadata.append({
+            "id": sample_id,
+            "filename": filename,
+            "topic": topic,
+            "question": question,
+            "speaker": speaker,
+            "score": score,
+            "duration": duration,
+            "transcript": transcript,
+            "feedback": feedback
+        })
+        
+        with open(metadata_file, 'w', encoding='utf-8') as f:
+            json.dump(metadata, f, ensure_ascii=False, indent=2)
+        
+        return jsonify({
+            "success": True,
+            "message": "Sample uploaded successfully",
+            "id": sample_id
+        })
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/samples/download/<filename>', methods=['GET'])
+def download_sample(filename):
+    try:
+        samples_dir = os.path.join(app.config['UPLOAD_FOLDER'], 'samples')
+        filepath = os.path.join(samples_dir, secure_filename(filename))
+        
+        if not os.path.exists(filepath):
+            return jsonify({"error": "File not found"}), 404
+        
+        return send_file(
+            filepath,
+            as_attachment=True,
+            download_name=filename
+        )
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/samples/<int:sample_id>', methods=['PUT'])
+def update_sample(sample_id):
+    try:
+        samples_dir = os.path.join(app.config['UPLOAD_FOLDER'], 'samples')
+        metadata_file = os.path.join(samples_dir, 'metadata.json')
+        if not os.path.exists(metadata_file):
+            return jsonify({"error": "No metadata found"}), 404
+
+        with open(metadata_file, 'r', encoding='utf-8') as f:
+            metadata = json.load(f)
+
+        sample = next((s for s in metadata if s.get('id') == sample_id), None)
+        if not sample:
+            return jsonify({"error": "Sample not found"}), 404
+
+        topic = request.form.get('topic')
+        question = request.form.get('question', '')
+        speaker = request.form.get('speaker')
+        score = request.form.get('score')
+        transcript = request.form.get('transcript')
+        feedback = request.form.get('feedback')
+
+        if topic is not None: sample['topic'] = topic
+        if question is not None: sample['question'] = question
+        if speaker is not None: sample['speaker'] = speaker
+        if score is not None:
+            try:
+                sample['score'] = float(score)
+            except:
+                sample['score'] = sample.get('score', 2.0)
+        if transcript is not None: sample['transcript'] = transcript
+        if feedback is not None: sample['feedback'] = feedback
+
+        if 'audio' in request.files:
+            audio_file = request.files['audio']
+            if audio_file and allowed_file(audio_file.filename):
+                filename = secure_filename(audio_file.filename)
+                filepath = os.path.join(samples_dir, filename)
+                audio_file.save(filepath)
+                old_filename = sample.get('filename')
+                if old_filename and old_filename != filename:
+                    old_path = os.path.join(samples_dir, old_filename)
+                    try:
+                        if os.path.exists(old_path):
+                            os.remove(old_path)
+                    except:
+                        pass
+                sample['filename'] = filename
+                sample['audioUrl'] = f"{request.host_url}api/samples/download/{filename}"
+                sample['duration'] = int(get_audio_duration(filepath))
+
+        with open(metadata_file, 'w', encoding='utf-8') as f:
+            json.dump(metadata, f, ensure_ascii=False, indent=2)
+
+        return jsonify({"success": True, "message": "Sample updated"})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/samples/<int:sample_id>', methods=['DELETE'])
+def delete_sample(sample_id):
+    try:
+        samples_dir = os.path.join(app.config['UPLOAD_FOLDER'], 'samples')
+        metadata_file = os.path.join(samples_dir, 'metadata.json')
+        if not os.path.exists(metadata_file):
+            return jsonify({"error": "No metadata found"}), 404
+
+        with open(metadata_file, 'r', encoding='utf-8') as f:
+            metadata = json.load(f)
+
+        sample = next((s for s in metadata if s.get('id') == sample_id), None)
+        if not sample:
+            return jsonify({"error": "Sample not found"}), 404
+
+        filename = sample.get('filename')
+        if filename:
+            file_path = os.path.join(samples_dir, filename)
+            try:
+                if os.path.exists(file_path):
+                    os.remove(file_path)
+            except Exception as e:
+                print("Could not remove file:", e)
+
+        metadata = [s for s in metadata if s.get('id') != sample_id]
+        with open(metadata_file, 'w', encoding='utf-8') as f:
+            json.dump(metadata, f, ensure_ascii=False, indent=2)
+
+        return jsonify({"success": True, "message": "Sample deleted"})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# Question Bank Routes
+
+@app.route('/api/questions', methods=['GET'])
+def get_questions():
+    try:
+        questions_file = os.path.join(app.config['UPLOAD_FOLDER'], 'questions.json')
+        
+        questions = []
+        if os.path.exists(questions_file):
+            with open(questions_file, 'r', encoding='utf-8') as f:
+                questions = json.load(f)
+        
+        return jsonify({"questions": questions})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/questions', methods=['POST'])
+def add_question():
+    try:
+        data = request.get_json()
+        topic = data.get('topic')
+        question_text = data.get('question')
+        category = data.get('category', 'General')
+        
+        if not all([topic, question_text]):
+            return jsonify({"error": "Topic and question are required"}), 400
+        
+        questions_file = os.path.join(app.config['UPLOAD_FOLDER'], 'questions.json')
+        questions = []
+        
+        if os.path.exists(questions_file):
+            with open(questions_file, 'r', encoding='utf-8') as f:
+                questions = json.load(f)
+        
+        question_id = len(questions) + 1
+        questions.append({
+            "id": question_id,
+            "topic": topic,
+            "question": question_text,
+            "category": category,
+            "created_at": datetime.now().isoformat()
+        })
+        
+        with open(questions_file, 'w', encoding='utf-8') as f:
+            json.dump(questions, f, ensure_ascii=False, indent=2)
+        
+        return jsonify({
+            "success": True,
+            "message": "Question added successfully",
+            "id": question_id
+        })
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/questions/<int:question_id>', methods=['PUT'])
+def update_question(question_id):
+    try:
+        data = request.get_json()
+        questions_file = os.path.join(app.config['UPLOAD_FOLDER'], 'questions.json')
+        
+        if not os.path.exists(questions_file):
+            return jsonify({"error": "No questions found"}), 404
+
+        with open(questions_file, 'r', encoding='utf-8') as f:
+            questions = json.load(f)
+
+        question = next((q for q in questions if q.get('id') == question_id), None)
+        if not question:
+            return jsonify({"error": "Question not found"}), 404
+
+        if 'topic' in data: question['topic'] = data['topic']
+        if 'question' in data: question['question'] = data['question']
+        if 'category' in data: question['category'] = data['category']
+
+        with open(questions_file, 'w', encoding='utf-8') as f:
+            json.dump(questions, f, ensure_ascii=False, indent=2)
+
+        return jsonify({"success": True, "message": "Question updated"})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/questions/<int:question_id>', methods=['DELETE'])
+def delete_question(question_id):
+    try:
+        questions_file = os.path.join(app.config['UPLOAD_FOLDER'], 'questions.json')
+        
+        if not os.path.exists(questions_file):
+            return jsonify({"error": "No questions found"}), 404
+
+        with open(questions_file, 'r', encoding='utf-8') as f:
+            questions = json.load(f)
+
+        questions = [q for q in questions if q.get('id') != question_id]
+        
+        with open(questions_file, 'w', encoding='utf-8') as f:
+            json.dump(questions, f, ensure_ascii=False, indent=2)
+
+        return jsonify({"success": True, "message": "Question deleted"})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/questions/random', methods=['GET'])
+def get_random_question():
+    try:
+        questions_file = os.path.join(app.config['UPLOAD_FOLDER'], 'questions.json')
+        
+        if not os.path.exists(questions_file):
+            return jsonify({"error": "No questions available"}), 404
+
+        with open(questions_file, 'r', encoding='utf-8') as f:
+            questions = json.load(f)
+        
+        if not questions:
+            return jsonify({"error": "No questions available"}), 404
+        
+        random_question = random.choice(questions)
+        return jsonify({"question": random_question})
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# Simulation Audio Save Route
+@app.route('/api/simulation/save-audio', methods=['POST'])
+def save_simulation_audio():
+    try:
+        if 'audio' not in request.files:
+            return jsonify({"error": "No audio file provided"}), 400
+        
+        audio_file = request.files['audio']
+        
+        if audio_file.filename == '':
+            return jsonify({"error": "No file selected"}), 400
+        
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        filename = f"simulation_{timestamp}.webm"
+        
+        simulations_dir = os.path.join(app.config['UPLOAD_FOLDER'], 'simulations')
+        os.makedirs(simulations_dir, exist_ok=True)
+        
+        filepath = os.path.join(simulations_dir, filename)
+        audio_file.save(filepath)
+        
+        # Convert to WAV for analysis
+        wav_filepath = filepath.rsplit('.', 1)[0] + '.wav'
+        convert_to_wav(filepath, wav_filepath)
+        
+        return jsonify({
+            "success": True,
+            "filename": filename,
+            "filepath": wav_filepath,
+            "download_url": f"/api/simulation/download/{filename}"
+        })
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/simulation/download/<filename>', methods=['GET'])
+def download_simulation(filename):
+    try:
+        simulations_dir = os.path.join(app.config['UPLOAD_FOLDER'], 'simulations')
+        filepath = os.path.join(simulations_dir, secure_filename(filename))
+        
+        if not os.path.exists(filepath):
+            return jsonify({"error": "File not found"}), 404
+        
+        return send_file(
+            filepath,
+            as_attachment=True,
+            download_name=filename
+        )
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+if __name__ == '__main__':
+    app.run(debug=True, port=5000)
