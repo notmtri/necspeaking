@@ -11,5 +11,6 @@
   ],
   "python.analysis.extraPaths": [
     "./api"
-  ]
+  ],
+  "git.ignoreLimitWarning": true
 }
