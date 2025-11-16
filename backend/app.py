@@ -267,6 +267,8 @@ def home():
 def health_check():
     return jsonify({"status": "healthy"})
 
+# Fixed /api/analyze endpoint - Returns document directly in response
+
 @app.route('/api/analyze', methods=['POST'])
 def analyze_speech():
     try:
@@ -318,12 +320,12 @@ def analyze_speech():
         grading_result = grade_speech(topic, transcript_data)
         doc_stream = generate_docx(topic, transcript_data["text"], grading_result)
         
+        # Clean up audio file immediately
         os.remove(filepath)
         
-        doc_filename = f"feedback_{timestamp}.docx"
-        doc_path = os.path.join(app.config['UPLOAD_FOLDER'], doc_filename)
-        with open(doc_path, 'wb') as f:
-            f.write(doc_stream.getvalue())
+        # FIXED: Convert document to base64 and send in JSON response
+        import base64
+        doc_base64 = base64.b64encode(doc_stream.getvalue()).decode('utf-8')
         
         return jsonify({
             "success": True,
@@ -332,13 +334,18 @@ def analyze_speech():
             "scores": grading_result["scores"],
             "feedback": grading_result["feedback"],
             "sample_response": grading_result["sample_response"],
-            "document_url": f"/api/download/{doc_filename}"
+            "document_base64": doc_base64,  # Send document as base64
+            "document_filename": f"feedback_{timestamp}.docx"
         })
     
     except Exception as e:
         if 'filepath' in locals() and os.path.exists(filepath):
             os.remove(filepath)
         return jsonify({"error": str(e)}), 500
+
+
+# Remove the /api/download endpoint - it won't work on ephemeral filesystems
+# Or keep it only for backward compatibility but it will fail in production
 
 @app.route('/api/download/<filename>', methods=['GET'])
 def download_document(filename):

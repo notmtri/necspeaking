@@ -35,6 +35,29 @@ export default function SpeakUpApp() {
     }
   };
 
+const downloadSimulationReport = () => {
+  if (results && results.document_base64) {
+    const byteCharacters = atob(results.document_base64);
+    const byteNumbers = new Array(byteCharacters.length);
+    for (let i = 0; i < byteCharacters.length; i++) {
+      byteNumbers[i] = byteCharacters.charCodeAt(i);
+    }
+    const byteArray = new Uint8Array(byteNumbers);
+    const blob = new Blob([byteArray], {
+      type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    });
+    
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = results.document_filename || 'simulation_feedback.docx';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }
+};
+
   const togglePlayback = () => {
     if (audioRef.current) {
       if (isPlaying) audioRef.current.pause();
@@ -81,11 +104,30 @@ export default function SpeakUpApp() {
     }
   };
 
-  const downloadDocument = () => {
-    if (results && results.document_url) {
-      window.open(`${API_BASE_URL}${results.document_url}`, '_blank');
+const downloadDocument = () => {
+  if (results && results.document_base64) {
+    // Convert base64 to blob
+    const byteCharacters = atob(results.document_base64);
+    const byteNumbers = new Array(byteCharacters.length);
+    for (let i = 0; i < byteCharacters.length; i++) {
+      byteNumbers[i] = byteCharacters.charCodeAt(i);
     }
-  };
+    const byteArray = new Uint8Array(byteNumbers);
+    const blob = new Blob([byteArray], {
+      type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    });
+    
+    // Create download link
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = results.document_filename || 'feedback_report.docx';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }
+};
 
   const reset = () => {
     setStep('input');
@@ -769,9 +811,9 @@ function SimulationMode() {
 
             <div className="flex gap-3">
               <button
-                onClick={() => window.open(`${API_BASE_URL}${results.document_url}`, '_blank')}
+                onClick={downloadSimulationReport}
                 className="flex-1 py-3 rounded-xl bg-[#1e90ff] text-white font-semibold"
-              >
+                >
                 <div className="flex items-center justify-center gap-2">
                   <Download size={16} />
                   Download Report
