@@ -172,7 +172,7 @@ export default function SpeakUpApp() {
               </button>
             </div>
 
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-4 flex-wrap max-w-full overflow-hidden">
               <nav className="flex gap-2">
                 <button
                   onClick={() => { setCurrentPage('analyze'); reset(); }}
@@ -205,7 +205,7 @@ export default function SpeakUpApp() {
               <img 
                 src="/logo.png" 
                 alt="School Logo" 
-                className="h-11 w-11 object-cover rounded-none"
+                className="h-11 w-11 object-cover shrink-0"
                 onError={(e) => {
                   e.target.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="40" fill="%234F46E5"/><text x="50" y="60" text-anchor="middle" fill="white" font-size="35" font-family="Arial" font-weight="bold">HS</text></svg>';
                 }}
@@ -896,7 +896,7 @@ function AudioPlayback({ audioUrl }) {
         onEnded={() => setIsPlaying(false)}
       />
       
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-4 flex-wrap max-w-full overflow-hidden">
         <button
           onClick={togglePlay}
           className="flex items-center justify-center w-12 h-12 rounded-full bg-[#1e90ff] text-white hover:bg-[#1a7be6] transition"
