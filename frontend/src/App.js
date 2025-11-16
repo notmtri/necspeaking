@@ -83,7 +83,7 @@ export default function SpeakUpApp() {
 
   const downloadDocument = () => {
     if (results && results.document_url) {
-      window.open(`http://127.0.0.1:5000${results.document_url}`, '_blank');
+      window.open(`${API_BASE_URL}${results.document_url}`, '_blank');
     }
   };
 
@@ -769,7 +769,7 @@ function SimulationMode() {
 
             <div className="flex gap-3">
               <button
-                onClick={() => window.open(`http://127.0.0.1:5000${results.document_url}`, '_blank')}
+                onClick={() => window.open(`${API_BASE_URL}${results.document_url}`, '_blank')}
                 className="flex-1 py-3 rounded-xl bg-[#1e90ff] text-white font-semibold"
               >
                 <div className="flex items-center justify-center gap-2">
@@ -1414,7 +1414,7 @@ function SampleLibrary() {
 
   const downloadAudio = (filename) => {
     const link = document.createElement('a');
-    link.href = `http://127.0.0.1:5000/api/samples/download/${filename}`;
+    link.href = `${API_BASE_URL}/api/samples/download/${filename}`;
     link.download = filename;
     document.body.appendChild(link);
     link.click();
