@@ -1,9 +1,9 @@
-from flask import Flask, request, jsonify, send_file
+from flask import Flask, request, jsonify, send_file, send_from_directory
 from flask_cors import CORS
 from dotenv import load_dotenv
-import base64
 import os
 import warnings
+import base64
 
 warnings.filterwarnings("ignore", message="Core Pydantic V1 functionality")
 
@@ -21,8 +21,16 @@ import random
 
 load_dotenv()
 
-app = Flask(__name__)
-CORS(app)
+app = Flask(__name__, static_folder='build', static_url_path='')
+
+# CORS configuration
+CORS(app, resources={
+    r"/api/*": {
+        "origins": ["*"],
+        "methods": ["GET", "POST", "PUT", "DELETE"],
+        "allow_headers": ["Content-Type"]
+    }
+})
 
 app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024
 app.config['UPLOAD_FOLDER'] = 'uploads'
@@ -250,8 +258,20 @@ def generate_docx(topic, transcript, grading_result):
     
     return file_stream
 
-@app.route('/', methods=['GET'])
-def home():
+@app.route('/')
+def serve():
+    return send_from_directory(app.static_folder, 'index.html')
+
+@app.errorhandler(404)
+def not_found(e):
+    # Don't serve index.html for API routes
+    if request.path.startswith('/api/'):
+        return jsonify({"error": "API endpoint not found"}), 404
+    # Serve index.html for React Router
+    return send_from_directory(app.static_folder, 'index.html')
+
+@app.route('/api', methods=['GET'])
+def api_home():
     return jsonify({
         "message": "necs. API is running!",
         "version": "1.0",
@@ -267,8 +287,6 @@ def home():
 @app.route('/api/health', methods=['GET'])
 def health_check():
     return jsonify({"status": "healthy"})
-
-# Fixed /api/analyze endpoint - Returns document directly in response
 
 @app.route('/api/analyze', methods=['POST'])
 def analyze_speech():
@@ -327,7 +345,7 @@ def analyze_speech():
         # Clean up audio file
         os.remove(filepath)
         
-        # CRITICAL: Convert document to base64
+        # CRITICAL: Convert document to base64 for ephemeral filesystem
         doc_bytes = doc_stream.getvalue()
         doc_base64 = base64.b64encode(doc_bytes).decode('utf-8')
         
@@ -340,23 +358,24 @@ def analyze_speech():
             "scores": grading_result["scores"],
             "feedback": grading_result["feedback"],
             "sample_response": grading_result["sample_response"],
-            "document_base64": doc_base64,  # This is the key field!
+            "document_base64": doc_base64,
             "document_filename": f"necs_feedback_{timestamp}.docx"
         })
     
     except Exception as e:
-        print(f"Error in analyze_speech: {str(e)}")  # Debug log
+        print(f"Error in analyze_speech: {str(e)}")
         if 'filepath' in locals() and os.path.exists(filepath):
             os.remove(filepath)
         return jsonify({"error": str(e)}), 500
 
-# Remove the /api/download endpoint - it won't work on ephemeral filesystems
-# Or keep it only for backward compatibility but it will fail in production
-
 @app.route('/api/download/<filename>', methods=['GET'])
 def download_document(filename):
+    """Legacy endpoint - kept for backward compatibility but won't work on ephemeral storage"""
     try:
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], secure_filename(filename))
+        
+        if not os.path.exists(filepath):
+            return jsonify({"error": "File not found. Please use the download button immediately after analysis."}), 404
         
         response = send_file(
             filepath,
@@ -738,4 +757,5 @@ def download_simulation(filename):
         return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port, debug=False)

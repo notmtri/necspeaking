@@ -1,9 +1,43 @@
-// App.js - Complete Version with Simulation Feature
+// Complete App.js - Full Application with All Components
 import React, { useState, useRef, useEffect } from 'react';
 import { Upload, Play, Pause, Download, CheckCircle, AlertCircle, Loader, FileAudio, Settings, Lock, Trash2, Edit3, Mic, Circle } from 'lucide-react';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://127.0.0.1:5000/api';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://127.0.0.1:5000';
 const ADMIN_PASSWORD = '040108Minhtri';
+
+// HELPER FUNCTION - Download document from base64
+const downloadDocumentFromBase64 = (base64String, filename) => {
+  try {
+    console.log('Starting download...', filename);
+    
+    const binaryString = window.atob(base64String);
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
+    
+    const blob = new Blob([bytes], {
+      type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    });
+    
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename || `necs_feedback_${Date.now()}.docx`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    setTimeout(() => URL.revokeObjectURL(url), 100);
+    
+    console.log('Download successful!');
+    return true;
+  } catch (error) {
+    console.error('Download failed:', error);
+    alert('Failed to download: ' + error.message);
+    return false;
+  }
+};
 
 export default function SpeakUpApp() {
   const [currentPage, setCurrentPage] = useState('analyze');
@@ -35,29 +69,6 @@ export default function SpeakUpApp() {
     }
   };
 
-const downloadSimulationReport = () => {
-  if (results && results.document_base64) {
-    const byteCharacters = atob(results.document_base64);
-    const byteNumbers = new Array(byteCharacters.length);
-    for (let i = 0; i < byteCharacters.length; i++) {
-      byteNumbers[i] = byteCharacters.charCodeAt(i);
-    }
-    const byteArray = new Uint8Array(byteNumbers);
-    const blob = new Blob([byteArray], {
-      type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-    });
-    
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = results.document_filename || 'simulation_feedback.docx';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-  }
-};
-
   const togglePlayback = () => {
     if (audioRef.current) {
       if (isPlaying) audioRef.current.pause();
@@ -84,7 +95,7 @@ const downloadSimulationReport = () => {
     formData.append('topic', topic);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/analyze`, {
+      const response = await fetch(`${API_BASE_URL}/api/analyze`, {
         method: 'POST',
         body: formData,
       });
@@ -104,67 +115,18 @@ const downloadSimulationReport = () => {
     }
   };
 
-  // FIXED: Robust download with multiple fallback methods
   const downloadDocument = () => {
-    console.log('Download clicked!'); // Debug log
-    console.log('Results:', results); // Debug log
-    
     if (!results) {
       alert('No results available');
       return;
     }
 
-    try {
-      // Method 1: Using document_base64 (new method)
-      if (results.document_base64) {
-        console.log('Attempting base64 download...');
-        
-        try {
-          // Decode base64
-          const binaryString = window.atob(results.document_base64);
-          const bytes = new Uint8Array(binaryString.length);
-          for (let i = 0; i < binaryString.length; i++) {
-            bytes[i] = binaryString.charCodeAt(i);
-          }
-          
-          // Create blob
-          const blob = new Blob([bytes], {
-            type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-          });
-          
-          // Download
-          const url = URL.createObjectURL(blob);
-          const link = document.createElement('a');
-          link.href = url;
-          link.download = results.document_filename || `necs_feedback_${Date.now()}.docx`;
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-          
-          // Cleanup
-          setTimeout(() => URL.revokeObjectURL(url), 100);
-          
-          console.log('Download successful!');
-          return;
-        } catch (base64Error) {
-          console.error('Base64 download failed:', base64Error);
-        }
-      }
-      
-      // Method 2: Using document_url (old method - fallback)
-      if (results.document_url) {
-        console.log('Attempting URL download...');
-        window.open(`${API_BASE_URL}${results.document_url}`, '_blank');
-        return;
-      }
-      
-      // No download method available
-      alert('Document download not available. Please contact support.');
-      console.error('No download method available in results:', results);
-      
-    } catch (err) {
-      console.error('Download error:', err);
-      alert('Failed to download document: ' + err.message);
+    if (results.document_base64) {
+      downloadDocumentFromBase64(results.document_base64, results.document_filename);
+    } else if (results.document_url) {
+      window.open(`${API_BASE_URL}${results.document_url}`, '_blank');
+    } else {
+      alert('Document download not available');
     }
   };
 
@@ -379,9 +341,6 @@ const downloadSimulationReport = () => {
                 </div>
               )}
             </div>
-
-         
-            
           </>
         ) : currentPage === 'samples' ? (
           <SampleLibrary />
@@ -390,7 +349,7 @@ const downloadSimulationReport = () => {
         )}
       </div>
 
-<Footer setCurrentPage={setCurrentPage} />
+      <Footer setCurrentPage={setCurrentPage} />
 
       {showAdminPanel && isAuthenticated && <AdminPanel onClose={() => setShowAdminPanel(false)} />}
     </div>
@@ -438,7 +397,7 @@ function SimulationMode() {
     }
 
     try {
-      const response = await fetch(`${API_BASE_URL}/questions/random`);
+      const response = await fetch(`${API_BASE_URL}/api/questions/random`);
       const data = await response.json();
       
       if (data.error) {
@@ -513,12 +472,10 @@ function SimulationMode() {
       setSimStep('recording');
       setRecordingTime(0);
 
-      // Clear any existing timer first
       if (timerRef.current) {
         clearInterval(timerRef.current);
       }
       
-      // Start new timer
       timerRef.current = setInterval(() => {
         setRecordingTime(prev => {
           const newTime = prev + 1;
@@ -537,18 +494,17 @@ function SimulationMode() {
   };
 
   const stopRecording = () => {
-  if (timerRef.current) {
-    clearInterval(timerRef.current);
-    timerRef.current = null;
-  }
-  
-  if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-    mediaRecorderRef.current.stop();
-    console.log('Recording stopped at:', recordingTime, 'seconds');
-  }
-  
-  setIsRecording(false);
-  setSimStep('playback');
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+    
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      mediaRecorderRef.current.stop();
+    }
+    
+    setIsRecording(false);
+    setSimStep('playback');
   };
 
   const analyzeRecording = async () => {
@@ -561,7 +517,7 @@ function SimulationMode() {
     formData.append('topic', currentQuestion.question);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/analyze`, {
+      const response = await fetch(`${API_BASE_URL}/api/analyze`, {
         method: 'POST',
         body: formData,
       });
@@ -603,6 +559,21 @@ function SimulationMode() {
       a.download = `simulation_${Date.now()}.webm`;
       a.click();
       URL.revokeObjectURL(url);
+    }
+  };
+
+  const downloadSimulationReport = () => {
+    if (!results) {
+      alert('No results available');
+      return;
+    }
+
+    if (results.document_base64) {
+      downloadDocumentFromBase64(results.document_base64, results.document_filename || 'simulation_feedback.docx');
+    } else if (results.document_url) {
+      window.open(`${API_BASE_URL}${results.document_url}`, '_blank');
+    } else {
+      alert('Document download not available');
     }
   };
 
@@ -709,7 +680,7 @@ function SimulationMode() {
 
         {simStep === 'preparation' && (
           <div className="space-y-6 text-center">
-            <div className="text-6xl mb-4">✍️</div>
+            <div className="text-6xl mb-4">✏️</div>
             <h3 className="text-2xl font-bold">Preparation Time</h3>
             <div className="text-5xl font-extrabold text-[#1e90ff]">{formatTime(countdown)}</div>
             <div className="text-sm text-gray-400">{currentQuestion.question}</div>
@@ -721,20 +692,17 @@ function SimulationMode() {
               />
             </div>
 
-          <button
-            onClick={() => {
-              clearInterval(timerRef.current);
-              startRecordingAuto();
-            }}
-            className="px-6 py-3 rounded-xl bg-[#1e90ff] text-white font-semibold hover:bg-[#1a7be6]"
-          >
-            Skip Preparation & Start Recording
-          </button>
-
+            <button
+              onClick={() => {
+                clearInterval(timerRef.current);
+                startRecordingAuto();
+              }}
+              className="px-6 py-3 rounded-xl bg-[#1e90ff] text-white font-semibold hover:bg-[#1a7be6]"
+            >
+              Skip Preparation & Start Recording
+            </button>
           </div>
         )}
-
-        
 
         {simStep === 'recording' && (
           <div className="space-y-6 text-center">
@@ -852,7 +820,7 @@ function SimulationMode() {
               <button
                 onClick={downloadSimulationReport}
                 className="flex-1 py-3 rounded-xl bg-[#1e90ff] text-white font-semibold"
-                >
+              >
                 <div className="flex items-center justify-center gap-2">
                   <Download size={16} />
                   Download Report
@@ -1056,7 +1024,7 @@ function AdminPanel({ onClose }) {
   const fetchSamples = async () => {
     setLoadingSamples(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/samples`);
+      const res = await fetch(`${API_BASE_URL}/api/samples`);
       const data = await res.json();
       setSamples(data.samples || []);
     } catch (e) {
@@ -1069,7 +1037,7 @@ function AdminPanel({ onClose }) {
   const fetchQuestions = async () => {
     setLoadingQuestions(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/questions`);
+      const res = await fetch(`${API_BASE_URL}/api/questions`);
       const data = await res.json();
       setQuestions(data.questions || []);
     } catch (e) {
@@ -1098,7 +1066,7 @@ function AdminPanel({ onClose }) {
     formData.append('feedback', feedback);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/samples/upload`, {
+      const response = await fetch(`${API_BASE_URL}/api/samples/upload`, {
         method: 'POST',
         body: formData,
       });
@@ -1147,7 +1115,7 @@ function AdminPanel({ onClose }) {
       form.append('transcript', editData.transcript);
       form.append('feedback', editData.feedback);
 
-      const res = await fetch(`${API_BASE_URL}/samples/${editingId}`, {
+      const res = await fetch(`${API_BASE_URL}/api/samples/${editingId}`, {
         method: 'PUT',
         body: form,
       });
@@ -1163,9 +1131,9 @@ function AdminPanel({ onClose }) {
   };
 
   const deleteSample = async (id) => {
-    if (!confirm('Delete this sample?')) return;
+    if (!window.confirm('Delete this sample?')) return;
     try {
-      const res = await fetch(`${API_BASE_URL}/samples/${id}`, {
+      const res = await fetch(`${API_BASE_URL}/api/samples/${id}`, {
         method: 'DELETE',
       });
       const data = await res.json();
@@ -1185,7 +1153,7 @@ function AdminPanel({ onClose }) {
     }
 
     try {
-      const res = await fetch(`${API_BASE_URL}/questions`, {
+      const res = await fetch(`${API_BASE_URL}/api/questions`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1223,7 +1191,7 @@ function AdminPanel({ onClose }) {
 
   const saveEditQuestion = async () => {
     try {
-      const res = await fetch(`${API_BASE_URL}/questions/${editingQuestionId}`, {
+      const res = await fetch(`${API_BASE_URL}/api/questions/${editingQuestionId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(editQuestionData),
@@ -1240,9 +1208,9 @@ function AdminPanel({ onClose }) {
   };
 
   const deleteQuestion = async (id) => {
-    if (!confirm('Delete this question?')) return;
+    if (!window.confirm('Delete this question?')) return;
     try {
-      const res = await fetch(`${API_BASE_URL}/questions/${id}`, {
+      const res = await fetch(`${API_BASE_URL}/api/questions/${id}`, {
         method: 'DELETE',
       });
       const data = await res.json();
@@ -1464,7 +1432,7 @@ function SampleLibrary() {
 
   const fetchSamples = async () => {
     try {
-      const res = await fetch(`${API_BASE_URL}/samples`);
+      const res = await fetch(`${API_BASE_URL}/api/samples`);
       const data = await res.json();
       setSamples(data.samples || []);
     } catch (e) {
@@ -1642,7 +1610,6 @@ function Footer({ setCurrentPage }) {
           <p className="text-sm text-gray-400">
             Developed by Nguyen Hoang Minh Tri | English 1 (23-26) | HSGS Le Quy Don - Nam Nha Trang
           </p>
-          
         </div>
       </div>
     </footer>
