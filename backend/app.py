@@ -1,6 +1,7 @@
 from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
 from dotenv import load_dotenv
+import base64
 import os
 import warnings
 
@@ -316,16 +317,21 @@ def analyze_speech():
             os.remove(filepath)
             return jsonify({"error": "Audio file too large even after compression"}), 400
         
+        # Transcribe and grade
         transcript_data = transcribe_audio(filepath)
         grading_result = grade_speech(topic, transcript_data)
+        
+        # Generate document
         doc_stream = generate_docx(topic, transcript_data["text"], grading_result)
         
-        # Clean up audio file immediately
+        # Clean up audio file
         os.remove(filepath)
         
-        # FIXED: Convert document to base64 and send in JSON response
-        import base64
-        doc_base64 = base64.b64encode(doc_stream.getvalue()).decode('utf-8')
+        # CRITICAL: Convert document to base64
+        doc_bytes = doc_stream.getvalue()
+        doc_base64 = base64.b64encode(doc_bytes).decode('utf-8')
+        
+        print(f"Document generated: {len(doc_bytes)} bytes, base64 length: {len(doc_base64)}")
         
         return jsonify({
             "success": True,
@@ -334,15 +340,15 @@ def analyze_speech():
             "scores": grading_result["scores"],
             "feedback": grading_result["feedback"],
             "sample_response": grading_result["sample_response"],
-            "document_base64": doc_base64,  # Send document as base64
-            "document_filename": f"feedback_{timestamp}.docx"
+            "document_base64": doc_base64,  # This is the key field!
+            "document_filename": f"necs_feedback_{timestamp}.docx"
         })
     
     except Exception as e:
+        print(f"Error in analyze_speech: {str(e)}")  # Debug log
         if 'filepath' in locals() and os.path.exists(filepath):
             os.remove(filepath)
         return jsonify({"error": str(e)}), 500
-
 
 # Remove the /api/download endpoint - it won't work on ephemeral filesystems
 # Or keep it only for backward compatibility but it will fail in production

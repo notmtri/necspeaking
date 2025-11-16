@@ -104,30 +104,69 @@ const downloadSimulationReport = () => {
     }
   };
 
-const downloadDocument = () => {
-  if (results && results.document_base64) {
-    // Convert base64 to blob
-    const byteCharacters = atob(results.document_base64);
-    const byteNumbers = new Array(byteCharacters.length);
-    for (let i = 0; i < byteCharacters.length; i++) {
-      byteNumbers[i] = byteCharacters.charCodeAt(i);
-    }
-    const byteArray = new Uint8Array(byteNumbers);
-    const blob = new Blob([byteArray], {
-      type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-    });
+  // FIXED: Robust download with multiple fallback methods
+  const downloadDocument = () => {
+    console.log('Download clicked!'); // Debug log
+    console.log('Results:', results); // Debug log
     
-    // Create download link
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = results.document_filename || 'feedback_report.docx';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-  }
-};
+    if (!results) {
+      alert('No results available');
+      return;
+    }
+
+    try {
+      // Method 1: Using document_base64 (new method)
+      if (results.document_base64) {
+        console.log('Attempting base64 download...');
+        
+        try {
+          // Decode base64
+          const binaryString = window.atob(results.document_base64);
+          const bytes = new Uint8Array(binaryString.length);
+          for (let i = 0; i < binaryString.length; i++) {
+            bytes[i] = binaryString.charCodeAt(i);
+          }
+          
+          // Create blob
+          const blob = new Blob([bytes], {
+            type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+          });
+          
+          // Download
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = results.document_filename || `necs_feedback_${Date.now()}.docx`;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          
+          // Cleanup
+          setTimeout(() => URL.revokeObjectURL(url), 100);
+          
+          console.log('Download successful!');
+          return;
+        } catch (base64Error) {
+          console.error('Base64 download failed:', base64Error);
+        }
+      }
+      
+      // Method 2: Using document_url (old method - fallback)
+      if (results.document_url) {
+        console.log('Attempting URL download...');
+        window.open(`${API_BASE_URL}${results.document_url}`, '_blank');
+        return;
+      }
+      
+      // No download method available
+      alert('Document download not available. Please contact support.');
+      console.error('No download method available in results:', results);
+      
+    } catch (err) {
+      console.error('Download error:', err);
+      alert('Failed to download document: ' + err.message);
+    }
+  };
 
   const reset = () => {
     setStep('input');
