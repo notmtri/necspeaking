@@ -1461,13 +1461,15 @@ function SampleLibrary() {
     }
   };
 
-  const downloadAudio = (filename) => {
-    const link = document.createElement('a');
-    link.href = `${API_BASE_URL}/api/samples/download/${filename}`;
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  const downloadAudio = (filename, audioUrl) => {
+  // Use the Cloudinary URL directly instead of local download
+  const link = document.createElement('a');
+  link.href = audioUrl;  // Use Cloudinary URL
+  link.download = filename;
+  link.target = '_blank';  // Open in new tab if download fails
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
   };
 
   if (loading) return (<div className="text-center py-12"><Loader className="animate-spin mx-auto mb-2" size={36} /><div>Loading samples...</div></div>);
@@ -1500,7 +1502,7 @@ function SampleLibrary() {
               <div className="mb-2 text-sm text-[#d1d1d1] italic">{sample.question || '(no question provided)'}</div>
               <div className="flex gap-2">
                 <button onClick={() => toggleAudio(sample.id, sample.audioUrl)} className="px-3 py-2 rounded bg-gray-700">Playback</button>
-                <button onClick={() => downloadAudio(sample.filename)} className="px-3 py-2 rounded bg-gray-700">Download</button>
+                <button onClick={() => downloadAudio(sample.filename, sample.audioUrl)} className="px-3 py-2 rounded bg-gray-700">Download</button>
                 <button onClick={() => setSelectedSample(sample)} className="px-3 py-2 rounded bg-[#1e90ff] text-white">View</button>
               </div>
             </div>
