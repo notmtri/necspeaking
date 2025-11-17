@@ -19,9 +19,27 @@ import io
 import re
 import random
 
+from database import db, Question, Sample
+
 load_dotenv()
 
 app = Flask(__name__, static_folder='build', static_url_path='')
+
+# NEW: Database Configuration
+database_url = os.getenv('DATABASE_URL')
+if database_url and database_url.startswith('postgres://'):
+    # Render uses postgres:// but SQLAlchemy needs postgresql://
+    database_url = database_url.replace('postgres://', 'postgresql://', 1)
+
+app.config['SQLALCHEMY_DATABASE_URI'] = database_url or 'sqlite:///necs.db'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+# Initialize database
+db.init_app(app)
+# Create tables on first run
+with app.app_context():
+    db.create_all()
+    print("✅ Database tables created successfully!")
 
 # CORS configuration
 CORS(app, resources={
@@ -587,15 +605,12 @@ def delete_sample(sample_id):
 @app.route('/api/questions', methods=['GET'])
 def get_questions():
     try:
-        questions_file = os.path.join(app.config['UPLOAD_FOLDER'], 'questions.json')
-        
-        questions = []
-        if os.path.exists(questions_file):
-            with open(questions_file, 'r', encoding='utf-8') as f:
-                questions = json.load(f)
-        
-        return jsonify({"questions": questions})
+        questions = Question.query.order_by(Question.created_at.desc()).all()
+        return jsonify({
+            "questions": [q.to_dict() for q in questions]
+        })
     except Exception as e:
+        print(f"Error fetching questions: {e}")
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/questions', methods=['POST'])
@@ -609,99 +624,81 @@ def add_question():
         if not all([topic, question_text]):
             return jsonify({"error": "Topic and question are required"}), 400
         
-        questions_file = os.path.join(app.config['UPLOAD_FOLDER'], 'questions.json')
-        questions = []
+        new_question = Question(
+            topic=topic,
+            question=question_text,
+            category=category
+        )
         
-        if os.path.exists(questions_file):
-            with open(questions_file, 'r', encoding='utf-8') as f:
-                questions = json.load(f)
-        
-        question_id = len(questions) + 1
-        questions.append({
-            "id": question_id,
-            "topic": topic,
-            "question": question_text,
-            "category": category,
-            "created_at": datetime.now().isoformat()
-        })
-        
-        with open(questions_file, 'w', encoding='utf-8') as f:
-            json.dump(questions, f, ensure_ascii=False, indent=2)
+        db.session.add(new_question)
+        db.session.commit()
         
         return jsonify({
             "success": True,
             "message": "Question added successfully",
-            "id": question_id
+            "id": new_question.id
         })
         
     except Exception as e:
+        db.session.rollback()
+        print(f"Error adding question: {e}")
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/questions/<int:question_id>', methods=['PUT'])
 def update_question(question_id):
     try:
         data = request.get_json()
-        questions_file = os.path.join(app.config['UPLOAD_FOLDER'], 'questions.json')
+        question = Question.query.get(question_id)
         
-        if not os.path.exists(questions_file):
-            return jsonify({"error": "No questions found"}), 404
-
-        with open(questions_file, 'r', encoding='utf-8') as f:
-            questions = json.load(f)
-
-        question = next((q for q in questions if q.get('id') == question_id), None)
         if not question:
             return jsonify({"error": "Question not found"}), 404
 
-        if 'topic' in data: question['topic'] = data['topic']
-        if 'question' in data: question['question'] = data['question']
-        if 'category' in data: question['category'] = data['category']
+        if 'topic' in data: 
+            question.topic = data['topic']
+        if 'question' in data: 
+            question.question = data['question']
+        if 'category' in data: 
+            question.category = data['category']
 
-        with open(questions_file, 'w', encoding='utf-8') as f:
-            json.dump(questions, f, ensure_ascii=False, indent=2)
-
+        db.session.commit()
         return jsonify({"success": True, "message": "Question updated"})
+        
     except Exception as e:
+        db.session.rollback()
+        print(f"Error updating question: {e}")
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/questions/<int:question_id>', methods=['DELETE'])
 def delete_question(question_id):
     try:
-        questions_file = os.path.join(app.config['UPLOAD_FOLDER'], 'questions.json')
+        question = Question.query.get(question_id)
         
-        if not os.path.exists(questions_file):
-            return jsonify({"error": "No questions found"}), 404
+        if not question:
+            return jsonify({"error": "Question not found"}), 404
 
-        with open(questions_file, 'r', encoding='utf-8') as f:
-            questions = json.load(f)
-
-        questions = [q for q in questions if q.get('id') != question_id]
+        db.session.delete(question)
+        db.session.commit()
         
-        with open(questions_file, 'w', encoding='utf-8') as f:
-            json.dump(questions, f, ensure_ascii=False, indent=2)
-
         return jsonify({"success": True, "message": "Question deleted"})
+        
     except Exception as e:
+        db.session.rollback()
+        print(f"Error deleting question: {e}")
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/questions/random', methods=['GET'])
 def get_random_question():
     try:
-        questions_file = os.path.join(app.config['UPLOAD_FOLDER'], 'questions.json')
-        
-        if not os.path.exists(questions_file):
-            return jsonify({"error": "No questions available"}), 404
-
-        with open(questions_file, 'r', encoding='utf-8') as f:
-            questions = json.load(f)
+        questions = Question.query.all()
         
         if not questions:
             return jsonify({"error": "No questions available"}), 404
         
         random_question = random.choice(questions)
-        return jsonify({"question": random_question})
+        return jsonify({"question": random_question.to_dict()})
         
     except Exception as e:
+        print(f"Error getting random question: {e}")
         return jsonify({"error": str(e)}), 500
 
 # Simulation Audio Save Route
