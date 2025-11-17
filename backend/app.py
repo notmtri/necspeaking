@@ -4,6 +4,8 @@ from dotenv import load_dotenv
 import os
 import warnings
 import base64
+import cloudinary
+import cloudinary.uploader
 
 warnings.filterwarnings("ignore", message="Core Pydantic V1 functionality")
 
@@ -24,6 +26,12 @@ from database import db, Question, Sample
 load_dotenv()
 
 app = Flask(__name__, static_folder='build', static_url_path='')
+
+cloudinary.config(
+    cloud_name=os.getenv('CLOUDINARY_CLOUD_NAME'),
+    api_key=os.getenv('CLOUDINARY_API_KEY'),
+    api_secret=os.getenv('CLOUDINARY_API_SECRET')
+)
 
 # NEW: Database Configuration
 database_url = os.getenv('DATABASE_URL')
@@ -444,53 +452,46 @@ def upload_sample():
         
         audio_file = request.files['audio']
         topic = request.form.get('topic')
-        question = request.form.get('question', '')
         speaker = request.form.get('speaker')
         score = float(request.form.get('score', 2.0))
         transcript = request.form.get('transcript', '')
         feedback = request.form.get('feedback', '')
+        question = request.form.get('question', '')
         
         if not all([topic, speaker, transcript, feedback]):
             return jsonify({"error": "All fields are required"}), 400
         
-        samples_dir = os.path.join(app.config['UPLOAD_FOLDER'], 'samples')
-        os.makedirs(samples_dir, exist_ok=True)
+        # Upload to Cloudinary
+        upload_result = cloudinary.uploader.upload(
+            audio_file,
+            resource_type="video",  # Use 'video' for audio files
+            folder="necs_samples"
+        )
         
-        filename = secure_filename(audio_file.filename)
-        filepath = os.path.join(samples_dir, filename)
-        audio_file.save(filepath)
+        # Save to database with Cloudinary URL
+        new_sample = Sample(
+            filename=audio_file.filename,
+            topic=topic,
+            question=question,
+            speaker=speaker,
+            score=score,
+            duration=int(upload_result.get('duration', 0)),
+            transcript=transcript,
+            feedback=feedback,
+            audio_url=upload_result['secure_url']  # Cloudinary URL
+        )
         
-        duration = int(get_audio_duration(filepath))
-        
-        metadata_file = os.path.join(samples_dir, 'metadata.json')
-        metadata = []
-        if os.path.exists(metadata_file):
-            with open(metadata_file, 'r', encoding='utf-8') as f:
-                metadata = json.load(f)
-        
-        sample_id = len(metadata) + 1
-        metadata.append({
-            "id": sample_id,
-            "filename": filename,
-            "topic": topic,
-            "question": question,
-            "speaker": speaker,
-            "score": score,
-            "duration": duration,
-            "transcript": transcript,
-            "feedback": feedback
-        })
-        
-        with open(metadata_file, 'w', encoding='utf-8') as f:
-            json.dump(metadata, f, ensure_ascii=False, indent=2)
+        db.session.add(new_sample)
+        db.session.commit()
         
         return jsonify({
             "success": True,
             "message": "Sample uploaded successfully",
-            "id": sample_id
+            "id": new_sample.id
         })
         
     except Exception as e:
+        db.session.rollback()
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/samples/download/<filename>', methods=['GET'])
