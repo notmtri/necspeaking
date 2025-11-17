@@ -4,8 +4,6 @@ from dotenv import load_dotenv
 import os
 import warnings
 import base64
-import cloudinary
-import cloudinary.uploader
 
 warnings.filterwarnings("ignore", message="Core Pydantic V1 functionality")
 
@@ -22,32 +20,37 @@ import re
 import random
 
 from database import db, Question, Sample
+import cloudinary
+import cloudinary.uploader
+
 
 load_dotenv()
 
 app = Flask(__name__, static_folder='build', static_url_path='')
 
-cloudinary.config(
-    cloud_name=os.getenv('CLOUDINARY_CLOUD_NAME'),
-    api_key=os.getenv('CLOUDINARY_API_KEY'),
-    api_secret=os.getenv('CLOUDINARY_API_SECRET')
-)
-
-# NEW: Database Configuration
+# Database Configuration
 database_url = os.getenv('DATABASE_URL')
 if database_url and database_url.startswith('postgres://'):
-    # Render uses postgres:// but SQLAlchemy needs postgresql://
     database_url = database_url.replace('postgres://', 'postgresql://', 1)
 
 app.config['SQLALCHEMY_DATABASE_URI'] = database_url or 'sqlite:///necs.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-# Initialize database
 db.init_app(app)
-# Create tables on first run
+
 with app.app_context():
     db.create_all()
     print("✅ Database tables created successfully!")
+
+# NEW: Cloudinary Configuration
+cloudinary.config(
+    cloud_name=os.getenv('CLOUDINARY_CLOUD_NAME'),
+    api_key=os.getenv('CLOUDINARY_API_KEY'),
+    api_secret=os.getenv('CLOUDINARY_API_SECRET'),
+    secure=True
+)
+
+print("✅ Cloudinary configured successfully!")
 
 # CORS configuration
 CORS(app, resources={
@@ -423,25 +426,17 @@ def download_document(filename):
     except Exception as e:
         return jsonify({"error": str(e)}), 404
 
-# Sample Library Routes
+# Sample Library Routes - Using PostgreSQL + Cloudinary
 
 @app.route('/api/samples', methods=['GET'])
 def get_samples():
     try:
-        samples_dir = os.path.join(app.config['UPLOAD_FOLDER'], 'samples')
-        metadata_file = os.path.join(samples_dir, 'metadata.json')
-        
-        samples = []
-        if os.path.exists(metadata_file):
-            with open(metadata_file, 'r', encoding='utf-8') as f:
-                samples = json.load(f)
-            
-            for sample in samples:
-                sample['audioUrl'] = f"{request.host_url}api/samples/download/{sample['filename']}"
-                sample['tags'] = [sample['topic'], sample['speaker'], f"{sample['score']}/2.0"]
-        
-        return jsonify({"samples": samples})
+        samples = Sample.query.order_by(Sample.created_at.desc()).all()
+        return jsonify({
+            "samples": [s.to_dict() for s in samples]
+        })
     except Exception as e:
+        print(f"Error fetching samples: {e}")
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/samples/upload', methods=['POST'])
@@ -452,30 +447,49 @@ def upload_sample():
         
         audio_file = request.files['audio']
         topic = request.form.get('topic')
+        question = request.form.get('question', '')
         speaker = request.form.get('speaker')
         score = float(request.form.get('score', 2.0))
         transcript = request.form.get('transcript', '')
         feedback = request.form.get('feedback', '')
-        question = request.form.get('question', '')
         
         if not all([topic, speaker, transcript, feedback]):
-            return jsonify({"error": "All fields are required"}), 400
+            return jsonify({"error": "All required fields must be filled"}), 400
+        
+        # Save temporarily to get duration
+        filename = secure_filename(audio_file.filename)
+        temp_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        audio_file.save(temp_path)
+        
+        # Get duration
+        try:
+            duration = int(get_audio_duration(temp_path))
+        except:
+            duration = 0
         
         # Upload to Cloudinary
+        print(f"Uploading {filename} to Cloudinary...")
         upload_result = cloudinary.uploader.upload(
-            audio_file,
-            resource_type="video",  # Use 'video' for audio files
-            folder="necs_samples"
+            temp_path,
+            resource_type="video",  # Audio files use 'video' resource type
+            folder="necs_samples",
+            public_id=f"sample_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
+            overwrite=True
         )
         
-        # Save to database with Cloudinary URL
+        # Delete temporary file
+        os.remove(temp_path)
+        
+        print(f"✅ Uploaded to Cloudinary: {upload_result['secure_url']}")
+        
+        # Save to database
         new_sample = Sample(
-            filename=audio_file.filename,
+            filename=filename,
             topic=topic,
             question=question,
             speaker=speaker,
             score=score,
-            duration=int(upload_result.get('duration', 0)),
+            duration=duration,
             transcript=transcript,
             feedback=feedback,
             audio_url=upload_result['secure_url']  # Cloudinary URL
@@ -492,113 +506,132 @@ def upload_sample():
         
     except Exception as e:
         db.session.rollback()
+        print(f"Error uploading sample: {e}")
+        if 'temp_path' in locals() and os.path.exists(temp_path):
+            os.remove(temp_path)
         return jsonify({"error": str(e)}), 500
 
-@app.route('/api/samples/download/<filename>', methods=['GET'])
-def download_sample(filename):
+@app.route('/api/samples/download/<int:sample_id>', methods=['GET'])
+def download_sample_by_id(sample_id):
+    """Download sample audio by ID - redirects to Cloudinary URL"""
     try:
-        samples_dir = os.path.join(app.config['UPLOAD_FOLDER'], 'samples')
-        filepath = os.path.join(samples_dir, secure_filename(filename))
+        sample = Sample.query.get(sample_id)
+        if not sample:
+            return jsonify({"error": "Sample not found"}), 404
         
-        if not os.path.exists(filepath):
-            return jsonify({"error": "File not found"}), 404
+        # Redirect to Cloudinary URL
+        from flask import redirect
+        return redirect(sample.audio_url)
         
-        return send_file(
-            filepath,
-            as_attachment=True,
-            download_name=filename
-        )
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/samples/<int:sample_id>', methods=['PUT'])
 def update_sample(sample_id):
     try:
-        samples_dir = os.path.join(app.config['UPLOAD_FOLDER'], 'samples')
-        metadata_file = os.path.join(samples_dir, 'metadata.json')
-        if not os.path.exists(metadata_file):
-            return jsonify({"error": "No metadata found"}), 404
-
-        with open(metadata_file, 'r', encoding='utf-8') as f:
-            metadata = json.load(f)
-
-        sample = next((s for s in metadata if s.get('id') == sample_id), None)
+        sample = Sample.query.get(sample_id)
         if not sample:
             return jsonify({"error": "Sample not found"}), 404
 
+        # Update text fields
         topic = request.form.get('topic')
-        question = request.form.get('question', '')
+        question = request.form.get('question')
         speaker = request.form.get('speaker')
         score = request.form.get('score')
         transcript = request.form.get('transcript')
         feedback = request.form.get('feedback')
 
-        if topic is not None: sample['topic'] = topic
-        if question is not None: sample['question'] = question
-        if speaker is not None: sample['speaker'] = speaker
+        if topic is not None: sample.topic = topic
+        if question is not None: sample.question = question
+        if speaker is not None: sample.speaker = speaker
         if score is not None:
             try:
-                sample['score'] = float(score)
+                sample.score = float(score)
             except:
-                sample['score'] = sample.get('score', 2.0)
-        if transcript is not None: sample['transcript'] = transcript
-        if feedback is not None: sample['feedback'] = feedback
+                pass
+        if transcript is not None: sample.transcript = transcript
+        if feedback is not None: sample.feedback = feedback
 
+        # Update audio file if provided
         if 'audio' in request.files:
             audio_file = request.files['audio']
             if audio_file and allowed_file(audio_file.filename):
+                # Save temporarily
                 filename = secure_filename(audio_file.filename)
-                filepath = os.path.join(samples_dir, filename)
-                audio_file.save(filepath)
-                old_filename = sample.get('filename')
-                if old_filename and old_filename != filename:
-                    old_path = os.path.join(samples_dir, old_filename)
+                temp_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+                audio_file.save(temp_path)
+                
+                # Get duration
+                try:
+                    sample.duration = int(get_audio_duration(temp_path))
+                except:
+                    pass
+                
+                # Delete old file from Cloudinary (optional - to save space)
+                if sample.audio_url:
                     try:
-                        if os.path.exists(old_path):
-                            os.remove(old_path)
-                    except:
-                        pass
-                sample['filename'] = filename
-                sample['audioUrl'] = f"{request.host_url}api/samples/download/{filename}"
-                sample['duration'] = int(get_audio_duration(filepath))
+                        # Extract public_id from URL
+                        public_id = sample.audio_url.split('/')[-1].split('.')[0]
+                        cloudinary.uploader.destroy(f"necs_samples/{public_id}", resource_type="video")
+                    except Exception as e:
+                        print(f"Could not delete old Cloudinary file: {e}")
+                
+                # Upload new file to Cloudinary
+                upload_result = cloudinary.uploader.upload(
+                    temp_path,
+                    resource_type="video",
+                    folder="necs_samples",
+                    public_id=f"sample_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
+                    overwrite=True
+                )
+                
+                sample.filename = filename
+                sample.audio_url = upload_result['secure_url']
+                
+                # Delete temporary file
+                os.remove(temp_path)
 
-        with open(metadata_file, 'w', encoding='utf-8') as f:
-            json.dump(metadata, f, ensure_ascii=False, indent=2)
-
+        db.session.commit()
         return jsonify({"success": True, "message": "Sample updated"})
+        
     except Exception as e:
+        db.session.rollback()
+        print(f"Error updating sample: {e}")
+        if 'temp_path' in locals() and os.path.exists(temp_path):
+            os.remove(temp_path)
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/samples/<int:sample_id>', methods=['DELETE'])
 def delete_sample(sample_id):
     try:
-        samples_dir = os.path.join(app.config['UPLOAD_FOLDER'], 'samples')
-        metadata_file = os.path.join(samples_dir, 'metadata.json')
-        if not os.path.exists(metadata_file):
-            return jsonify({"error": "No metadata found"}), 404
-
-        with open(metadata_file, 'r', encoding='utf-8') as f:
-            metadata = json.load(f)
-
-        sample = next((s for s in metadata if s.get('id') == sample_id), None)
+        sample = Sample.query.get(sample_id)
         if not sample:
             return jsonify({"error": "Sample not found"}), 404
 
-        filename = sample.get('filename')
-        if filename:
-            file_path = os.path.join(samples_dir, filename)
+        # Delete from Cloudinary
+        if sample.audio_url:
             try:
-                if os.path.exists(file_path):
-                    os.remove(file_path)
+                # Extract public_id from URL
+                # URL format: https://res.cloudinary.com/cloud_name/video/upload/v1234567890/necs_samples/sample_20241116_123456.mp3
+                url_parts = sample.audio_url.split('/')
+                public_id_with_ext = url_parts[-1]  # sample_20241116_123456.mp3
+                public_id = public_id_with_ext.split('.')[0]  # sample_20241116_123456
+                folder = url_parts[-2]  # necs_samples
+                
+                cloudinary.uploader.destroy(f"{folder}/{public_id}", resource_type="video")
+                print(f"✅ Deleted from Cloudinary: {folder}/{public_id}")
             except Exception as e:
-                print("Could not remove file:", e)
+                print(f"Could not delete from Cloudinary: {e}")
 
-        metadata = [s for s in metadata if s.get('id') != sample_id]
-        with open(metadata_file, 'w', encoding='utf-8') as f:
-            json.dump(metadata, f, ensure_ascii=False, indent=2)
-
+        # Delete from database
+        db.session.delete(sample)
+        db.session.commit()
+        
         return jsonify({"success": True, "message": "Sample deleted"})
+        
     except Exception as e:
+        db.session.rollback()
+        print(f"Error deleting sample: {e}")
         return jsonify({"error": str(e)}), 500
 
 # Question Bank Routes
