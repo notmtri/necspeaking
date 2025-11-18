@@ -1,6 +1,6 @@
-// Complete App.js - Full Application with All Components
+// Complete App.js - Full Application with All Components and Mobile Hamburger Menu
 import React, { useState, useRef, useEffect } from 'react';
-import { Upload, Play, Pause, Download, CheckCircle, AlertCircle, Loader, FileAudio, Settings, Lock, Trash2, Edit3, Mic, Circle } from 'lucide-react';
+import { Upload, Play, Pause, Download, CheckCircle, AlertCircle, Loader, FileAudio, Settings, Lock, Trash2, Edit3, Mic, Circle, Menu, X } from 'lucide-react';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://127.0.0.1:5000';
 const ADMIN_PASSWORD = '040108Minhtri';
@@ -50,6 +50,7 @@ export default function SpeakUpApp() {
   const [error, setError] = useState(null);
   const [showAdminPanel, setShowAdminPanel] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const audioRef = useRef(null);
 
@@ -173,7 +174,8 @@ export default function SpeakUpApp() {
             </div>
 
             <div className="flex items-center gap-4 flex-wrap max-w-full overflow-hidden">
-              <nav className="flex gap-2">
+              {/* Desktop Navigation */}
+              <nav className="hidden md:flex gap-2">
                 <button
                   onClick={() => { setCurrentPage('analyze'); reset(); }}
                   className={`px-4 py-2 rounded-xl font-medium ${currentPage === 'analyze' ? 'bg-[#1e90ff] text-white' : 'text-gray-300 hover:bg-gray-800'}`}
@@ -202,6 +204,23 @@ export default function SpeakUpApp() {
                 </button>
               </nav>
 
+              {/* Mobile Hamburger Menu */}
+              <div className="md:hidden flex items-center gap-2">
+                <button
+                  onClick={openAdminPanel}
+                  className="p-2.5 rounded-xl text-gray-300 hover:bg-gray-800"
+                  title="Admin Panel"
+                >
+                  <Settings size={18} />
+                </button>
+                <button
+                  onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                  className="p-2.5 rounded-xl text-gray-300 hover:bg-gray-800"
+                >
+                  {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
+                </button>
+              </div>
+
               <img 
                 src="/logo.png" 
                 alt="School Logo" 
@@ -214,6 +233,42 @@ export default function SpeakUpApp() {
           </div>
         </div>
       </header>
+
+      {/* Mobile Menu Dropdown */}
+      {mobileMenuOpen && (
+        <div className="md:hidden bg-gray-900 border-b border-gray-700">
+          <nav className="max-w-7xl mx-auto px-6 py-4 flex flex-col gap-2">
+            <button
+              onClick={() => { 
+                setCurrentPage('analyze'); 
+                reset(); 
+                setMobileMenuOpen(false);
+              }}
+              className={`px-4 py-3 rounded-xl font-medium text-left ${currentPage === 'analyze' ? 'bg-[#1e90ff] text-white' : 'text-gray-300 hover:bg-gray-800'}`}
+            >
+              Analyze
+            </button>
+            <button
+              onClick={() => {
+                setCurrentPage('samples');
+                setMobileMenuOpen(false);
+              }}
+              className={`px-4 py-3 rounded-xl font-medium text-left ${currentPage === 'samples' ? 'bg-[#1e90ff] text-white' : 'text-gray-300 hover:bg-gray-800'}`}
+            >
+              Samples
+            </button>
+            <button
+              onClick={() => {
+                setCurrentPage('simulation');
+                setMobileMenuOpen(false);
+              }}
+              className={`px-4 py-3 rounded-xl font-medium text-left ${currentPage === 'simulation' ? 'bg-[#1e90ff] text-white' : 'text-gray-300 hover:bg-gray-800'}`}
+            >
+              Simulation
+            </button>
+          </nav>
+        </div>
+      )}
 
       <div className="max-w-5xl mx-auto px-6 py-8">
         {currentPage === 'analyze' ? (
@@ -1462,14 +1517,13 @@ function SampleLibrary() {
   };
 
   const downloadAudio = (filename, audioUrl) => {
-  // Use the Cloudinary URL directly instead of local download
-  const link = document.createElement('a');
-  link.href = audioUrl;  // Use Cloudinary URL
-  link.download = filename;
-  link.target = '_blank';  // Open in new tab if download fails
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
+    const link = document.createElement('a');
+    link.href = audioUrl;
+    link.download = filename;
+    link.target = '_blank';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   if (loading) return (<div className="text-center py-12"><Loader className="animate-spin mx-auto mb-2" size={36} /><div>Loading samples...</div></div>);
