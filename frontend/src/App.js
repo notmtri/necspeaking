@@ -3,7 +3,6 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Upload, Play, Pause, Download, CheckCircle, AlertCircle, Loader, FileAudio, Settings, Lock, Trash2, Edit3, Mic, Circle, Menu, X } from 'lucide-react';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://127.0.0.1:5000';
-const ADMIN_PASSWORD = '040108Minhtri';
 
 // HELPER FUNCTION - Download document from base64
 const downloadDocumentFromBase64 = (base64String, filename) => {
@@ -98,6 +97,7 @@ export default function SpeakUpApp() {
     try {
       const response = await fetch(`${API_BASE_URL}/api/analyze`, {
         method: 'POST',
+        credentials: 'include',
         body: formData,
       });
 
@@ -142,15 +142,31 @@ export default function SpeakUpApp() {
     setIsPlaying(false);
   };
 
-  const openAdminPanel = () => {
-    const password = prompt('Enter admin password:');
-    if (password === ADMIN_PASSWORD) {
+  //Updated for security
+  const openAdminPanel = async () => {
+  const password = prompt('Enter admin password:');
+  if (password === null) return; // User cancelled
+  
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/admin/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include', // Important for cookies
+      body: JSON.stringify({ password })
+    });
+    
+    const data = await response.json();
+    
+    if (data.success) {
       setIsAuthenticated(true);
       setShowAdminPanel(true);
-    } else if (password !== null) {
+    } else {
       alert('Incorrect password!');
     }
-  };
+  } catch (err) {
+    alert('Login failed. Please try again.');
+  }
+};
 
   const getScoreColor = (score, max) => {
     const percentage = (score / max) * 100;
@@ -1123,6 +1139,7 @@ function AdminPanel({ onClose }) {
     try {
       const response = await fetch(`${API_BASE_URL}/api/samples/upload`, {
         method: 'POST',
+        credentials: 'include',
         body: formData,
       });
       const data = await response.json();
@@ -1172,6 +1189,7 @@ function AdminPanel({ onClose }) {
 
       const res = await fetch(`${API_BASE_URL}/api/samples/${editingId}`, {
         method: 'PUT',
+        credentials: 'include',
         body: form,
       });
       const data = await res.json();
@@ -1190,6 +1208,7 @@ function AdminPanel({ onClose }) {
     try {
       const res = await fetch(`${API_BASE_URL}/api/samples/${id}`, {
         method: 'DELETE',
+        credentials: 'include'
       });
       const data = await res.json();
       if (data.success) {
@@ -1210,6 +1229,7 @@ function AdminPanel({ onClose }) {
     try {
       const res = await fetch(`${API_BASE_URL}/api/questions`, {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           topic: newQuestionTopic,
@@ -1267,6 +1287,7 @@ function AdminPanel({ onClose }) {
     try {
       const res = await fetch(`${API_BASE_URL}/api/questions/${id}`, {
         method: 'DELETE',
+        credentials: 'include',
       });
       const data = await res.json();
       if (data.success) {

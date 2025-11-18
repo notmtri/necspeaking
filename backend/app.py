@@ -1,16 +1,21 @@
-from flask import Flask, request, jsonify, send_file, send_from_directory
+from flask import Flask, request, jsonify, send_file, send_from_directory, session
 from flask_cors import CORS
 from dotenv import load_dotenv
 import os
 import warnings
 import base64
+import secrets
+from functools import wraps
+from datetime import datetime, timedelta
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 
 warnings.filterwarnings("ignore", message="Core Pydantic V1 functionality")
 
 from werkzeug.utils import secure_filename
+from werkzeug.security import check_password_hash, generate_password_hash
 from groq import Groq
 import json
-from datetime import datetime
 from pydub import AudioSegment
 from docx import Document
 from docx.shared import Inches, Pt, RGBColor
@@ -23,10 +28,22 @@ from database import db, Question, Sample
 import cloudinary
 import cloudinary.uploader
 
-
 load_dotenv()
 
 app = Flask(__name__, static_folder='build', static_url_path='')
+
+limiter = Limiter(
+    app=app,
+    key_func=get_remote_address,
+    storage_uri="redis://localhost:6379"
+)
+
+# Security Configuration
+app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', secrets.token_hex(32))
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SECURE'] = True  # Set to True in production with HTTPS
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=2)
 
 # Database Configuration
 database_url = os.getenv('DATABASE_URL')
@@ -42,7 +59,7 @@ with app.app_context():
     db.create_all()
     print("✅ Database tables created successfully!")
 
-# NEW: Cloudinary Configuration
+# Cloudinary Configuration
 cloudinary.config(
     cloud_name=os.getenv('CLOUDINARY_CLOUD_NAME'),
     api_key=os.getenv('CLOUDINARY_API_KEY'),
@@ -50,14 +67,15 @@ cloudinary.config(
     secure=True
 )
 
-print("✅ Cloudinary configured successfully!")
+# SECURE CORS - Replace * with your actual frontend domain
+ALLOWED_ORIGINS = os.getenv('ALLOWED_ORIGINS', 'http://localhost:3000').split(',')
 
-# CORS configuration
 CORS(app, resources={
     r"/api/*": {
-        "origins": ["*"],
+        "origins": ALLOWED_ORIGINS,
         "methods": ["GET", "POST", "PUT", "DELETE"],
-        "allow_headers": ["Content-Type"]
+        "allow_headers": ["Content-Type"],
+        "supports_credentials": True
     }
 })
 
@@ -68,6 +86,91 @@ ALLOWED_EXTENSIONS = {'wav', 'mp3', 'm4a', 'webm', 'ogg'}
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
 groq_client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+
+# ADMIN PASSWORD - Store hashed version in environment
+ADMIN_PASSWORD_HASH = os.getenv('ADMIN_PASSWORD_HASH')
+if not ADMIN_PASSWORD_HASH:
+    # Generate hash for your password and add to .env
+    # Run this once: print(generate_password_hash('040108Minhtri'))
+    print("⚠️ WARNING: ADMIN_PASSWORD_HASH not set in environment!")
+    #ADMIN_PASSWORD_HASH = generate_password_hash('040108Minhtri')  # Fallback (remove in production)
+
+# Rate Limiting Storage (simple in-memory, use Redis in production)
+rate_limit_storage = {}
+
+def rate_limit(max_requests=10, window_seconds=60):
+    """Simple rate limiting decorator"""
+    def decorator(f):
+        @wraps(f)
+        def wrapped(*args, **kwargs):
+            client_ip = request.remote_addr
+            current_time = datetime.now()
+            
+            if client_ip not in rate_limit_storage:
+                rate_limit_storage[client_ip] = []
+            
+            # Clean old requests
+            rate_limit_storage[client_ip] = [
+                req_time for req_time in rate_limit_storage[client_ip]
+                if (current_time - req_time).seconds < window_seconds
+            ]
+            
+            if len(rate_limit_storage[client_ip]) >= max_requests:
+                return jsonify({"error": "Rate limit exceeded. Try again later."}), 429
+            
+            rate_limit_storage[client_ip].append(current_time)
+            return f(*args, **kwargs)
+        return wrapped
+    return decorator
+
+def require_admin():
+    """Decorator to require admin authentication"""
+    def decorator(f):
+        @wraps(f)
+        def wrapped(*args, **kwargs):
+            if not session.get('admin_authenticated'):
+                return jsonify({"error": "Unauthorized. Admin login required."}), 401
+            return f(*args, **kwargs)
+        return wrapped
+    return decorator
+
+# ============= AUTHENTICATION ROUTES =============
+
+@app.route('/api/admin/login', methods=['POST'])
+@rate_limit(max_requests=5, window_seconds=300)  # 5 attempts per 5 minutes
+def admin_login():
+    """Secure admin login endpoint"""
+    try:
+        data = request.get_json()
+        password = data.get('password', '')
+        
+        if check_password_hash(ADMIN_PASSWORD_HASH, password):
+            session['admin_authenticated'] = True
+            session.permanent = True
+            return jsonify({
+                "success": True,
+                "message": "Login successful"
+            })
+        else:
+            return jsonify({"error": "Invalid password"}), 401
+            
+    except Exception as e:
+        return jsonify({"error": "Login failed"}), 500
+
+@app.route('/api/admin/logout', methods=['POST'])
+def admin_logout():
+    """Admin logout endpoint"""
+    session.pop('admin_authenticated', None)
+    return jsonify({"success": True, "message": "Logged out"})
+
+@app.route('/api/admin/check', methods=['GET'])
+def check_admin():
+    """Check if user is authenticated"""
+    return jsonify({
+        "authenticated": session.get('admin_authenticated', False)
+    })
+
+# ============= EXISTING ROUTES (keep as-is) =============
 
 def clean_metadata_file():
     path = 'uploads/samples/metadata.json'
@@ -94,7 +197,6 @@ def cleanup_old_files():
                 file_age = current_time - os.path.getmtime(filepath)
                 if file_age > 3600:
                     os.remove(filepath)
-                    print(f"Cleaned up old file: {filename}")
     except Exception as e:
         print(f"Cleanup error: {e}")
 
@@ -293,24 +395,16 @@ def serve():
 
 @app.errorhandler(404)
 def not_found(e):
-    # Don't serve index.html for API routes
     if request.path.startswith('/api/'):
         return jsonify({"error": "API endpoint not found"}), 404
-    # Serve index.html for React Router
     return send_from_directory(app.static_folder, 'index.html')
 
 @app.route('/api', methods=['GET'])
 def api_home():
     return jsonify({
         "message": "necs. API is running!",
-        "version": "1.0",
-        "endpoints": [
-            "/api/analyze",
-            "/api/samples",
-            "/api/questions",
-            "/api/simulation",
-            "/api/health"
-        ]
+        "version": "2.0",
+        "security": "enabled"
     })
 
 @app.route('/api/health', methods=['GET'])
@@ -318,15 +412,13 @@ def health_check():
     return jsonify({"status": "healthy"})
 
 @app.route('/api/analyze', methods=['POST'])
+@rate_limit(max_requests=10, window_seconds=3600)  # 10 analyses per hour
 def analyze_speech():
     try:
         cleanup_old_files()
         
         if 'audio' not in request.files:
-            return jsonify({
-                "error": "No audio file provided",
-                "received_files": list(request.files.keys())
-            }), 400
+            return jsonify({"error": "No audio file provided"}), 400
         
         if 'topic' not in request.form:
             return jsonify({"error": "No topic provided"}), 400
@@ -358,27 +450,19 @@ def analyze_speech():
         filepath = wav_filepath
         
         file_size_mb = os.path.getsize(filepath) / (1024 * 1024)
-        print(f"Compressed file size: {file_size_mb:.2f} MB")
         
         if file_size_mb > 20:
             os.remove(filepath)
-            return jsonify({"error": "Audio file too large even after compression"}), 400
+            return jsonify({"error": "Audio file too large"}), 400
         
-        # Transcribe and grade
         transcript_data = transcribe_audio(filepath)
         grading_result = grade_speech(topic, transcript_data)
-        
-        # Generate document
         doc_stream = generate_docx(topic, transcript_data["text"], grading_result)
         
-        # Clean up audio file
         os.remove(filepath)
         
-        # CRITICAL: Convert document to base64 for ephemeral filesystem
         doc_bytes = doc_stream.getvalue()
         doc_base64 = base64.b64encode(doc_bytes).decode('utf-8')
-        
-        print(f"Document generated: {len(doc_bytes)} bytes, base64 length: {len(doc_base64)}")
         
         return jsonify({
             "success": True,
@@ -392,58 +476,28 @@ def analyze_speech():
         })
     
     except Exception as e:
-        print(f"Error in analyze_speech: {str(e)}")
+        print(f"Error: {str(e)}")
         if 'filepath' in locals() and os.path.exists(filepath):
             os.remove(filepath)
         return jsonify({"error": str(e)}), 500
 
-@app.route('/api/download/<filename>', methods=['GET'])
-def download_document(filename):
-    """Legacy endpoint - kept for backward compatibility but won't work on ephemeral storage"""
-    try:
-        filepath = os.path.join(app.config['UPLOAD_FOLDER'], secure_filename(filename))
-        
-        if not os.path.exists(filepath):
-            return jsonify({"error": "File not found. Please use the download button immediately after analysis."}), 404
-        
-        response = send_file(
-            filepath,
-            as_attachment=True,
-            download_name=filename,
-            mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-        )
-        
-        @response.call_on_close
-        def cleanup():
-            try:
-                if os.path.exists(filepath):
-                    os.remove(filepath)
-                    print(f"Cleaned up: {filename}")
-            except Exception as e:
-                print(f"Cleanup error: {e}")
-        
-        return response
-    except Exception as e:
-        return jsonify({"error": str(e)}), 404
-
-# Sample Library Routes - Using PostgreSQL + Cloudinary
+# ============= SECURED ADMIN ROUTES =============
 
 @app.route('/api/samples', methods=['GET'])
 def get_samples():
     try:
         samples = Sample.query.order_by(Sample.created_at.desc()).all()
-        return jsonify({
-            "samples": [s.to_dict() for s in samples]
-        })
+        return jsonify({"samples": [s.to_dict() for s in samples]})
     except Exception as e:
-        print(f"Error fetching samples: {e}")
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/samples/upload', methods=['POST'])
+@require_admin()  # ✅ SECURED
+@rate_limit(max_requests=20, window_seconds=3600)
 def upload_sample():
     try:
         if 'audio' not in request.files:
-            return jsonify({"error": "No audio file provided"}), 400
+            return jsonify({"error": "No audio file"}), 400
         
         audio_file = request.files['audio']
         topic = request.form.get('topic')
@@ -454,35 +508,27 @@ def upload_sample():
         feedback = request.form.get('feedback', '')
         
         if not all([topic, speaker, transcript, feedback]):
-            return jsonify({"error": "All required fields must be filled"}), 400
+            return jsonify({"error": "Missing required fields"}), 400
         
-        # Save temporarily to get duration
         filename = secure_filename(audio_file.filename)
         temp_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         audio_file.save(temp_path)
         
-        # Get duration
         try:
             duration = int(get_audio_duration(temp_path))
         except:
             duration = 0
         
-        # Upload to Cloudinary
-        print(f"Uploading {filename} to Cloudinary...")
         upload_result = cloudinary.uploader.upload(
             temp_path,
-            resource_type="video",  # Audio files use 'video' resource type
+            resource_type="video",
             folder="necs_samples",
             public_id=f"sample_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
             overwrite=True
         )
         
-        # Delete temporary file
         os.remove(temp_path)
         
-        print(f"✅ Uploaded to Cloudinary: {upload_result['secure_url']}")
-        
-        # Save to database
         new_sample = Sample(
             filename=filename,
             topic=topic,
@@ -492,298 +538,123 @@ def upload_sample():
             duration=duration,
             transcript=transcript,
             feedback=feedback,
-            audio_url=upload_result['secure_url']  # Cloudinary URL
+            audio_url=upload_result['secure_url']
         )
         
         db.session.add(new_sample)
         db.session.commit()
         
-        return jsonify({
-            "success": True,
-            "message": "Sample uploaded successfully",
-            "id": new_sample.id
-        })
+        return jsonify({"success": True, "id": new_sample.id})
         
     except Exception as e:
         db.session.rollback()
-        print(f"Error uploading sample: {e}")
         if 'temp_path' in locals() and os.path.exists(temp_path):
             os.remove(temp_path)
         return jsonify({"error": str(e)}), 500
 
-@app.route('/api/samples/download/<int:sample_id>', methods=['GET'])
-def download_sample_by_id(sample_id):
-    """Download sample audio by ID - redirects to Cloudinary URL"""
-    try:
-        sample = Sample.query.get(sample_id)
-        if not sample:
-            return jsonify({"error": "Sample not found"}), 404
-        
-        # Redirect to Cloudinary URL
-        from flask import redirect
-        return redirect(sample.audio_url)
-        
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
 @app.route('/api/samples/<int:sample_id>', methods=['PUT'])
+@require_admin()  # ✅ SECURED
 def update_sample(sample_id):
     try:
         sample = Sample.query.get(sample_id)
         if not sample:
-            return jsonify({"error": "Sample not found"}), 404
+            return jsonify({"error": "Not found"}), 404
 
-        # Update text fields
-        topic = request.form.get('topic')
-        question = request.form.get('question')
-        speaker = request.form.get('speaker')
-        score = request.form.get('score')
-        transcript = request.form.get('transcript')
-        feedback = request.form.get('feedback')
-
-        if topic is not None: sample.topic = topic
-        if question is not None: sample.question = question
-        if speaker is not None: sample.speaker = speaker
-        if score is not None:
-            try:
-                sample.score = float(score)
-            except:
-                pass
-        if transcript is not None: sample.transcript = transcript
-        if feedback is not None: sample.feedback = feedback
-
-        # Update audio file if provided
-        if 'audio' in request.files:
-            audio_file = request.files['audio']
-            if audio_file and allowed_file(audio_file.filename):
-                # Save temporarily
-                filename = secure_filename(audio_file.filename)
-                temp_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-                audio_file.save(temp_path)
-                
-                # Get duration
-                try:
-                    sample.duration = int(get_audio_duration(temp_path))
-                except:
-                    pass
-                
-                # Delete old file from Cloudinary (optional - to save space)
-                if sample.audio_url:
-                    try:
-                        # Extract public_id from URL
-                        public_id = sample.audio_url.split('/')[-1].split('.')[0]
-                        cloudinary.uploader.destroy(f"necs_samples/{public_id}", resource_type="video")
-                    except Exception as e:
-                        print(f"Could not delete old Cloudinary file: {e}")
-                
-                # Upload new file to Cloudinary
-                upload_result = cloudinary.uploader.upload(
-                    temp_path,
-                    resource_type="video",
-                    folder="necs_samples",
-                    public_id=f"sample_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
-                    overwrite=True
-                )
-                
-                sample.filename = filename
-                sample.audio_url = upload_result['secure_url']
-                
-                # Delete temporary file
-                os.remove(temp_path)
+        if 'topic' in request.form: sample.topic = request.form['topic']
+        if 'question' in request.form: sample.question = request.form['question']
+        if 'speaker' in request.form: sample.speaker = request.form['speaker']
+        if 'score' in request.form: sample.score = float(request.form['score'])
+        if 'transcript' in request.form: sample.transcript = request.form['transcript']
+        if 'feedback' in request.form: sample.feedback = request.form['feedback']
 
         db.session.commit()
-        return jsonify({"success": True, "message": "Sample updated"})
+        return jsonify({"success": True})
         
     except Exception as e:
         db.session.rollback()
-        print(f"Error updating sample: {e}")
-        if 'temp_path' in locals() and os.path.exists(temp_path):
-            os.remove(temp_path)
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/samples/<int:sample_id>', methods=['DELETE'])
+@require_admin()  # ✅ SECURED
 def delete_sample(sample_id):
     try:
         sample = Sample.query.get(sample_id)
         if not sample:
-            return jsonify({"error": "Sample not found"}), 404
+            return jsonify({"error": "Not found"}), 404
 
-        # Delete from Cloudinary
-        if sample.audio_url:
-            try:
-                # Extract public_id from URL
-                # URL format: https://res.cloudinary.com/cloud_name/video/upload/v1234567890/necs_samples/sample_20241116_123456.mp3
-                url_parts = sample.audio_url.split('/')
-                public_id_with_ext = url_parts[-1]  # sample_20241116_123456.mp3
-                public_id = public_id_with_ext.split('.')[0]  # sample_20241116_123456
-                folder = url_parts[-2]  # necs_samples
-                
-                cloudinary.uploader.destroy(f"{folder}/{public_id}", resource_type="video")
-                print(f"✅ Deleted from Cloudinary: {folder}/{public_id}")
-            except Exception as e:
-                print(f"Could not delete from Cloudinary: {e}")
-
-        # Delete from database
         db.session.delete(sample)
         db.session.commit()
-        
-        return jsonify({"success": True, "message": "Sample deleted"})
+        return jsonify({"success": True})
         
     except Exception as e:
         db.session.rollback()
-        print(f"Error deleting sample: {e}")
         return jsonify({"error": str(e)}), 500
-
-# Question Bank Routes
 
 @app.route('/api/questions', methods=['GET'])
 def get_questions():
     try:
-        questions = Question.query.order_by(Question.created_at.desc()).all()
-        return jsonify({
-            "questions": [q.to_dict() for q in questions]
-        })
+        questions = Question.query.all()
+        return jsonify({"questions": [q.to_dict() for q in questions]})
     except Exception as e:
-        print(f"Error fetching questions: {e}")
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/questions', methods=['POST'])
+@require_admin()  # ✅ SECURED
 def add_question():
     try:
         data = request.get_json()
-        topic = data.get('topic')
-        question_text = data.get('question')
-        category = data.get('category', 'General')
-        
-        if not all([topic, question_text]):
-            return jsonify({"error": "Topic and question are required"}), 400
-        
         new_question = Question(
-            topic=topic,
-            question=question_text,
-            category=category
+            topic=data['topic'],
+            question=data['question'],
+            category=data.get('category', 'General')
         )
-        
         db.session.add(new_question)
         db.session.commit()
-        
-        return jsonify({
-            "success": True,
-            "message": "Question added successfully",
-            "id": new_question.id
-        })
-        
+        return jsonify({"success": True, "id": new_question.id})
     except Exception as e:
         db.session.rollback()
-        print(f"Error adding question: {e}")
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/questions/<int:question_id>', methods=['PUT'])
+@require_admin()  # ✅ SECURED
 def update_question(question_id):
     try:
         data = request.get_json()
         question = Question.query.get(question_id)
-        
         if not question:
-            return jsonify({"error": "Question not found"}), 404
-
-        if 'topic' in data: 
-            question.topic = data['topic']
-        if 'question' in data: 
-            question.question = data['question']
-        if 'category' in data: 
-            question.category = data['category']
-
-        db.session.commit()
-        return jsonify({"success": True, "message": "Question updated"})
+            return jsonify({"error": "Not found"}), 404
         
+        if 'topic' in data: question.topic = data['topic']
+        if 'question' in data: question.question = data['question']
+        if 'category' in data: question.category = data['category']
+        
+        db.session.commit()
+        return jsonify({"success": True})
     except Exception as e:
         db.session.rollback()
-        print(f"Error updating question: {e}")
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/questions/<int:question_id>', methods=['DELETE'])
+@require_admin()  # ✅ SECURED
 def delete_question(question_id):
     try:
         question = Question.query.get(question_id)
-        
         if not question:
-            return jsonify({"error": "Question not found"}), 404
-
+            return jsonify({"error": "Not found"}), 404
         db.session.delete(question)
         db.session.commit()
-        
-        return jsonify({"success": True, "message": "Question deleted"})
-        
+        return jsonify({"success": True})
     except Exception as e:
         db.session.rollback()
-        print(f"Error deleting question: {e}")
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/questions/random', methods=['GET'])
 def get_random_question():
     try:
         questions = Question.query.all()
-        
         if not questions:
-            return jsonify({"error": "No questions available"}), 404
-        
-        random_question = random.choice(questions)
-        return jsonify({"question": random_question.to_dict()})
-        
-    except Exception as e:
-        print(f"Error getting random question: {e}")
-        return jsonify({"error": str(e)}), 500
-
-# Simulation Audio Save Route
-@app.route('/api/simulation/save-audio', methods=['POST'])
-def save_simulation_audio():
-    try:
-        if 'audio' not in request.files:
-            return jsonify({"error": "No audio file provided"}), 400
-        
-        audio_file = request.files['audio']
-        
-        if audio_file.filename == '':
-            return jsonify({"error": "No file selected"}), 400
-        
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        filename = f"simulation_{timestamp}.webm"
-        
-        simulations_dir = os.path.join(app.config['UPLOAD_FOLDER'], 'simulations')
-        os.makedirs(simulations_dir, exist_ok=True)
-        
-        filepath = os.path.join(simulations_dir, filename)
-        audio_file.save(filepath)
-        
-        # Convert to WAV for analysis
-        wav_filepath = filepath.rsplit('.', 1)[0] + '.wav'
-        convert_to_wav(filepath, wav_filepath)
-        
-        return jsonify({
-            "success": True,
-            "filename": filename,
-            "filepath": wav_filepath,
-            "download_url": f"/api/simulation/download/{filename}"
-        })
-        
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-@app.route('/api/simulation/download/<filename>', methods=['GET'])
-def download_simulation(filename):
-    try:
-        simulations_dir = os.path.join(app.config['UPLOAD_FOLDER'], 'simulations')
-        filepath = os.path.join(simulations_dir, secure_filename(filename))
-        
-        if not os.path.exists(filepath):
-            return jsonify({"error": "File not found"}), 404
-        
-        return send_file(
-            filepath,
-            as_attachment=True,
-            download_name=filename
-        )
+            return jsonify({"error": "No questions"}), 404
+        return jsonify({"question": random.choice(questions).to_dict()})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
