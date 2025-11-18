@@ -1503,16 +1503,12 @@ function SampleLibrary() {
     (sample.tags || []).some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
-  const toggleAudio = (sampleId, audioUrl) => {
-    if (playingId === sampleId) {
-      audioRef.current?.pause();
-      setPlayingId(null);
-    } else {
-      if (audioRef.current) {
-        audioRef.current.src = audioUrl;
-        audioRef.current.play();
-        setPlayingId(sampleId);
-      }
+  const openPlayback = (sampleId, audioUrl) => {
+    // Just open the playback bar without auto-playing
+    if (audioRef.current) {
+      audioRef.current.src = audioUrl;
+      audioRef.current.pause(); // Make sure it doesn't auto-play
+      setPlayingId(sampleId);
     }
   };
 
@@ -1555,7 +1551,7 @@ function SampleLibrary() {
 
               <div className="mb-2 text-sm text-[#d1d1d1] italic">{sample.question || '(no question provided)'}</div>
               <div className="flex gap-2">
-                <button onClick={() => toggleAudio(sample.id, sample.audioUrl)} className="px-3 py-2 rounded bg-gray-700">Playback</button>
+                <button onClick={() => openPlayback(sample.id, sample.audioUrl)} className="px-3 py-2 rounded bg-gray-700">Playback</button>
                 <button onClick={() => downloadAudio(sample.filename, sample.audioUrl)} className="px-3 py-2 rounded bg-gray-700">Download</button>
                 <button onClick={() => setSelectedSample(sample)} className="px-3 py-2 rounded bg-[#1e90ff] text-white">View</button>
               </div>
@@ -1603,12 +1599,23 @@ function Footer({ setCurrentPage }) {
     <footer className="mt-16 border-t border-[#222] bg-black">
       <div className="max-w-7xl mx-auto px-12 py-12">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8 text-left">
-          {/* About Section */}
-          <div className="flex flex-col">
-            <h3 className="text-xl font-bold text-white mb-4">necs.</h3>
-            <p className="text-sm text-gray-400">
-              AI-powered speech analysis platform for NEC Speaking preparation. Practice, improve, and excel.
-            </p>
+          {/* Support Section with QR Code */}
+          <div className="flex flex-col items-center md:items-start">
+            <h3 className="text-xl font-bold text-white mb-4">Support necs.</h3>
+            <img 
+              src="/donation.png" 
+              alt="Donation QR Code" 
+              className="w-40 h-40 mb-3 rounded-lg border-2 border-gray-700"
+              onError={(e) => {
+                e.target.style.display = 'none';
+              }}
+            />
+            <div className="text-sm text-gray-400 text-center md:text-left">
+              <p className="font-semibold text-white mb-1">Buy me a coffee ☕</p>
+              <p>NGUYEN HOANG MINH TRI</p>
+              <p>1041802514</p>
+              <p>Vietcombank</p>
+            </div>
           </div>
 
           {/* Quick Links */}
