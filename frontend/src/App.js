@@ -1095,7 +1095,9 @@ function AdminPanel({ onClose }) {
   const fetchSamples = async () => {
     setLoadingSamples(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/samples`);
+      const res = await fetch(`${API_BASE_URL}/api/samples`, {
+        credentials: 'include' // ✅ ADDED
+      });
       const data = await res.json();
       setSamples(data.samples || []);
     } catch (e) {
@@ -1108,7 +1110,9 @@ function AdminPanel({ onClose }) {
   const fetchQuestions = async () => {
     setLoadingQuestions(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/questions`);
+      const res = await fetch(`${API_BASE_URL}/api/questions`, {
+        credentials: 'include' // ✅ ADDED
+      });
       const data = await res.json();
       setQuestions(data.questions || []);
     } catch (e) {
@@ -1139,7 +1143,7 @@ function AdminPanel({ onClose }) {
     try {
       const response = await fetch(`${API_BASE_URL}/api/samples/upload`, {
         method: 'POST',
-        credentials: 'include',
+        credentials: 'include', // ✅ ALREADY THERE
         body: formData,
       });
       const data = await response.json();
@@ -1189,7 +1193,7 @@ function AdminPanel({ onClose }) {
 
       const res = await fetch(`${API_BASE_URL}/api/samples/${editingId}`, {
         method: 'PUT',
-        credentials: 'include',
+        credentials: 'include', // ✅ ALREADY THERE
         body: form,
       });
       const data = await res.json();
@@ -1208,7 +1212,7 @@ function AdminPanel({ onClose }) {
     try {
       const res = await fetch(`${API_BASE_URL}/api/samples/${id}`, {
         method: 'DELETE',
-        credentials: 'include'
+        credentials: 'include' // ✅ ALREADY THERE
       });
       const data = await res.json();
       if (data.success) {
@@ -1229,7 +1233,7 @@ function AdminPanel({ onClose }) {
     try {
       const res = await fetch(`${API_BASE_URL}/api/questions`, {
         method: 'POST',
-        credentials: 'include',
+        credentials: 'include', // ✅ ALREADY THERE
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           topic: newQuestionTopic,
@@ -1268,6 +1272,7 @@ function AdminPanel({ onClose }) {
     try {
       const res = await fetch(`${API_BASE_URL}/api/questions/${editingQuestionId}`, {
         method: 'PUT',
+        credentials: 'include', // ✅ ADDED - THIS WAS MISSING
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(editQuestionData),
       });
@@ -1287,7 +1292,7 @@ function AdminPanel({ onClose }) {
     try {
       const res = await fetch(`${API_BASE_URL}/api/questions/${id}`, {
         method: 'DELETE',
-        credentials: 'include',
+        credentials: 'include', // ✅ ALREADY THERE
       });
       const data = await res.json();
       if (data.success) {
