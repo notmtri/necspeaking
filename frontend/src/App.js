@@ -142,15 +142,25 @@ export default function SpeakUpApp() {
     setIsPlaying(false);
   };
 
-  const openAdminPanel = () => {
-    const password = prompt('Enter admin password:');
-    if (password === ADMIN_PASSWORD) {
-      setIsAuthenticated(true);
-      setShowAdminPanel(true);
-    } else if (password !== null) {
-      alert('Incorrect password!');
-    }
-  };
+  const openAdminPanel = async () => {
+  const password = prompt('Enter admin password:');
+  if (!password) return;
+
+  const res = await fetch(`${API_BASE_URL}/api/admin/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({ password })
+  });
+
+  const data = await res.json();
+  if (data.success) {
+    setIsAuthenticated(true);
+    setShowAdminPanel(true);
+  } else {
+    alert("Incorrect password!");
+  }
+};
 
   const getScoreColor = (score, max) => {
     const percentage = (score / max) * 100;
@@ -1161,6 +1171,7 @@ function AdminPanel({ onClose }) {
     try {
       const response = await fetch(`${API_BASE_URL}/api/samples/upload`, {
         method: 'POST',
+        credentials: 'include',
         body: formData,
       });
       const data = await response.json();
@@ -1210,6 +1221,7 @@ function AdminPanel({ onClose }) {
 
       const res = await fetch(`${API_BASE_URL}/api/samples/${editingId}`, {
         method: 'PUT',
+        credentials: 'include',
         body: form,
       });
       const data = await res.json();
@@ -1228,6 +1240,7 @@ function AdminPanel({ onClose }) {
     try {
       const res = await fetch(`${API_BASE_URL}/api/samples/${id}`, {
         method: 'DELETE',
+        credentials: 'include',
       });
       const data = await res.json();
       if (data.success) {
@@ -1248,6 +1261,7 @@ function AdminPanel({ onClose }) {
     try {
       const res = await fetch(`${API_BASE_URL}/api/questions`, {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           topic: newQuestionTopic,
@@ -1286,6 +1300,7 @@ function AdminPanel({ onClose }) {
     try {
       const res = await fetch(`${API_BASE_URL}/api/questions/${editingQuestionId}`, {
         method: 'PUT',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(editQuestionData),
       });
@@ -1305,6 +1320,7 @@ function AdminPanel({ onClose }) {
     try {
       const res = await fetch(`${API_BASE_URL}/api/questions/${id}`, {
         method: 'DELETE',
+        credentials: 'include',
       });
       const data = await res.json();
       if (data.success) {
