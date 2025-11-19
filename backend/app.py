@@ -7,8 +7,6 @@ import base64
 import secrets
 from functools import wraps
 from datetime import datetime, timedelta
-from flask_limiter import Limiter
-from flask_limiter.util import get_remote_address
 
 warnings.filterwarnings("ignore", message="Core Pydantic V1 functionality")
 
@@ -32,16 +30,13 @@ load_dotenv()
 
 app = Flask(__name__, static_folder='build', static_url_path='')
 
-limiter = Limiter(
-    app=app,
-    key_func=get_remote_address,
-    storage_uri="redis://localhost:6379"
-)
+# REMOVED REDIS LIMITER - Use custom rate limiting instead
+# If you need Redis later, add it back with proper configuration
 
 # Security Configuration
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', secrets.token_hex(32))
 app.config['SESSION_COOKIE_HTTPONLY'] = True
-app.config['SESSION_COOKIE_SECURE'] = True  # Set to True in production with HTTPS
+app.config['SESSION_COOKIE_SECURE'] = False  # Set to True if using HTTPS
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=2)
 
@@ -87,15 +82,14 @@ os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
 groq_client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 
-# ADMIN PASSWORD - Store hashed version in environment
+# ADMIN PASSWORD - FIXED
 ADMIN_PASSWORD_HASH = os.getenv('ADMIN_PASSWORD_HASH')
 if not ADMIN_PASSWORD_HASH:
-    # Generate hash for your password and add to .env
-    # Run this once: print(generate_password_hash('040108Minhtri'))
-    print("⚠️ WARNING: ADMIN_PASSWORD_HASH not set in environment!")
-    #ADMIN_PASSWORD_HASH = generate_password_hash('040108Minhtri')  # Fallback (remove in production)
+    print("⚠️ WARNING: Using fallback password hash. Set ADMIN_PASSWORD_HASH in production!")
+    ADMIN_PASSWORD_HASH = generate_password_hash('040108Minhtri')
+    print(f"✅ Generated hash for testing: {ADMIN_PASSWORD_HASH[:50]}...")
 
-# Rate Limiting Storage (simple in-memory, use Redis in production)
+# Rate Limiting Storage (simple in-memory)
 rate_limit_storage = {}
 
 def rate_limit(max_requests=10, window_seconds=60):
@@ -137,24 +131,30 @@ def require_admin():
 # ============= AUTHENTICATION ROUTES =============
 
 @app.route('/api/admin/login', methods=['POST'])
-@rate_limit(max_requests=5, window_seconds=300)  # 5 attempts per 5 minutes
+@rate_limit(max_requests=5, window_seconds=300)
 def admin_login():
     """Secure admin login endpoint"""
     try:
         data = request.get_json()
         password = data.get('password', '')
         
+        print(f"🔐 Login attempt - Password received: {bool(password)}")
+        print(f"🔐 Hash exists: {bool(ADMIN_PASSWORD_HASH)}")
+        
         if check_password_hash(ADMIN_PASSWORD_HASH, password):
             session['admin_authenticated'] = True
             session.permanent = True
+            print("✅ Login successful!")
             return jsonify({
                 "success": True,
                 "message": "Login successful"
             })
         else:
+            print("❌ Password check failed")
             return jsonify({"error": "Invalid password"}), 401
             
     except Exception as e:
+        print(f"❌ Login error: {str(e)}")
         return jsonify({"error": "Login failed"}), 500
 
 @app.route('/api/admin/logout', methods=['POST'])
@@ -170,7 +170,7 @@ def check_admin():
         "authenticated": session.get('admin_authenticated', False)
     })
 
-# ============= EXISTING ROUTES (keep as-is) =============
+# ============= EXISTING ROUTES =============
 
 def clean_metadata_file():
     path = 'uploads/samples/metadata.json'
@@ -233,7 +233,6 @@ def transcribe_audio(file_path):
 
 def grade_speech(topic, transcript_data):
     transcript_text = transcript_data["text"]
-    words = transcript_data.get("words", [])
     total_words = len(transcript_text.split())
     duration = transcript_data["duration"]
     words_per_minute = (total_words / duration * 60) if duration > 0 else 0
@@ -412,7 +411,7 @@ def health_check():
     return jsonify({"status": "healthy"})
 
 @app.route('/api/analyze', methods=['POST'])
-@rate_limit(max_requests=10, window_seconds=3600)  # 10 analyses per hour
+@rate_limit(max_requests=10, window_seconds=3600)
 def analyze_speech():
     try:
         cleanup_old_files()
@@ -492,7 +491,7 @@ def get_samples():
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/samples/upload', methods=['POST'])
-@require_admin()  # ✅ SECURED
+@require_admin()
 @rate_limit(max_requests=20, window_seconds=3600)
 def upload_sample():
     try:
@@ -553,7 +552,7 @@ def upload_sample():
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/samples/<int:sample_id>', methods=['PUT'])
-@require_admin()  # ✅ SECURED
+@require_admin()
 def update_sample(sample_id):
     try:
         sample = Sample.query.get(sample_id)
@@ -575,7 +574,7 @@ def update_sample(sample_id):
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/samples/<int:sample_id>', methods=['DELETE'])
-@require_admin()  # ✅ SECURED
+@require_admin()
 def delete_sample(sample_id):
     try:
         sample = Sample.query.get(sample_id)
@@ -599,7 +598,7 @@ def get_questions():
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/questions', methods=['POST'])
-@require_admin()  # ✅ SECURED
+@require_admin()
 def add_question():
     try:
         data = request.get_json()
@@ -616,7 +615,7 @@ def add_question():
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/questions/<int:question_id>', methods=['PUT'])
-@require_admin()  # ✅ SECURED
+@require_admin()
 def update_question(question_id):
     try:
         data = request.get_json()
@@ -635,7 +634,7 @@ def update_question(question_id):
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/questions/<int:question_id>', methods=['DELETE'])
-@require_admin()  # ✅ SECURED
+@require_admin()
 def delete_question(question_id):
     try:
         question = Question.query.get(question_id)
