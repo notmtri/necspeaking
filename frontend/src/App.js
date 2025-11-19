@@ -3,6 +3,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Upload, Play, Pause, Download, CheckCircle, AlertCircle, Loader, FileAudio, Settings, Lock, Trash2, Edit3, Mic, Circle, Menu, X } from 'lucide-react';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://127.0.0.1:5000';
+const ADMIN_PASSWORD = '040108Minhtri';
 
 // HELPER FUNCTION - Download document from base64
 const downloadDocumentFromBase64 = (base64String, filename) => {
@@ -97,7 +98,6 @@ export default function SpeakUpApp() {
     try {
       const response = await fetch(`${API_BASE_URL}/api/analyze`, {
         method: 'POST',
-        credentials: 'include',
         body: formData,
       });
 
@@ -142,31 +142,15 @@ export default function SpeakUpApp() {
     setIsPlaying(false);
   };
 
-  //Updated for security
-  const openAdminPanel = async () => {
-  const password = prompt('Enter admin password:');
-  if (password === null) return; // User cancelled
-  
-  try {
-    const response = await fetch(`${API_BASE_URL}/api/admin/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include', // Important for cookies
-      body: JSON.stringify({ password })
-    });
-    
-    const data = await response.json();
-    
-    if (data.success) {
+  const openAdminPanel = () => {
+    const password = prompt('Enter admin password:');
+    if (password === ADMIN_PASSWORD) {
       setIsAuthenticated(true);
       setShowAdminPanel(true);
-    } else {
+    } else if (password !== null) {
       alert('Incorrect password!');
     }
-  } catch (err) {
-    alert('Login failed. Please try again.');
-  }
-};
+  };
 
   const getScoreColor = (score, max) => {
     const percentage = (score / max) * 100;
@@ -740,12 +724,50 @@ function SimulationMode() {
               <div className="text-lg text-white">{currentQuestion.question}</div>
             </div>
 
-            <button
-              onClick={skipReading}
-              className="w-full py-3 rounded-xl bg-[#1e90ff] text-white font-semibold"
-            >
-              Finish Reading Question
-            </button>
+            <div className="flex gap-3">
+              <button
+                onClick={skipReading}
+                className="flex-1 py-3 rounded-xl bg-[#1e90ff] text-white font-semibold hover:bg-[#1a7be6]"
+              >
+                Finish Reading Question
+              </button>
+              <button
+                onClick={async () => {
+                  clearInterval(timerRef.current);
+                  setCountdown(60);
+                  
+                  try {
+                    const response = await fetch(`${API_BASE_URL}/api/questions/random`);
+                    const data = await response.json();
+                    
+                    if (data.error) {
+                      setError('No questions available. Please add questions in admin panel.');
+                      return;
+                    }
+
+                    setCurrentQuestion(data.question);
+                    
+                    timerRef.current = setInterval(() => {
+                      setCountdown(prev => {
+                        if (prev <= 1) {
+                          clearInterval(timerRef.current);
+                          setSimStep('preparation');
+                          setCountdown(300);
+                          startPreparationTimer();
+                          return 0;
+                        }
+                        return prev - 1;
+                      });
+                    }, 1000);
+                  } catch (err) {
+                    setError('Failed to load question. Check your connection.');
+                  }
+                }}
+                className="px-6 py-3 rounded-xl bg-gray-700 text-white font-semibold hover:bg-gray-600"
+              >
+                Randomize Again
+              </button>
+            </div>
           </div>
         )}
 
@@ -1095,9 +1117,7 @@ function AdminPanel({ onClose }) {
   const fetchSamples = async () => {
     setLoadingSamples(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/samples`, {
-        credentials: 'include' // ✅ ADDED
-      });
+      const res = await fetch(`${API_BASE_URL}/api/samples`);
       const data = await res.json();
       setSamples(data.samples || []);
     } catch (e) {
@@ -1110,9 +1130,7 @@ function AdminPanel({ onClose }) {
   const fetchQuestions = async () => {
     setLoadingQuestions(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/questions`, {
-        credentials: 'include' // ✅ ADDED
-      });
+      const res = await fetch(`${API_BASE_URL}/api/questions`);
       const data = await res.json();
       setQuestions(data.questions || []);
     } catch (e) {
@@ -1143,7 +1161,6 @@ function AdminPanel({ onClose }) {
     try {
       const response = await fetch(`${API_BASE_URL}/api/samples/upload`, {
         method: 'POST',
-        credentials: 'include', // ✅ ALREADY THERE
         body: formData,
       });
       const data = await response.json();
@@ -1193,7 +1210,6 @@ function AdminPanel({ onClose }) {
 
       const res = await fetch(`${API_BASE_URL}/api/samples/${editingId}`, {
         method: 'PUT',
-        credentials: 'include', // ✅ ALREADY THERE
         body: form,
       });
       const data = await res.json();
@@ -1212,7 +1228,6 @@ function AdminPanel({ onClose }) {
     try {
       const res = await fetch(`${API_BASE_URL}/api/samples/${id}`, {
         method: 'DELETE',
-        credentials: 'include' // ✅ ALREADY THERE
       });
       const data = await res.json();
       if (data.success) {
@@ -1233,7 +1248,6 @@ function AdminPanel({ onClose }) {
     try {
       const res = await fetch(`${API_BASE_URL}/api/questions`, {
         method: 'POST',
-        credentials: 'include', // ✅ ALREADY THERE
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           topic: newQuestionTopic,
@@ -1272,7 +1286,6 @@ function AdminPanel({ onClose }) {
     try {
       const res = await fetch(`${API_BASE_URL}/api/questions/${editingQuestionId}`, {
         method: 'PUT',
-        credentials: 'include', // ✅ ADDED - THIS WAS MISSING
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(editQuestionData),
       });
@@ -1292,7 +1305,6 @@ function AdminPanel({ onClose }) {
     try {
       const res = await fetch(`${API_BASE_URL}/api/questions/${id}`, {
         method: 'DELETE',
-        credentials: 'include', // ✅ ALREADY THERE
       });
       const data = await res.json();
       if (data.success) {
