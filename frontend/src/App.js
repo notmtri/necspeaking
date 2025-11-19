@@ -763,7 +763,7 @@ function SimulationMode() {
                     setError('Failed to load question. Check your connection.');
                   }
                 }}
-                className="px-6 py-3 rounded-xl bg-gray-700 text-white font-semibold hover:bg-gray-600"
+                className="px-4 py-3 rounded-xl bg-gray-700 text-white font-semibold hover:bg-gray-600"
               >
                 Randomize Again
               </button>
