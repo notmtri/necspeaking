@@ -85,14 +85,6 @@
 
 ---
 
-## 🎬 Demo
-
-![necs. Demo](https://via.placeholder.com/800x450?text=Add+Screenshot+Here)
-
-*Add screenshots or GIF of your application here*
-
----
-
 ## 🛠️ Tech Stack
 
 ### Frontend
@@ -484,7 +476,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 🎓 Educational Purpose
 
-This project was developed as part of an English language learning initiative at HSGS Le Quy Don High School. It aims to democratize access to high-quality speaking practice resources for all students preparing for the NEC examination.
+This project was developed as part of an English language learning initiative at HSGS Le Quy Don. It aims to democratize access to high-quality speaking practice resources for all students preparing for the NEC examination.
 
 ---
 
