@@ -7,7 +7,7 @@
 
 > Master NEC Speaking with AI-powered feedback, realistic simulations, and high-scoring sample speeches.
 
-[Live Demo](https://necsoeaking.vercel.app) • [Report Bug](https://forms.gle/rshYXP6niQ7NR3G68) • [Request Feature](https://forms.gle/rshYXP6niQ7NR3G68)
+[Live Demo](https://necspeaking.vercel.app) • [Report Bug](https://forms.gle/rshYXP6niQ7NR3G68) • [Request Feature](https://forms.gle/rshYXP6niQ7NR3G68)
 
 ---
 
