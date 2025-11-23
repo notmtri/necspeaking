@@ -1,5 +1,6 @@
 // Complete App.js - Full Application with All Components and Mobile Hamburger Menu
 import React, { useState, useRef, useEffect } from 'react';
+import { Analytics } from "@vercel/analytics/react"
 import { Upload, Play, Pause, Download, CheckCircle, AlertCircle, Loader, FileAudio, Settings, Lock, Trash2, Edit3, Mic, Circle, Menu, X } from 'lucide-react';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://127.0.0.1:5000';

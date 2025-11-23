@@ -1,5 +1,8 @@
 {
   "devDependencies": {
     "workbox-webpack-plugin": "^7.3.0"
+  },
+  "dependencies": {
+    "@vercel/analytics": "^1.5.0"
   }
 }
