@@ -1732,4 +1732,5 @@ function Footer({ setCurrentPage }) {
       </div>
     </footer>
   );
+  <Analytics />
 }
