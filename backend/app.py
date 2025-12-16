@@ -70,7 +70,7 @@ cloudinary.config(
     secure=True
 )
 
-# SECURE CORS - Replace * with your actual frontend domain
+# SECURE CORS
 ALLOWED_ORIGINS = os.getenv('ALLOWED_ORIGINS', 'http://localhost:3000').split(',')
 
 CORS(app, resources={
@@ -285,10 +285,8 @@ def grade_speech(topic, transcript_data):
    - Show natural flow with appropriate transitions
    - Be comprehensive enough to fill a 5-minute speaking time
    - Be creative in the introduction to hook the listener's attention
-
-Note: 
-- Return feedback in bullet points when appropriate to maximize clarity (Strengths, Weaknesses, Suggestions)
-- Grade at C2 level of the CEFR framework
+   - Grade at C2 level of the CEFR framework
+   - Be very strict
 
 **Return your response in this EXACT JSON format:**
 {{
