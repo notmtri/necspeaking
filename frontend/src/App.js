@@ -245,6 +245,13 @@ export default function SpeakUpApp() {
         </div>
       </header>
 
+      {/* Notification Banner */}
+      <div className="w-full bg-[#1e90ff]/10 border-b border-[#1e90ff]/30 text-center py-2 px-4">
+        <p className="text-sm text-[#1e90ff] font-medium">
+          🔴 necs. server might experience minor errors due to maintenance from 23/03 - 29/03, sorry for the inconvenience 🔴
+        </p>
+      </div>
+
       {/* Mobile Menu Dropdown */}
       {mobileMenuOpen && (
         <div className="md:hidden bg-gray-900 border-b border-gray-700">
