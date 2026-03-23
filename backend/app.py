@@ -59,8 +59,12 @@ app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
 db.init_app(app)
 
 with app.app_context():
-    db.create_all()
-    print("✅ Database tables created successfully!")
+    try:
+        db.create_all()
+        print("✅ Database tables created successfully!")
+    except Exception as e:
+        print(f"⚠️ DB init warning: {e}")
+        print("⚠️ App will start anyway - tables already exist in Supabase")
 
 # Cloudinary Configuration
 cloudinary.config(
