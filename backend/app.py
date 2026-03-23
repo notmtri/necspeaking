@@ -49,7 +49,7 @@ else:
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=2)
 
 # Database Configuration
-database_url = os.getenv('DATABASE_URL', 'postgresql://postgres.uvsperhaoundcncfgvda:040108Minhtri@aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres')
+database_url = os.getenv('DATABASE_URL', 'postgresql://postgres:040108Minhtri@db.uvsperhaoundcncfgvda.supabase.co:5432/postgres')
 if database_url.startswith('postgres://'):
     database_url = database_url.replace('postgres://', 'postgresql://', 1)
 
