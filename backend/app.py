@@ -49,15 +49,18 @@ else:
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=2)
 
 # Database Configuration
-database_url = os.getenv('DATABASE_URL', 'postgresql://postgres:040108Minhtri@db.uvsperhaoundcncfgvda.supabase.co:5432/postgres')
-if database_url.startswith('postgres://'):
-    database_url = database_url.replace('postgres://', 'postgresql://', 1)
-
-app.config['SQLALCHEMY_DATABASE_URI'] = database_url or 'sqlite:///necs.db'
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+database_url = 'postgresql://postgres:040108Minhtri@db.uvsperhaoundcncfgvda.supabase.co:5432/postgres'
+app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
     "pool_pre_ping": True,
     "pool_recycle": 300,
+    "connect_args": {
+        "host": "db.uvsperhaoundcncfgvda.supabase.co",
+        "port": 5432,
+        "gssencmode": "disable",
+        "sslmode": "require",
+        "options": "-c AddressFamily=inet"
+    }
 }
 
 db.init_app(app)
