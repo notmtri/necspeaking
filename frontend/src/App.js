@@ -202,7 +202,7 @@ export default function SpeakUpApp() {
       {/* Notification Banner */}
       <div className="w-full border-b border-sky-400/20 bg-sky-400/10 text-center py-2 px-4">
         <p className="text-sm font-medium text-sky-300">
-          necs. may occasionally return slower responses while backend services are under maintenance.
+          🔴 IMPORTANT NOTICE: necs. service is currently unavailable due to upgrades. 🔴
         </p>
       </div>
 
