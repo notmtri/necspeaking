@@ -49,16 +49,27 @@ else:
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=2)
 
 # Database Configuration
-database_url = 'postgresql://postgres:040108Minhtri@db.uvsperhaoundcncfgvda.supabase.co:5432/postgres'
+database_url = os.getenv('DATABASE_URL', 'sqlite:///necs.db')
+
+# Fix legacy postgres:// URLs (Render sometimes uses this format)
+if database_url.startswith('postgres://'):
+    database_url = database_url.replace('postgres://', 'postgresql://', 1)
+
 app.config['SQLALCHEMY_DATABASE_URI'] = database_url
-app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
-    "pool_pre_ping": True,
-    "pool_recycle": 300,
-    "connect_args": {
-        "sslmode": "require",
-        "connect_timeout": 10,
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+# Use SSL only for real PostgreSQL, not SQLite
+if 'postgresql' in database_url:
+    app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+        "pool_pre_ping": True,
+        "pool_recycle": 300,
+        "connect_args": {
+            "sslmode": "require",
+            "connect_timeout": 30,
+        }
     }
-}
+
+print(f"🔌 Connecting to: {database_url[:50]}...")
 
 db.init_app(app)
 

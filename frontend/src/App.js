@@ -1,4 +1,4 @@
-// Complete App.js - Full Application with All Components and Mobile Hamburger Menu
+﻿// Complete App.js - Full Application with All Components and Mobile Hamburger Menu
 import React, { useState, useRef, useEffect, useCallback, useMemo, memo } from 'react';
 import { Analytics } from "@vercel/analytics/react"
 import { Upload, Play, Pause, Download, CheckCircle, AlertCircle, Loader, FileAudio, Settings, Lock, Trash2, Edit3, Mic, Circle, Menu, X } from 'lucide-react';
@@ -56,12 +56,16 @@ export default function SpeakUpApp() {
   const handleFileUpload = useCallback((e) => {
     const file = e.target.files[0];
     if (file) {
+      if (audioURL) URL.revokeObjectURL(audioURL);
       setAudioFile(file);
       const url = URL.createObjectURL(file);
       setAudioURL(url);
+      setIsPlaying(false);
+      setResults(null);
+      setError(null);
       setStep('preview');
     }
-  }, []);
+  }, [audioURL]);
 
   const togglePlayback = useCallback(() => {
     if (audioRef.current) {
@@ -118,15 +122,23 @@ export default function SpeakUpApp() {
   const openAdminPanel = useCallback(async () => {
     const password = prompt('Enter admin password:');
     if (!password) return;
-    const res = await fetch(`${API_BASE_URL}/api/admin/login`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({ password })
-    });
-    const data = await res.json();
-    if (data.success) { setIsAuthenticated(true); setShowAdminPanel(true); }
-    else alert("Incorrect password!");
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/admin/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ password })
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setIsAuthenticated(true);
+        setShowAdminPanel(true);
+      } else {
+        alert(data.error || 'Incorrect password!');
+      }
+    } catch {
+      alert('Could not reach the admin login endpoint. Make sure the backend is running.');
+    }
   }, []);
 
   const getScoreColor = useCallback((score, max) => {
@@ -143,12 +155,12 @@ export default function SpeakUpApp() {
   }, [reset]);
 
   return (
-    <div style={{fontFamily: 'Space Grotesk, ui-sans-serif, system-ui', backgroundColor: '#121212', color: '#d1d1d1'}} className="min-h-screen">
-      <header className="sticky top-0 z-50 border-b border-[#222] bg-black">
-        <div className="max-w-7xl mx-auto px-6 py-4">
+    <div style={{ fontFamily: 'Space Grotesk, ui-sans-serif, system-ui' }} className="min-h-screen text-slate-100">
+      <header className="sticky top-0 z-50 border-b border-white/10 bg-[#06101d]/85 backdrop-blur-xl">
+        <div className="max-w-7xl mx-auto px-4 py-4 sm:px-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 select-none">
-              <button onClick={() => navTo('analyze')} className="font-grotesk text-3xl font-extrabold text-white cursor-pointer">
+              <button onClick={() => navTo('analyze')} className="text-3xl font-extrabold tracking-tight text-white cursor-pointer">
                 necs.
               </button>
             </div>
@@ -156,20 +168,20 @@ export default function SpeakUpApp() {
             <div className="flex items-center gap-4 flex-wrap max-w-full overflow-hidden">
               {/* Desktop Navigation */}
               <nav className="hidden md:flex gap-2">
-                <button onClick={() => navTo('analyze')} className={`px-4 py-2 rounded-xl font-medium ${currentPage === 'analyze' ? 'bg-[#1e90ff] text-white' : 'text-gray-300 hover:bg-gray-800'}`}>Analyze</button>
-                <button onClick={() => navTo('samples')} className={`px-4 py-2 rounded-xl font-medium ${currentPage === 'samples' ? 'bg-[#1e90ff] text-white' : 'text-gray-300 hover:bg-gray-800'}`}>Samples</button>
-                <button onClick={() => navTo('simulation')} className={`px-4 py-2 rounded-xl font-medium ${currentPage === 'simulation' ? 'bg-[#1e90ff] text-white' : 'text-gray-300 hover:bg-gray-800'}`}>Simulation</button>
-                <button onClick={openAdminPanel} className="p-2.5 rounded-xl text-gray-300 hover:bg-gray-800" title="Admin Panel">
+                <button onClick={() => navTo('analyze')} className={`px-4 py-2 rounded-full font-medium transition ${currentPage === 'analyze' ? 'bg-sky-500 text-white shadow-[0_0_30px_rgba(56,189,248,0.25)]' : 'text-slate-300 hover:bg-white/10'}`}>Analyze</button>
+                <button onClick={() => navTo('samples')} className={`px-4 py-2 rounded-full font-medium transition ${currentPage === 'samples' ? 'bg-sky-500 text-white shadow-[0_0_30px_rgba(56,189,248,0.25)]' : 'text-slate-300 hover:bg-white/10'}`}>Samples</button>
+                <button onClick={() => navTo('simulation')} className={`px-4 py-2 rounded-full font-medium transition ${currentPage === 'simulation' ? 'bg-sky-500 text-white shadow-[0_0_30px_rgba(56,189,248,0.25)]' : 'text-slate-300 hover:bg-white/10'}`}>Simulation</button>
+                <button onClick={openAdminPanel} className="p-2.5 rounded-full text-slate-300 transition hover:bg-white/10 hover:text-white" title="Admin Panel">
                   <Settings size={18} />
                 </button>
               </nav>
 
               {/* Mobile Hamburger Menu */}
               <div className="md:hidden flex items-center gap-2">
-                <button onClick={openAdminPanel} className="p-2.5 rounded-xl text-gray-300 hover:bg-gray-800" title="Admin Panel">
+                <button onClick={openAdminPanel} className="p-2.5 rounded-full text-slate-300 transition hover:bg-white/10 hover:text-white" title="Admin Panel">
                   <Settings size={18} />
                 </button>
-                <button onClick={() => setMobileMenuOpen(o => !o)} className="p-2.5 rounded-xl text-gray-300 hover:bg-gray-800">
+                <button onClick={() => setMobileMenuOpen(o => !o)} className="p-2.5 rounded-full text-slate-300 transition hover:bg-white/10 hover:text-white">
                   {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
                 </button>
               </div>
@@ -177,7 +189,7 @@ export default function SpeakUpApp() {
               <img
                 src="/logo.png"
                 alt="School Logo"
-                className="h-11 w-11 object-cover shrink-0"
+                className="h-11 w-11 rounded-2xl object-cover shrink-0 ring-1 ring-white/10 shadow-lg"
                 onError={(e) => {
                   e.target.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="40" fill="%234F46E5"/><text x="50" y="60" text-anchor="middle" fill="white" font-size="35" font-family="Arial" font-weight="bold">HS</text></svg>';
                 }}
@@ -188,141 +200,232 @@ export default function SpeakUpApp() {
       </header>
 
       {/* Notification Banner */}
-      <div className="w-full bg-[#1e90ff]/10 border-b border-[#1e90ff]/30 text-center py-2 px-4">
-        <p className="text-sm text-[#1e90ff] font-medium">
-          🔴 necs. server might experience minor errors due to maintenance from 23/03 - 29/03, sorry for the inconvenience 🔴
+      <div className="w-full border-b border-sky-400/20 bg-sky-400/10 text-center py-2 px-4">
+        <p className="text-sm font-medium text-sky-300">
+          necs. may occasionally return slower responses while backend services are under maintenance.
         </p>
       </div>
 
       {/* Mobile Menu Dropdown */}
       {mobileMenuOpen && (
-        <div className="md:hidden bg-gray-900 border-b border-gray-700">
+        <div className="md:hidden border-b border-white/10 bg-[#081120]/95 backdrop-blur-xl">
           <nav className="max-w-7xl mx-auto px-6 py-4 flex flex-col gap-2">
-            <button onClick={() => navTo('analyze')} className={`px-4 py-3 rounded-xl font-medium text-left ${currentPage === 'analyze' ? 'bg-[#1e90ff] text-white' : 'text-gray-300 hover:bg-gray-800'}`}>Analyze</button>
-            <button onClick={() => navTo('samples')} className={`px-4 py-3 rounded-xl font-medium text-left ${currentPage === 'samples' ? 'bg-[#1e90ff] text-white' : 'text-gray-300 hover:bg-gray-800'}`}>Samples</button>
-            <button onClick={() => navTo('simulation')} className={`px-4 py-3 rounded-xl font-medium text-left ${currentPage === 'simulation' ? 'bg-[#1e90ff] text-white' : 'text-gray-300 hover:bg-gray-800'}`}>Simulation</button>
+            <button onClick={() => navTo('analyze')} className={`px-4 py-3 rounded-2xl font-medium text-left transition ${currentPage === 'analyze' ? 'bg-sky-500 text-white' : 'text-slate-300 hover:bg-white/10'}`}>Analyze</button>
+            <button onClick={() => navTo('samples')} className={`px-4 py-3 rounded-2xl font-medium text-left transition ${currentPage === 'samples' ? 'bg-sky-500 text-white' : 'text-slate-300 hover:bg-white/10'}`}>Samples</button>
+            <button onClick={() => navTo('simulation')} className={`px-4 py-3 rounded-2xl font-medium text-left transition ${currentPage === 'simulation' ? 'bg-sky-500 text-white' : 'text-slate-300 hover:bg-white/10'}`}>Simulation</button>
           </nav>
         </div>
       )}
 
-      <div className="max-w-5xl mx-auto px-6 py-8">
+      <div className="max-w-6xl mx-auto px-4 py-8 sm:px-6">
         {currentPage === 'analyze' ? (
-          <>
-            <div className="text-center mb-6">
-              <h2 className="text-3xl font-bold mb-2">{step === 'results' ? 'Your Speech Analysis (+/- 0.1)' : 'Analyze Your Speech'}</h2>
-              <p className="text-sm text-gray-300">Master NEC Speaking with AI-powered feedback</p>
-            </div>
+          <div className="space-y-6">
+            <section className="overflow-hidden rounded-[32px] border border-white/10 bg-white/[0.04] shadow-[0_24px_120px_rgba(2,6,23,0.45)]">
+              <div className="grid gap-8 px-6 py-8 lg:grid-cols-[1.25fr_0.75fr] lg:px-10 lg:py-10">
+                <div className="space-y-5">
+                  <div className="inline-flex items-center gap-2 rounded-full border border-sky-400/30 bg-sky-400/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em] text-sky-300">
+                    <CheckCircle size={14} />
+                    NEC Speaking Assistant
+                  </div>
+                  <div className="space-y-3">
+                    <h2 className="text-4xl font-black tracking-tight text-white sm:text-5xl">
+                      {step === 'results' ? 'Your speech analysis is ready.' : 'Sharper speaking feedback in one clean pass.'}
+                    </h2>
+                    <p className="max-w-2xl text-sm leading-7 text-slate-300 sm:text-base">
+                      Upload your response, preview it, and get structured feedback on content, accuracy, and delivery with a report you can keep.
+                    </p>
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-3">
+                    <div className="rounded-2xl border border-white/10 bg-slate-950/50 p-4">
+                      <div className="mb-3 inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-sky-400/15 text-sky-300">
+                        <Upload size={20} />
+                      </div>
+                      <div className="text-sm font-semibold text-white">Upload</div>
+                      <div className="mt-1 text-xs leading-6 text-slate-400">Bring in MP3, WAV, M4A, WEBM, or OGG files up to 5 minutes.</div>
+                    </div>
+                    <div className="rounded-2xl border border-white/10 bg-slate-950/50 p-4">
+                      <div className="mb-3 inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-sky-400/15 text-sky-300">
+                        <Play size={20} />
+                      </div>
+                      <div className="text-sm font-semibold text-white">Preview</div>
+                      <div className="mt-1 text-xs leading-6 text-slate-400">Listen back before submitting so you can catch issues early.</div>
+                    </div>
+                    <div className="rounded-2xl border border-white/10 bg-slate-950/50 p-4">
+                      <div className="mb-3 inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-sky-400/15 text-sky-300">
+                        <Download size={20} />
+                      </div>
+                      <div className="text-sm font-semibold text-white">Review</div>
+                      <div className="mt-1 text-xs leading-6 text-slate-400">Export a report after scoring so revision stays organized.</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid gap-4 sm:grid-cols-3 lg:grid-cols-1">
+                  <div className="rounded-3xl border border-sky-400/20 bg-sky-400/10 p-5">
+                    <div className="text-xs font-semibold uppercase tracking-[0.22em] text-sky-300">Current Stage</div>
+                    <div className="mt-3 text-2xl font-black text-white">
+                      {step === 'input' ? 'Write + upload' : step === 'preview' ? 'Preview + submit' : step === 'uploading' ? 'Analyzing' : 'Results'}
+                    </div>
+                    <div className="mt-2 text-sm text-slate-300">
+                      {step === 'results' ? 'Your breakdown and feedback are visible below.' : 'Move through the flow in one direction without extra screens.'}
+                    </div>
+                  </div>
+                  <div className="rounded-3xl border border-white/10 bg-slate-950/55 p-5">
+                    <div className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">Focus Areas</div>
+                    <div className="mt-3 text-sm leading-7 text-slate-300">Content quality, language accuracy, and delivery clarity are scored separately.</div>
+                  </div>
+                  <div className="rounded-3xl border border-white/10 bg-slate-950/55 p-5">
+                    <div className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">Best Result</div>
+                    <div className="mt-3 text-sm leading-7 text-slate-300">Use a quiet room and preview your audio before running the analysis.</div>
+                  </div>
+                </div>
+              </div>
+            </section>
 
             {error && (
-              <div className="mb-6 p-3 rounded-xl flex items-center gap-3 bg-red-700/10 border border-red-700/20">
+              <div className="rounded-2xl border border-red-400/25 bg-red-500/10 p-4 flex items-center gap-3 text-red-100">
                 <AlertCircle size={18} />
                 <span className="font-medium">{error}</span>
               </div>
             )}
 
-            <div className="rounded-xl p-6 bg-gray-800 border border-gray-700">
+            <div className="rounded-[32px] border border-white/10 bg-slate-950/65 p-6 shadow-[0_20px_80px_rgba(2,6,23,0.4)] sm:p-8">
               {step === 'input' && (
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-semibold mb-2 text-gray-200">Speaking Question</label>
+                <div className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
+                  <div className="space-y-5">
+                    <div>
+                      <div className="mb-2 text-sm font-semibold text-slate-200">Speaking Question</div>
+                      <p className="mb-3 text-sm text-slate-400">Paste the exact prompt so the feedback stays aligned with the task.</p>
+                    </div>
                     <textarea
                       value={topic}
                       onChange={(e) => setTopic(e.target.value)}
                       placeholder="Enter the topic or question you'll be speaking about..."
-                      className="w-full px-4 py-3 rounded-xl bg-gray-900 border border-gray-700 text-white placeholder-gray-500"
-                      rows="4"
+                      className="min-h-[210px] w-full rounded-[24px] border border-white/10 bg-[#07111f] px-5 py-4 text-white placeholder:text-slate-500"
+                      rows="6"
                     />
                   </div>
-                  <div>
-                    <label className="justify-center flex items-center gap-3 px-4 py-3 rounded-xl font-semibold cursor-pointer bg-[#1e90ff] text-white">
-                      <Upload size={18} />
-                      <span>Upload Audio File</span>
-                      <input type="file" accept="audio/*" onChange={handleFileUpload} className="hidden" />
-                    </label>
+                  <div className="space-y-4">
+                    <div className="rounded-[28px] border border-dashed border-sky-400/35 bg-sky-400/8 p-5">
+                      <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-sky-400/15 text-sky-300">
+                        <FileAudio size={22} />
+                      </div>
+                      <div className="text-lg font-bold text-white">Upload your response</div>
+                      <div className="mt-2 text-sm leading-7 text-slate-300">Choose one recording file. You’ll be able to preview it before analysis.</div>
+                      <label className="mt-5 inline-flex w-full items-center justify-center gap-3 rounded-2xl bg-sky-500 px-4 py-3 font-semibold text-white transition hover:bg-sky-400">
+                        <Upload size={18} />
+                        <span>Upload Audio File</span>
+                        <input type="file" accept="audio/*" onChange={handleFileUpload} className="hidden" />
+                      </label>
+                      <p className="mt-3 text-xs text-slate-400">Supported: MP3, WAV, M4A, WEBM, OGG | Max 5 minutes</p>
+                    </div>
+                    <div className="rounded-[28px] border border-white/10 bg-white/[0.03] p-5">
+                      <div className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">Workflow</div>
+                      <div className="mt-3 space-y-3 text-sm text-slate-300">
+                        <div className="flex items-center gap-3"><span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-slate-800 text-sky-300">1</span><span>Paste the speaking prompt.</span></div>
+                        <div className="flex items-center gap-3"><span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-slate-800 text-sky-300">2</span><span>Upload and preview the recording.</span></div>
+                        <div className="flex items-center gap-3"><span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-slate-800 text-sky-300">3</span><span>Run analysis and download the report.</span></div>
+                      </div>
+                    </div>
                   </div>
-                  <p className="text-xs text-gray-400 text-center">Supported: MP3, WAV, M4A, WEBM, OGG • Max 5 minutes</p>
                 </div>
               )}
 
               {step === 'preview' && (
-                <div className="space-y-6 text-center">
-                  <div className="inline-flex items-center justify-center w-20 h-20 mb-4 bg-gray-800 rounded-xl">
-                    <FileAudio size={36} />
+                <div className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
+                  <div className="rounded-[28px] border border-white/10 bg-white/[0.03] p-6 text-center">
+                    <div className="inline-flex items-center justify-center w-20 h-20 mb-4 rounded-3xl bg-sky-400/12 text-sky-300">
+                      <FileAudio size={36} />
+                    </div>
+                    <div className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">Uploaded File</div>
+                    <div className="mt-3 text-lg font-semibold text-white break-all">{audioFile?.name}</div>
+                    <div className="mt-2 text-sm text-slate-400">Preview the recording, then continue when it sounds correct.</div>
                   </div>
-                  <div className="font-semibold">{audioFile?.name}</div>
-                  <div className="flex justify-center gap-3">
-                    <button onClick={togglePlayback} className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-gray-700 text-white">
-                      {isPlaying ? <><Pause size={16} /> Pause</> : <><Play size={16} /> Preview</>}
-                    </button>
-                    <button onClick={analyzeAudio} className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-[#1e90ff] text-white">
-                      <CheckCircle size={16} /> Analyze Speech
-                    </button>
+                  <div className="rounded-[28px] border border-white/10 bg-[#07111f] p-6">
+                    <div className="text-sm font-semibold text-slate-200">Ready for submission</div>
+                    <div className="mt-2 text-sm leading-7 text-slate-400">Once you submit, the app scores your speech and generates written feedback with a downloadable report.</div>
+                    <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+                      <button onClick={togglePlayback} className="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.05] px-6 py-3 text-white transition hover:bg-white/[0.09]">
+                        {isPlaying ? <><Pause size={16} /> Pause Preview</> : <><Play size={16} /> Play Preview</>}
+                      </button>
+                      <button onClick={analyzeAudio} className="inline-flex items-center justify-center gap-2 rounded-2xl bg-sky-500 px-6 py-3 font-semibold text-white transition hover:bg-sky-400">
+                        <CheckCircle size={16} /> Analyze Speech
+                      </button>
+                    </div>
+                    <div className="mt-6 rounded-2xl border border-sky-400/15 bg-sky-400/8 p-4 text-sm text-slate-300">
+                      The analysis works best when the topic matches the actual response and the audio is clear.
+                    </div>
                   </div>
                   <audio ref={audioRef} src={audioURL} onEnded={() => setIsPlaying(false)} />
                 </div>
               )}
 
               {step === 'uploading' && (
-                <div className="text-center py-12">
-                  <Loader className="animate-spin mx-auto mb-4 text-[#1e90ff]" size={48} />
-                  <div className="font-semibold">Analyzing your speech...</div>
+                <div className="text-center py-14">
+                  <div className="mx-auto mb-5 inline-flex h-20 w-20 items-center justify-center rounded-full border border-sky-400/25 bg-sky-400/10 text-sky-300">
+                    <Loader className="animate-spin" size={40} />
+                  </div>
+                  <div className="text-xl font-semibold text-white">Analyzing your speech...</div>
+                  <div className="mt-2 text-sm text-slate-400">This can take a little longer while backend services are busy.</div>
                 </div>
               )}
 
               {step === 'results' && results && (
                 <div className="space-y-6">
-                  <div className="text-center p-6 rounded-xl bg-gray-800 border border-gray-700">
-                    <div className="text-5xl font-extrabold text-[#1e90ff]">{results.scores.total.toFixed(2)}</div>
-                    <div className="text-sm text-gray-400">out of 2.0</div>
-                  </div>
-
-                  <div className="grid grid-cols-3 gap-4">
-                    {[
-                      { label: '🧠 Content', score: results.scores.content, max: 0.9 },
-                      { label: '🎯 Accuracy', score: results.scores.accuracy, max: 0.6 },
-                      { label: '🎙️ Delivery', score: results.scores.delivery, max: 0.5 }
-                    ].map((item, idx) => (
-                      <div key={idx} className="p-4 rounded-xl bg-gray-800 border border-gray-700 text-center">
-                        <div className="text-xs font-bold uppercase mb-2 text-gray-300">{item.label}</div>
-                        <div className={`text-2xl font-black ${getScoreColor(item.score, item.max)}`}>{item.score.toFixed(2)}</div>
-                        <div className="text-xs text-gray-400">/ {item.max.toFixed(1)}</div>
-                      </div>
-                    ))}
+                  <div className="grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
+                    <div className="rounded-[28px] border border-sky-400/20 bg-sky-400/10 p-6 text-center">
+                      <div className="text-xs font-semibold uppercase tracking-[0.22em] text-sky-300">Overall Score</div>
+                      <div className="mt-4 text-6xl font-extrabold text-white">{results.scores.total.toFixed(2)}</div>
+                      <div className="mt-2 text-sm text-slate-300">out of 2.0</div>
+                    </div>
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                      {[
+                        { label: 'Content', score: results.scores.content, max: 0.9 },
+                        { label: 'Accuracy', score: results.scores.accuracy, max: 0.6 },
+                        { label: 'Delivery', score: results.scores.delivery, max: 0.5 }
+                      ].map((item, idx) => (
+                        <div key={idx} className="rounded-[24px] border border-white/10 bg-white/[0.04] p-5 text-center">
+                          <div className="text-xs font-bold uppercase tracking-[0.22em] text-slate-400">{item.label}</div>
+                          <div className={`mt-3 text-3xl font-black ${getScoreColor(item.score, item.max)}`}>{item.score.toFixed(2)}</div>
+                          <div className="mt-1 text-xs text-slate-500">/ {item.max.toFixed(1)}</div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
 
                   <div>
-                    <h3 className="text-lg font-bold mb-2">Detailed Feedback</h3>
+                    <h3 className="text-lg font-bold mb-3 text-white">Detailed Feedback</h3>
                     <div className="space-y-3">
-                      <div className="p-3 rounded-xl bg-gray-800 border border-gray-700">
-                        <div className="font-semibold">🧠 Content</div>
-                        <div className="text-sm text-gray-300">{results.feedback.content}</div>
+                      <div className="rounded-[24px] border border-white/10 bg-white/[0.04] p-4">
+                        <div className="font-semibold text-white">Content</div>
+                        <div className="mt-2 text-sm leading-7 text-slate-300">{results.feedback.content}</div>
                       </div>
-                      <div className="p-3 rounded-xl bg-gray-800 border border-gray-700">
-                        <div className="font-semibold">🎯 Accuracy</div>
-                        <div className="text-sm text-gray-300">{results.feedback.accuracy}</div>
+                      <div className="rounded-[24px] border border-white/10 bg-white/[0.04] p-4">
+                        <div className="font-semibold text-white">Accuracy</div>
+                        <div className="mt-2 text-sm leading-7 text-slate-300">{results.feedback.accuracy}</div>
                       </div>
-                      <div className="p-3 rounded-xl bg-gray-800 border border-gray-700">
-                        <div className="font-semibold">🎙️ Delivery</div>
-                        <div className="text-sm text-gray-300">{results.feedback.delivery}</div>
+                      <div className="rounded-[24px] border border-white/10 bg-white/[0.04] p-4">
+                        <div className="font-semibold text-white">Delivery</div>
+                        <div className="mt-2 text-sm leading-7 text-slate-300">{results.feedback.delivery}</div>
                       </div>
                     </div>
                   </div>
 
                   {results.sample_response && (
-                    <div className="p-4 rounded-xl bg-gray-800 border border-amber-800">
-                      <h4 className="font-bold mb-2">Sample 2.0 Response</h4>
-                      <div className="text-sm text-gray-300 whitespace-pre-line">{results.sample_response}</div>
+                    <div className="rounded-[24px] border border-amber-400/20 bg-amber-400/8 p-4">
+                      <h4 className="font-bold mb-2 text-white">Sample 2.0 Response</h4>
+                      <div className="text-sm whitespace-pre-line text-slate-200">{results.sample_response}</div>
                     </div>
                   )}
 
-                  <div className="flex gap-3">
-                    <button onClick={downloadDocument} className="inline-flex items-center justify-center gap-2 flex-1 py-3 rounded-xl bg-[#1e90ff] text-white"><Download size={16} /> Download Report</button>
-                    <button onClick={reset} className="py-3 px-6 rounded-xl bg-gray-700">New Analysis</button>
+                  <div className="flex flex-col gap-3 sm:flex-row">
+                    <button onClick={downloadDocument} className="inline-flex items-center justify-center gap-2 flex-1 rounded-2xl bg-sky-500 py-3 text-white transition hover:bg-sky-400"><Download size={16} /> Download Report</button>
+                    <button onClick={reset} className="rounded-2xl border border-white/10 bg-white/[0.04] px-6 py-3 text-white transition hover:bg-white/[0.08]">New Analysis</button>
                   </div>
                 </div>
               )}
             </div>
-          </>
+          </div>
         ) : currentPage === 'samples' ? (
           <SampleLibrary />
         ) : (
@@ -383,7 +486,6 @@ function SimulationMode() {
         return prev - 1;
       });
     }, 1000);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchAndSetQuestion = useCallback(async (onSuccess) => {
@@ -463,7 +565,6 @@ function SimulationMode() {
     } catch {
       setError('Failed to start recording. Check microphone permissions.');
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const stopRecording = useCallback(() => {
@@ -563,36 +664,38 @@ function SimulationMode() {
   return (
     <div className="space-y-6">
       <div className="text-center mb-6">
-        <h2 className="text-3xl font-bold mb-2">NEC Speaking Simulation</h2>
-        <p className="text-sm text-gray-300">Experience the real test interface</p>
+        <h2 className="text-3xl font-bold mb-2 text-white">NEC Speaking Simulation</h2>
+        <p className="text-sm text-slate-300">Experience the real test interface</p>
       </div>
 
       {error && (
-        <div className="mb-6 p-3 rounded-xl flex items-center gap-3 bg-red-700/10 border border-red-700/20">
+        <div className="mb-6 rounded-2xl border border-red-400/25 bg-red-500/10 p-4 flex items-center gap-3 text-red-100">
           <AlertCircle size={18} />
           <span className="font-medium">{error}</span>
         </div>
       )}
 
-      <div className="rounded-xl p-8 bg-gray-800 border border-gray-700">
+      <div className="rounded-[32px] border border-white/10 bg-slate-950/65 p-6 shadow-[0_20px_80px_rgba(2,6,23,0.4)] sm:p-8">
         {simStep === 'intro' && (
           <div className="text-center space-y-6">
-            <div className="text-6xl mb-4">🎤</div>
-            <h3 className="text-2xl font-bold">NEC Speaking Simulation</h3>
-            <div className="text-left max-w-md mx-auto space-y-3 text-gray-300">
-              <p className="flex items-start gap-2"><span className="text-[#1e90ff] font-bold">•</span><span>Please prepare pen and paper for drafting ideas</span></p>
-              <p className="flex items-start gap-2"><span className="text-[#1e90ff] font-bold">•</span><span>You will have 60 seconds to read the question</span></p>
-              <p className="flex items-start gap-2"><span className="text-[#1e90ff] font-bold">•</span><span>Then 5 minutes to prepare your response</span></p>
-              <p className="flex items-start gap-2"><span className="text-[#1e90ff] font-bold">•</span><span>Recording will last exactly 5 minutes</span></p>
+            <div className="mx-auto inline-flex h-24 w-24 items-center justify-center rounded-[28px] bg-sky-400/12 text-sky-300 ring-1 ring-sky-400/20">
+              <Mic size={42} />
             </div>
-            <div className="space-y-3 pt-4">
-              <button onClick={testMicrophone} className={`w-full py-3 rounded-xl font-semibold ${micTested ? 'bg-green-600 text-white' : 'bg-gray-700 text-white hover:bg-gray-600'}`}>
+            <h3 className="text-2xl font-bold text-white">NEC Speaking Simulation</h3>
+            <div className="mx-auto grid max-w-3xl gap-3 text-left md:grid-cols-2">
+              <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-sm text-slate-300">Prepare pen and paper for drafting ideas.</div>
+              <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-sm text-slate-300">You will have 60 seconds to read the question.</div>
+              <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-sm text-slate-300">Then 5 minutes to prepare your response.</div>
+              <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-sm text-slate-300">Recording lasts exactly 5 minutes.</div>
+            </div>
+            <div className="space-y-3 pt-4 max-w-xl mx-auto">
+              <button onClick={testMicrophone} className={`w-full py-3 rounded-2xl font-semibold transition ${micTested ? 'bg-emerald-500 text-white' : 'bg-white/[0.06] text-white hover:bg-white/[0.1]'}`}>
                 <div className="flex items-center justify-center gap-2">
                   <Mic size={18} />
-                  {micTested ? 'Microphone Ready ✓' : 'Test Microphone'}
+                  {micTested ? 'Microphone Ready' : 'Test Microphone'}
                 </div>
               </button>
-              <button onClick={startSimulation} disabled={!micTested} className={`w-full py-3 rounded-xl font-semibold ${micTested ? 'bg-[#1e90ff] text-white hover:bg-[#1a7be6]' : 'bg-gray-600 text-gray-400 cursor-not-allowed'}`}>
+              <button onClick={startSimulation} disabled={!micTested} className={`w-full py-3 rounded-2xl font-semibold transition ${micTested ? 'bg-sky-500 text-white hover:bg-sky-400' : 'bg-slate-700 text-slate-400 cursor-not-allowed'}`}>
                 Start Simulation
               </button>
             </div>
@@ -602,31 +705,33 @@ function SimulationMode() {
         {simStep === 'reading' && currentQuestion && (
           <div className="space-y-6">
             <div className="text-center">
-              <div className="text-5xl font-extrabold text-[#1e90ff] mb-2">{formatTime(countdown)}</div>
-              <div className="text-sm text-gray-400">Time to read the question</div>
+              <div className="text-5xl font-extrabold text-sky-300 mb-2">{formatTime(countdown)}</div>
+              <div className="text-sm text-slate-400">Time to read the question</div>
             </div>
-            <div className="p-6 rounded-xl bg-gray-900 border border-gray-700">
-              <div className="text-xs font-bold uppercase text-gray-400 mb-2">Question {currentQuestion.id}</div>
-              <div className="text-sm font-semibold text-gray-300 mb-3">{currentQuestion.topic}</div>
+            <div className="rounded-[28px] border border-white/10 bg-[#07111f] p-6">
+              <div className="text-xs font-bold uppercase tracking-[0.22em] text-slate-400 mb-2">Question {currentQuestion.id}</div>
+              <div className="text-sm font-semibold text-slate-300 mb-3">{currentQuestion.topic}</div>
               <div className="text-lg text-white">{currentQuestion.question}</div>
             </div>
-            <div className="flex gap-3">
-              <button onClick={skipReading} className="flex-1 py-3 rounded-xl bg-[#1e90ff] text-white font-semibold hover:bg-[#1a7be6]">Finish Reading Question</button>
-              <button onClick={randomizeQuestion} className="px-4 py-3 rounded-xl bg-gray-700 text-white font-semibold hover:bg-gray-600">Randomize Again</button>
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <button onClick={skipReading} className="flex-1 py-3 rounded-2xl bg-sky-500 text-white font-semibold transition hover:bg-sky-400">Finish Reading Question</button>
+              <button onClick={randomizeQuestion} className="px-4 py-3 rounded-2xl border border-white/10 bg-white/[0.04] text-white font-semibold transition hover:bg-white/[0.08]">Randomize Again</button>
             </div>
           </div>
         )}
 
         {simStep === 'preparation' && (
           <div className="space-y-6 text-center">
-            <div className="text-6xl mb-4">✏️</div>
-            <h3 className="text-2xl font-bold">Preparation Time</h3>
-            <div className="text-5xl font-extrabold text-[#1e90ff]">{formatTime(countdown)}</div>
-            <div className="text-sm text-gray-400">{currentQuestion.question}</div>
-            <div className="w-full bg-gray-700 rounded-full h-3">
-              <div className="bg-[#1e90ff] h-3 rounded-full transition-all" style={{ width: `${((300 - countdown) / 300) * 100}%` }} />
+            <div className="mx-auto inline-flex h-20 w-20 items-center justify-center rounded-full bg-sky-400/12 text-sky-300">
+              <CheckCircle size={34} />
             </div>
-            <button onClick={() => { clearInterval(timerRef.current); startRecordingAuto(); }} className="px-6 py-3 rounded-xl bg-[#1e90ff] text-white font-semibold hover:bg-[#1a7be6]">
+            <h3 className="text-2xl font-bold text-white">Preparation Time</h3>
+            <div className="text-5xl font-extrabold text-sky-300">{formatTime(countdown)}</div>
+            <div className="text-sm text-slate-400">{currentQuestion.question}</div>
+            <div className="w-full bg-slate-800 rounded-full h-3 overflow-hidden">
+              <div className="bg-sky-400 h-3 rounded-full transition-all" style={{ width: `${((300 - countdown) / 300) * 100}%` }} />
+            </div>
+            <button onClick={() => { clearInterval(timerRef.current); startRecordingAuto(); }} className="px-6 py-3 rounded-2xl bg-sky-500 text-white font-semibold transition hover:bg-sky-400">
               Skip Preparation & Start Recording
             </button>
           </div>
@@ -635,80 +740,88 @@ function SimulationMode() {
         {simStep === 'recording' && (
           <div className="space-y-6 text-center">
             <div className="flex items-center justify-center">
-              <Circle className="text-red-500 animate-pulse" size={48} fill="currentColor" />
+              <div className="inline-flex h-24 w-24 items-center justify-center rounded-full border border-red-400/20 bg-red-500/10">
+                <Circle className="text-red-500 animate-pulse" size={48} fill="currentColor" />
+              </div>
             </div>
             <h3 className="text-2xl font-bold text-red-500">Recording...</h3>
             <div className="text-5xl font-extrabold text-white">{formatTime(recordingTime)}</div>
-            <div className="text-sm text-gray-400">{currentQuestion.question}</div>
-            <div className="w-full bg-gray-700 rounded-full h-3">
+            <div className="text-sm text-slate-400">{currentQuestion.question}</div>
+            <div className="w-full bg-slate-800 rounded-full h-3 overflow-hidden">
               <div className="bg-red-500 h-3 rounded-full transition-all" style={{ width: `${(recordingTime / 300) * 100}%` }} />
             </div>
-            <button onClick={stopRecording} className="px-6 py-3 rounded-xl bg-red-600 text-white font-semibold hover:bg-red-700">Stop Recording Early</button>
+            <button onClick={stopRecording} className="px-6 py-3 rounded-2xl bg-red-600 text-white font-semibold transition hover:bg-red-500">Stop Recording Early</button>
           </div>
         )}
 
         {simStep === 'playback' && (
           <div className="space-y-6 text-center">
-            <div className="text-6xl mb-4">✅</div>
-            <h3 className="text-2xl font-bold">Recording Complete!</h3>
-            <div className="text-gray-300">Duration: {formatTime(recordingTime)}</div>
-            <AudioPlayback audioUrl={recordedAudioURL} />
-            <div className="flex gap-3">
-              <button onClick={analyzeRecording} className="flex-1 py-3 rounded-xl bg-[#1e90ff] text-white font-semibold">Analyze My Speech</button>
-              <button onClick={downloadRecording} className="px-6 py-3 rounded-xl bg-gray-700 text-white font-semibold"><Download size={18} /></button>
+            <div className="mx-auto inline-flex h-20 w-20 items-center justify-center rounded-full bg-emerald-500/12 text-emerald-300">
+              <CheckCircle size={34} />
             </div>
-            <button onClick={resetSimulation} className="w-full py-3 rounded-xl bg-gray-700 text-white">Start New Simulation</button>
+            <h3 className="text-2xl font-bold text-white">Recording Complete!</h3>
+            <div className="text-slate-300">Duration: {formatTime(recordingTime)}</div>
+            <AudioPlayback audioUrl={recordedAudioURL} />
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <button onClick={analyzeRecording} className="flex-1 py-3 rounded-2xl bg-sky-500 text-white font-semibold transition hover:bg-sky-400">Analyze My Speech</button>
+              <button onClick={downloadRecording} className="px-6 py-3 rounded-2xl border border-white/10 bg-white/[0.04] text-white font-semibold transition hover:bg-white/[0.08]"><Download size={18} /></button>
+            </div>
+            <button onClick={resetSimulation} className="w-full py-3 rounded-2xl border border-white/10 bg-white/[0.04] text-white transition hover:bg-white/[0.08]">Start New Simulation</button>
           </div>
         )}
 
         {simStep === 'analyzing' && (
           <div className="text-center py-12">
-            <Loader className="animate-spin mx-auto mb-4 text-[#1e90ff]" size={48} />
-            <div className="font-semibold">Analyzing your speech...</div>
+            <div className="mx-auto mb-5 inline-flex h-20 w-20 items-center justify-center rounded-full border border-sky-400/25 bg-sky-400/10 text-sky-300">
+              <Loader className="animate-spin" size={40} />
+            </div>
+            <div className="font-semibold text-white">Analyzing your speech...</div>
           </div>
         )}
 
         {simStep === 'results' && results && (
           <div className="space-y-6">
-            <h3 className="text-2xl font-bold text-center">Your Results</h3>
-            <div className="text-center p-6 rounded-xl bg-gray-800 border border-gray-700">
-              <div className="text-5xl font-extrabold text-[#1e90ff]">{results.scores.total.toFixed(2)}</div>
-              <div className="text-sm text-gray-400">out of 2.0</div>
-            </div>
-            <div className="grid grid-cols-3 gap-4">
-              {[
-                { label: '🧠 Content', score: results.scores.content, max: 0.9 },
-                { label: '🎯 Accuracy', score: results.scores.accuracy, max: 0.6 },
-                { label: '🎙️ Delivery', score: results.scores.delivery, max: 0.5 }
-              ].map((item, idx) => (
-                <div key={idx} className="p-4 rounded-xl bg-gray-800 border border-gray-700 text-center">
-                  <div className="text-xs font-bold uppercase mb-2 text-gray-300">{item.label}</div>
-                  <div className={`text-2xl font-black ${getScoreColor(item.score, item.max)}`}>{item.score.toFixed(2)}</div>
-                  <div className="text-xs text-gray-400">/ {item.max.toFixed(1)}</div>
-                </div>
-              ))}
+            <h3 className="text-2xl font-bold text-center text-white">Your Results</h3>
+            <div className="grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
+              <div className="text-center rounded-[28px] border border-sky-400/20 bg-sky-400/10 p-6">
+                <div className="text-5xl font-extrabold text-white">{results.scores.total.toFixed(2)}</div>
+                <div className="mt-2 text-sm text-slate-300">out of 2.0</div>
+              </div>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                {[
+                  { label: 'Content', score: results.scores.content, max: 0.9 },
+                  { label: 'Accuracy', score: results.scores.accuracy, max: 0.6 },
+                  { label: 'Delivery', score: results.scores.delivery, max: 0.5 }
+                ].map((item, idx) => (
+                  <div key={idx} className="rounded-[24px] border border-white/10 bg-white/[0.04] p-4 text-center">
+                    <div className="text-xs font-bold uppercase tracking-[0.22em] text-slate-400">{item.label}</div>
+                    <div className={`mt-3 text-2xl font-black ${getScoreColor(item.score, item.max)}`}>{item.score.toFixed(2)}</div>
+                    <div className="mt-1 text-xs text-slate-500">/ {item.max.toFixed(1)}</div>
+                  </div>
+                ))}
+              </div>
             </div>
             <div>
-              <h3 className="text-lg font-bold mb-2">Detailed Feedback</h3>
+              <h3 className="text-lg font-bold mb-2 text-white">Detailed Feedback</h3>
               <div className="space-y-3">
-                <div className="p-3 rounded-xl bg-gray-800 border border-gray-700"><div className="font-semibold">🧠 Content</div><div className="text-sm text-gray-300">{results.feedback.content}</div></div>
-                <div className="p-3 rounded-xl bg-gray-800 border border-gray-700"><div className="font-semibold">🎯 Accuracy</div><div className="text-sm text-gray-300">{results.feedback.accuracy}</div></div>
-                <div className="p-3 rounded-xl bg-gray-800 border border-gray-700"><div className="font-semibold">🎙️ Delivery</div><div className="text-sm text-gray-300">{results.feedback.delivery}</div></div>
+                <div className="rounded-[24px] border border-white/10 bg-white/[0.04] p-4"><div className="font-semibold text-white">Content</div><div className="mt-2 text-sm leading-7 text-slate-300">{results.feedback.content}</div></div>
+                <div className="rounded-[24px] border border-white/10 bg-white/[0.04] p-4"><div className="font-semibold text-white">Accuracy</div><div className="mt-2 text-sm leading-7 text-slate-300">{results.feedback.accuracy}</div></div>
+                <div className="rounded-[24px] border border-white/10 bg-white/[0.04] p-4"><div className="font-semibold text-white">Delivery</div><div className="mt-2 text-sm leading-7 text-slate-300">{results.feedback.delivery}</div></div>
               </div>
             </div>
             {results.sample_response && (
-              <div className="p-4 rounded-xl bg-gray-800 border border-amber-800">
-                <h4 className="font-bold mb-2">Sample 2.0 Response</h4>
-                <div className="text-sm text-gray-300 whitespace-pre-line">{results.sample_response}</div>
+              <div className="rounded-[24px] border border-amber-400/20 bg-amber-400/8 p-4">
+                <h4 className="font-bold mb-2 text-white">Sample 2.0 Response</h4>
+                <div className="text-sm text-slate-200 whitespace-pre-line">{results.sample_response}</div>
               </div>
             )}
-            <div className="flex gap-3">
-              <button onClick={downloadSimulationReport} className="flex-1 py-3 rounded-xl bg-[#1e90ff] text-white font-semibold">
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <button onClick={downloadSimulationReport} className="flex-1 py-3 rounded-2xl bg-sky-500 text-white font-semibold transition hover:bg-sky-400">
                 <div className="flex items-center justify-center gap-2"><Download size={16} />Download Report</div>
               </button>
-              <button onClick={downloadRecording} className="px-6 py-3 rounded-xl bg-gray-700 text-white font-semibold"><Download size={18} /></button>
+              <button onClick={downloadRecording} className="px-6 py-3 rounded-2xl border border-white/10 bg-white/[0.04] text-white font-semibold transition hover:bg-white/[0.08]"><Download size={18} /></button>
             </div>
-            <button onClick={resetSimulation} className="w-full py-3 rounded-xl bg-gray-700 text-white">Start New Simulation</button>
+            <button onClick={resetSimulation} className="w-full py-3 rounded-2xl border border-white/10 bg-white/[0.04] text-white transition hover:bg-white/[0.08]">Start New Simulation</button>
           </div>
         )}
       </div>
@@ -723,11 +836,26 @@ const AudioPlayback = memo(function AudioPlayback({ audioUrl }) {
   const [duration, setDuration] = useState(0);
   const audioRef = useRef(null);
 
-  const togglePlay = useCallback(() => {
+  useEffect(() => {
+    setIsPlaying(false);
+    setProgress(0);
+    setCurrentTime(0);
+    setDuration(0);
+  }, [audioUrl]);
+
+  const togglePlay = useCallback(async () => {
     if (!audioRef.current) return;
-    if (isPlaying) audioRef.current.pause();
-    else audioRef.current.play();
-    setIsPlaying(p => !p);
+    try {
+      if (isPlaying) {
+        audioRef.current.pause();
+        setIsPlaying(false);
+      } else {
+        await audioRef.current.play();
+        setIsPlaying(true);
+      }
+    } catch {
+      setIsPlaying(false);
+    }
   }, [isPlaying]);
 
   const handleTimeUpdate = useCallback(() => {
@@ -738,10 +866,15 @@ const AudioPlayback = memo(function AudioPlayback({ audioUrl }) {
     }
   }, []);
 
+  const handleLoadedMetadata = useCallback(() => {
+    const audio = audioRef.current;
+    if (audio) setDuration(audio.duration || 0);
+  }, []);
+
   const handleSeek = useCallback((e) => {
     const audio = audioRef.current;
     if (audio && audio.duration) {
-      audio.currentTime = (e.target.value / 100) * audio.duration;
+      audio.currentTime = (Number(e.target.value) / 100) * audio.duration;
     }
   }, []);
 
@@ -753,7 +886,14 @@ const AudioPlayback = memo(function AudioPlayback({ audioUrl }) {
 
   return (
     <div className="p-4 bg-gray-900 rounded-xl border border-gray-700">
-      <audio ref={audioRef} src={audioUrl} onTimeUpdate={handleTimeUpdate} onLoadedMetadata={() => setDuration(audioRef.current.duration)} onEnded={() => setIsPlaying(false)} />
+      <audio
+        ref={audioRef}
+        src={audioUrl}
+        onTimeUpdate={handleTimeUpdate}
+        onLoadedMetadata={handleLoadedMetadata}
+        onPause={() => setIsPlaying(false)}
+        onEnded={() => setIsPlaying(false)}
+      />
       <div className="flex items-center gap-4 flex-wrap max-w-full overflow-hidden">
         <button onClick={togglePlay} className="flex items-center justify-center w-12 h-12 rounded-full bg-[#1e90ff] text-white hover:bg-[#1a7be6] transition">
           {isPlaying ? <Pause size={20} /> : <Play size={20} />}
@@ -770,18 +910,47 @@ const AudioPlayback = memo(function AudioPlayback({ audioUrl }) {
   );
 });
 
-const PlaybackBar = memo(function PlaybackBar({ audioUrl, onClose }) {
+const PlaybackBar = memo(function PlaybackBar({ audioUrl, onClose, autoPlay = false }) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
   const audioRef = useRef(null);
 
-  const togglePlay = useCallback(() => {
+  useEffect(() => {
+    const audio = audioRef.current;
+    setIsPlaying(false);
+    setProgress(0);
+    setCurrentTime(0);
+    setDuration(0);
+
+    if (!audio || !audioUrl || !autoPlay) return;
+
+    const playAudio = async () => {
+      try {
+        await audio.play();
+        setIsPlaying(true);
+      } catch {
+        setIsPlaying(false);
+      }
+    };
+
+    playAudio();
+  }, [audioUrl, autoPlay]);
+
+  const togglePlay = useCallback(async () => {
     if (!audioRef.current) return;
-    if (isPlaying) audioRef.current.pause();
-    else audioRef.current.play();
-    setIsPlaying(p => !p);
+    try {
+      if (isPlaying) {
+        audioRef.current.pause();
+        setIsPlaying(false);
+      } else {
+        await audioRef.current.play();
+        setIsPlaying(true);
+      }
+    } catch {
+      setIsPlaying(false);
+    }
   }, [isPlaying]);
 
   const handleTimeUpdate = useCallback(() => {
@@ -792,9 +961,16 @@ const PlaybackBar = memo(function PlaybackBar({ audioUrl, onClose }) {
     }
   }, []);
 
+  const handleLoadedMetadata = useCallback(() => {
+    const audio = audioRef.current;
+    if (audio) setDuration(audio.duration || 0);
+  }, []);
+
   const handleSeek = useCallback((e) => {
     const audio = audioRef.current;
-    if (audio) audio.currentTime = (e.target.value / 100) * audio.duration;
+    if (audio && audio.duration) {
+      audio.currentTime = (Number(e.target.value) / 100) * audio.duration;
+    }
   }, []);
 
   const formatTime = useCallback((time) => {
@@ -805,7 +981,14 @@ const PlaybackBar = memo(function PlaybackBar({ audioUrl, onClose }) {
 
   return (
     <div className="fixed bottom-0 left-0 right-0 z-50 bg-[#000] border-t border-[#222] p-3 flex items-center justify-between gap-4">
-      <audio ref={audioRef} src={audioUrl} onTimeUpdate={handleTimeUpdate} onLoadedMetadata={() => setDuration(audioRef.current.duration)} onEnded={() => setIsPlaying(false)} />
+      <audio
+        ref={audioRef}
+        src={audioUrl}
+        onTimeUpdate={handleTimeUpdate}
+        onLoadedMetadata={handleLoadedMetadata}
+        onPause={() => setIsPlaying(false)}
+        onEnded={() => setIsPlaying(false)}
+      />
       <button onClick={togglePlay} className="flex items-center justify-center w-10 h-10 rounded-full bg-[#1e90ff] text-white hover:bg-[#1a7be6] transition">
         {isPlaying ? <Pause size={20} /> : <Play size={20} />}
       </button>
@@ -816,7 +999,7 @@ const PlaybackBar = memo(function PlaybackBar({ audioUrl, onClose }) {
           <span>{formatTime(duration)}</span>
         </div>
       </div>
-      <button onClick={onClose} className="text-[#888] hover:text-[#d1d1d1]">×</button>
+      <button onClick={onClose} className="text-[#888] hover:text-[#d1d1d1]">Close</button>
     </div>
   );
 });
@@ -882,7 +1065,7 @@ function AdminPanel({ onClose }) {
       const response = await fetch(`${API_BASE_URL}/api/samples/upload`, { method: 'POST', credentials: 'include', body: formData });
       const data = await response.json();
       if (data.success) {
-        setMessage('✓ Sample uploaded successfully!');
+        setMessage('Sample uploaded successfully!');
         setAudioFile(null); setTopic(''); setQuestion(''); setSpeaker(''); setScore('2.0'); setTranscript(''); setFeedback('');
       } else setMessage('Error: ' + (data.error || 'Upload failed'));
     } catch { setMessage('Error: Connection failed'); }
@@ -902,7 +1085,7 @@ function AdminPanel({ onClose }) {
       Object.entries(editData).forEach(([k, v]) => form.append(k, v));
       const res = await fetch(`${API_BASE_URL}/api/samples/${editingId}`, { method: 'PUT', credentials: 'include', body: form });
       const data = await res.json();
-      if (data.success) { setMessage('✓ Updated successfully'); await fetchSamples(); cancelEdit(); }
+      if (data.success) { setMessage('Updated successfully'); await fetchSamples(); cancelEdit(); }
       else setMessage('Error: ' + (data.error || 'Update failed'));
     } catch { setMessage('Error: Connection failed'); }
   }, [editData, editingId, fetchSamples, cancelEdit]);
@@ -912,7 +1095,7 @@ function AdminPanel({ onClose }) {
     try {
       const res = await fetch(`${API_BASE_URL}/api/samples/${id}`, { method: 'DELETE', credentials: 'include' });
       const data = await res.json();
-      if (data.success) { setMessage('✓ Deleted successfully'); await fetchSamples(); }
+      if (data.success) { setMessage('Deleted successfully'); await fetchSamples(); }
       else setMessage('Error: ' + (data.error || 'Delete failed'));
     } catch { setMessage('Error: Connection failed'); }
   }, [fetchSamples]);
@@ -922,7 +1105,7 @@ function AdminPanel({ onClose }) {
     try {
       const res = await fetch(`${API_BASE_URL}/api/questions`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ topic: newQuestionTopic, question: newQuestionText, category: newQuestionCategory }) });
       const data = await res.json();
-      if (data.success) { setMessage('✓ Question added successfully!'); setNewQuestionTopic(''); setNewQuestionText(''); setNewQuestionCategory('General'); await fetchQuestions(); }
+      if (data.success) { setMessage('Question added successfully!'); setNewQuestionTopic(''); setNewQuestionText(''); setNewQuestionCategory('General'); await fetchQuestions(); }
       else setMessage('Error: ' + (data.error || 'Failed to add question'));
     } catch { setMessage('Error: Connection failed'); }
   }, [newQuestionTopic, newQuestionText, newQuestionCategory, fetchQuestions]);
@@ -938,7 +1121,7 @@ function AdminPanel({ onClose }) {
     try {
       const res = await fetch(`${API_BASE_URL}/api/questions/${editingQuestionId}`, { method: 'PUT', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(editQuestionData) });
       const data = await res.json();
-      if (data.success) { setMessage('✓ Question updated'); await fetchQuestions(); cancelEditQuestion(); }
+      if (data.success) { setMessage('Question updated'); await fetchQuestions(); cancelEditQuestion(); }
       else setMessage('Error: ' + (data.error || 'Update failed'));
     } catch { setMessage('Error: Connection failed'); }
   }, [editingQuestionId, editQuestionData, fetchQuestions, cancelEditQuestion]);
@@ -948,7 +1131,7 @@ function AdminPanel({ onClose }) {
     try {
       const res = await fetch(`${API_BASE_URL}/api/questions/${id}`, { method: 'DELETE', credentials: 'include' });
       const data = await res.json();
-      if (data.success) { setMessage('✓ Question deleted'); await fetchQuestions(); }
+      if (data.success) { setMessage('Question deleted'); await fetchQuestions(); }
       else setMessage('Error: ' + (data.error || 'Delete failed'));
     } catch { setMessage('Error: Connection failed'); }
   }, [fetchQuestions]);
@@ -958,7 +1141,7 @@ function AdminPanel({ onClose }) {
       <div className="rounded-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto p-6 bg-gray-800 border border-gray-700">
         <div className="flex justify-between items-center mb-4">
           <div className="flex items-center gap-3"><Lock size={18} /><h2 className="text-2xl font-bold">Admin Panel</h2></div>
-          <button onClick={onClose} className="text-xl font-bold">×</button>
+          <button onClick={onClose} className="text-xl font-bold">Close</button>
         </div>
 
         {message && <div className="mb-4 p-3 rounded-md bg-green-700/10 border border-green-700/20">{message}</div>}
@@ -989,7 +1172,7 @@ function AdminPanel({ onClose }) {
                 {samples.map(s => (
                   <div key={s.id} className="p-3 bg-gray-900 border border-gray-700 rounded flex flex-col gap-2">
                     <div className="flex justify-between items-start gap-3">
-                      <div><div className="font-bold">{s.topic}</div><div className="text-xs text-gray-400">{s.speaker} • {s.score}/2.0</div></div>
+                      <div><div className="font-bold">{s.topic}</div><div className="text-xs text-gray-400">{s.speaker} | {s.score}/2.0</div></div>
                       <div className="flex gap-2">
                         <button onClick={() => startEdit(s)} className="px-2 py-1 rounded bg-blue-600 text-white"><Edit3 size={14} /></button>
                         <button onClick={() => deleteSample(s.id)} className="px-2 py-1 rounded bg-red-600 text-white"><Trash2 size={14} /></button>
@@ -1076,8 +1259,7 @@ function SampleLibrary() {
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [selectedSample, setSelectedSample] = useState(null);
-  const [playingId, setPlayingId] = useState(null);
-  const audioRef = useRef(null);
+  const [playingSample, setPlayingSample] = useState(null);
 
   // Debounce search input by 250ms to avoid filtering on every keystroke
   useEffect(() => {
@@ -1085,16 +1267,17 @@ function SampleLibrary() {
     return () => clearTimeout(t);
   }, [searchTerm]);
 
-  useEffect(() => { fetchSamples(); }, []);
-
-  const fetchSamples = async () => {
+  const fetchSamples = useCallback(async () => {
+    setLoading(true);
     try {
       const res = await fetch(`${API_BASE_URL}/api/samples`);
       const data = await res.json();
       setSamples(data.samples || []);
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
-  };
+  }, []);
+
+  useEffect(() => { fetchSamples(); }, [fetchSamples]);
 
   // Memoized filtering so it doesn't re-run on every render
   const filteredSamples = useMemo(() => {
@@ -1107,12 +1290,8 @@ function SampleLibrary() {
     );
   }, [samples, debouncedSearch]);
 
-  const openPlayback = useCallback((sampleId, audioUrl) => {
-    if (audioRef.current) {
-      audioRef.current.src = audioUrl;
-      audioRef.current.pause();
-      setPlayingId(sampleId);
-    }
+  const openPlayback = useCallback((sample) => {
+    setPlayingSample(sample);
   }, []);
 
   const downloadAudio = useCallback((filename, audioUrl) => {
@@ -1164,7 +1343,7 @@ function SampleLibrary() {
               </div>
               <div className="mb-2 text-sm text-[#d1d1d1] italic">{sample.question || '(no question provided)'}</div>
               <div className="flex gap-2">
-                <button onClick={() => openPlayback(sample.id, sample.audioUrl)} className="px-3 py-2 rounded bg-gray-700">Playback</button>
+                <button onClick={() => openPlayback(sample)} className="px-3 py-2 rounded bg-gray-700">Playback</button>
                 <button onClick={() => downloadAudio(sample.filename, sample.audioUrl)} className="px-3 py-2 rounded bg-gray-700">Download</button>
                 <button onClick={() => setSelectedSample(sample)} className="px-3 py-2 rounded bg-[#1e90ff] text-white">View</button>
               </div>
@@ -1173,11 +1352,11 @@ function SampleLibrary() {
         </div>
       )}
 
-      <audio ref={audioRef} onEnded={() => setPlayingId(null)} onPause={() => setPlayingId(null)} />
-      {playingId && (
+      {playingSample && (
         <PlaybackBar
-          audioUrl={samples.find(s => s.id === playingId)?.audioUrl}
-          onClose={() => { audioRef.current?.pause(); setPlayingId(null); }}
+          audioUrl={playingSample.audioUrl}
+          autoPlay
+          onClose={() => setPlayingSample(null)}
         />
       )}
 
@@ -1187,9 +1366,9 @@ function SampleLibrary() {
             <div className="flex justify-between items-start mb-4">
               <div>
                 <h3 className="text-2xl font-bold mb-1">{selectedSample.topic}</h3>
-                <div className="text-sm text-gray-400">{selectedSample.speaker} • {selectedSample.score}/2.0</div>
+                <div className="text-sm text-gray-400">{selectedSample.speaker} | {selectedSample.score}/2.0</div>
               </div>
-              <button onClick={() => setSelectedSample(null)} className="text-xl font-bold">×</button>
+              <button onClick={() => setSelectedSample(null)} className="text-xl font-bold">x</button>
             </div>
             {selectedSample.transcript && (
               <div className="mb-4">
@@ -1219,7 +1398,7 @@ function Footer({ setCurrentPage }) {
             <h3 className="text-xl font-bold text-white mb-4">Support necs.</h3>
             <img src="/donation.png" alt="Donation QR Code" className="w-40 h-40 mb-3 rounded-lg border-2 border-gray-700" onError={(e) => { e.target.style.display = 'none'; }} />
             <div className="text-sm text-gray-400 text-center md:text-left">
-              <p className="font-semibold text-white mb-1">Buy me a coffee ☕</p>
+              <p className="font-semibold text-white mb-1">Buy me a coffee</p>
               <p>NGUYEN HOANG MINH TRI</p>
               <p>1041802514</p>
               <p>Vietcombank</p>
@@ -1260,3 +1439,4 @@ function Footer({ setCurrentPage }) {
     </footer>
   );
 }
+
