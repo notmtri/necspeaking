@@ -4,6 +4,7 @@ import { Analytics } from "@vercel/analytics/react"
 import { Upload, Play, Pause, Download, CheckCircle, AlertCircle, Loader, FileAudio, Settings, Lock, Trash2, Edit3, Mic, Circle, Menu, X, Home, ArrowRight, Users, Image, BarChart3, Sparkles, BookOpen, HelpCircle, Star, ChevronRight, ChevronLeft } from 'lucide-react';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://127.0.0.1:5000';
+const SHOW_NOTIFICATION_BANNER = false;
 const createPlaceholderImage = (title, subtitle, accent = '#0ea5e9') => {
   const svg = `
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800">
@@ -269,14 +270,17 @@ export default function SpeakUpApp() {
         </div>
       </header>
 
-      {/* Notification Banner */}
-      <div className="w-full border-b border-sky-400/20 bg-sky-400/10 text-center py-2 px-4">
-        <p className="text-sm font-medium text-sky-300 inline-flex items-center justify-center gap-2">
-          <AlertCircle size={16} className="shrink-0" />
-          <span>IMPORTANT NOTICE: necs. service is currently unavailable due to upgrades.</span>
-          <AlertCircle size={16} className="shrink-0" />
-        </p>
-      </div>
+      {/* Notification Banner (set SHOW_NOTIFICATION_BANNER to true after update) */}
+      {SHOW_NOTIFICATION_BANNER && (
+        <div className="w-full border-b border-sky-400/20 bg-sky-400/10 text-center py-2 px-4">
+          <p className="text-sm font-medium text-sky-300 inline-flex items-center justify-center gap-2">
+            <AlertCircle size={16} className="shrink-0" />
+            <span>IMPORTANT NOTICE: necs. service is currently unavailable due to upgrades.</span>
+            <AlertCircle size={16} className="shrink-0" />
+          </p>
+        </div>
+      )}
+
 
       {/* Mobile Menu Dropdown */}
       {mobileMenuOpen && (
