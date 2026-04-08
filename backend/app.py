@@ -69,17 +69,17 @@ if 'postgresql' in database_url:
         }
     }
 
-print(f"🔌 Connecting to: {database_url[:50]}...")
+print(f"[DB] Connecting to: {database_url[:50]}...")
 
 db.init_app(app)
 
 with app.app_context():
     try:
         db.create_all()
-        print("✅ Database tables created successfully!")
+        print("[DB] Database tables created successfully.")
     except Exception as e:
-        print(f"⚠️ DB init warning: {e}")
-        print("⚠️ App will start anyway - tables already exist in Supabase")
+        print(f"[WARN] DB init warning: {e}")
+        print("[WARN] App will start anyway - tables may already exist.")
 
 # Cloudinary Configuration
 cloudinary.config(
@@ -95,10 +95,10 @@ ALLOWED_ORIGINS = os.getenv('ALLOWED_ORIGINS', 'http://localhost:3000').split(',
 CORS(app, resources={
     r"/api/*": {
         "origins": ALLOWED_ORIGINS,
-        "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],  # ✅ Added OPTIONS
+        "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],  # Added OPTIONS
         "allow_headers": ["Content-Type"],
         "supports_credentials": True,
-        "expose_headers": ["Content-Type"]  # ✅ Added this
+        "expose_headers": ["Content-Type"]  # Added this
     }
 })
 
@@ -113,9 +113,9 @@ groq_client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 # ADMIN PASSWORD - FIXED
 ADMIN_PASSWORD_HASH = os.getenv('ADMIN_PASSWORD_HASH')
 if not ADMIN_PASSWORD_HASH:
-    print("⚠️ WARNING: Using fallback password hash. Set ADMIN_PASSWORD_HASH in production!")
+    print("[WARN] Using fallback password hash. Set ADMIN_PASSWORD_HASH in production.")
     ADMIN_PASSWORD_HASH = generate_password_hash('040108Minhtri')
-    print(f"✅ Generated hash for testing: {ADMIN_PASSWORD_HASH[:50]}...")
+    print(f"[AUTH] Generated hash for testing: {ADMIN_PASSWORD_HASH[:50]}...")
 
 # Rate Limiting Storage (simple in-memory)
 rate_limit_storage = {}
@@ -166,23 +166,23 @@ def admin_login():
         data = request.get_json()
         password = data.get('password', '')
         
-        print(f"🔐 Login attempt - Password received: {bool(password)}")
-        print(f"🔐 Hash exists: {bool(ADMIN_PASSWORD_HASH)}")
+        print(f"[AUTH] Login attempt - Password received: {bool(password)}")
+        print(f"[AUTH] Hash exists: {bool(ADMIN_PASSWORD_HASH)}")
         
         if check_password_hash(ADMIN_PASSWORD_HASH, password):
             session['admin_authenticated'] = True
             session.permanent = True
-            print("✅ Login successful!")
+            print("[AUTH] Login successful.")
             return jsonify({
                 "success": True,
                 "message": "Login successful"
             })
         else:
-            print("❌ Password check failed")
+            print("[AUTH] Password check failed.")
             return jsonify({"error": "Invalid password"}), 401
             
     except Exception as e:
-        print(f"❌ Login error: {str(e)}")
+        print(f"[AUTH] Login error: {str(e)}")
         return jsonify({"error": "Login failed"}), 500
 
 @app.route('/api/admin/logout', methods=['POST'])

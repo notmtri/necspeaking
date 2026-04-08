@@ -1,78 +1,9 @@
 ﻿// Complete App.js - Full Application with All Components and Mobile Hamburger Menu
 import React, { useState, useRef, useEffect, useCallback, useMemo, memo } from 'react';
 import { Analytics } from "@vercel/analytics/react"
-import { Upload, Play, Pause, Download, CheckCircle, AlertCircle, Loader, FileAudio, Settings, Lock, Trash2, Edit3, Mic, Circle, Menu, X, Home, ArrowRight, Users, Image, BarChart3, Sparkles, BookOpen, HelpCircle, Star, ChevronRight, ChevronLeft } from 'lucide-react';
+import { Upload, Play, Pause, Download, CheckCircle, AlertCircle, Loader, FileAudio, Settings, Lock, Trash2, Edit3, Mic, Circle, Menu, X } from 'lucide-react';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://127.0.0.1:5000';
-const createPlaceholderImage = (title, subtitle, accent = '#0ea5e9') => {
-  const svg = `
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800">
-      <defs>
-        <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
-          <stop offset="0%" stop-color="#081120" />
-          <stop offset="100%" stop-color="${accent}" />
-        </linearGradient>
-      </defs>
-      <rect width="1200" height="800" rx="48" fill="url(#bg)" />
-      <circle cx="960" cy="170" r="92" fill="rgba(255,255,255,0.14)" />
-      <circle cx="245" cy="615" r="140" fill="rgba(255,255,255,0.10)" />
-      <rect x="108" y="132" width="984" height="536" rx="40" fill="rgba(255,255,255,0.08)" stroke="rgba(255,255,255,0.16)" />
-      <text x="600" y="350" fill="#ffffff" font-size="72" font-weight="700" font-family="Arial, sans-serif" text-anchor="middle">${title}</text>
-      <text x="600" y="430" fill="#dbeafe" font-size="30" font-family="Arial, sans-serif" text-anchor="middle">${subtitle}</text>
-    </svg>
-  `;
-  return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
-};
-
-const HOME_HERO_IMAGE = '/hero.png';
-const FOUNDER_IMAGE = '/founder.jpg';
-const FEEDBACK_AVATAR = createPlaceholderImage('Student Photo', 'Swap in real community images', '#7c3aed');
-
-const HOME_STATS = [
-  { value: '1,100+', label: 'active users in peak period', note: 'Data received from Google Analytics since 11/2025', icon: BarChart3 },
-  { value: '> 50%', label: 'users won the National English Competition', note: 'Data gathered from NEC 25-26', icon: Users },
-  { value: '3 core tools', label: 'in one focused workflow', note: 'Analyze, Samples, and Simulation.', icon: Sparkles },
-];
-
-const HOME_FEATURES = [
-  {
-    title: 'Analyze',
-    description: 'Insert a topic question of your choice, submit your response, and watch NECSpeaking do its magic!',
-    icon: Mic,
-  },
-  {
-    title: 'Samples',
-    description: 'Browse strong sample responses to see what a high-performing NEC speaking answer actually sounds and reads like.',
-    icon: BookOpen,
-  },
-  {
-    title: 'Simulation',
-    description: 'Experience the real test interface and protocols, build your confidence and familiarity with the test environment.',
-    icon: CheckCircle,
-  },
-];
-
-const HOME_FEEDBACK = [
-  { name: 'Hà Văn Gia Cát', role: '🥇 FIRST prize - NEC 25-26', quote: '"Amazing app, intuitive design, 10/10 💗"', image: '/gcat.jpg', },
-  { name: 'Annie Le Hamel', role: '🥉 THIRD prize - NEC 25-26', quote: 'Great app! It really helps boost pronunciation and speaking confidence with quick, useful feedback and tailored examples.', image: '/annie.jpg', },
-  { name: 'Đoàn Trần Anh Huy', role: '🥉 THIRD prize - NEC 25-26', quote: 'After 2 weeks of intensively honing my speaking skills on NECS, I attained the second highest speaking score nationwide!', image: '/ahuy.jpg', },
-  { name: 'Nguyễn Minh Tiến', role: '🥈 SECOND prize - NEC 24-25 & 25-26', quote: 'Students liked having one place to practice, compare examples, and build confidence before the real assessment.' },
-  { name: 'Đinh Thị Lam Trà', role: 'Teacher | Le Quy Don HSGS - Nam Nha Trang', quote: 'The interface felt clear and fast, so I could focus on speaking instead of figuring out what to click next.' },
-  { name: 'Trần Khánh Minh', role: 'Khanh Hoa NEC Team 25-26', quote: 'The report format made it easier to review patterns across multiple practice sessions.' },
-];
-
-const HOME_BENEFITS = [
-  'Have your speech graded automatically according to MOET-approved criteria in a matter of minutes.',
-  'Level up your speaking style by learning from sample speeches of ex-competitors who scored high in their tests.',
-  'Familiarize yourself with the real NEC speaking test interface and protocols, making sure you are not caught off-guard. ',
-  'Reduced cost compared to hiring NEC mentors, as NECSpeaking is completely non-profit.'
-];
-
-const HOME_FAQ = [
-  { question: 'Who is necs. for?', answer: 'necs. is specifically made for NEC competitors, or those aiming for this competition to improve their speaking.' },
-  { question: 'What is the best way to self-study with necs.?', answer: 'Use the Analyze tab to save time. When the results are out, see the criterion scores to identify your weak spots and train yourself from there. Remember to track your progress as well.' },
-  { question: 'Can teachers add their own materials?', answer: 'Not yet. But you can contribute sample speeches and questions to me via email so I can add them into the web.' },
-];
 
 // HELPER FUNCTION - Download document from base64
 const downloadDocumentFromBase64 = (base64String, filename) => {
@@ -102,7 +33,7 @@ const downloadDocumentFromBase64 = (base64String, filename) => {
 };
 
 export default function SpeakUpApp() {
-  const [currentPage, setCurrentPage] = useState('home');
+  const [currentPage, setCurrentPage] = useState('analyze');
   const [step, setStep] = useState('input');
   const [topic, setTopic] = useState('');
   const [audioFile, setAudioFile] = useState(null);
@@ -229,7 +160,7 @@ export default function SpeakUpApp() {
         <div className="max-w-7xl mx-auto px-4 py-4 sm:px-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 select-none">
-              <button onClick={() => navTo('home')} className="text-3xl font-extrabold tracking-tight text-white cursor-pointer">
+              <button onClick={() => navTo('analyze')} className="text-3xl font-extrabold tracking-tight text-white cursor-pointer">
                 necs.
               </button>
             </div>
@@ -237,7 +168,6 @@ export default function SpeakUpApp() {
             <div className="flex items-center gap-4 flex-wrap max-w-full overflow-hidden">
               {/* Desktop Navigation */}
               <nav className="hidden md:flex gap-2">
-                <button onClick={() => navTo('home')} className={`px-4 py-2 rounded-full font-medium transition inline-flex items-center gap-2 ${currentPage === 'home' ? 'bg-sky-500 text-white shadow-[0_0_30px_rgba(56,189,248,0.25)]' : 'text-slate-300 hover:bg-white/10'}`}><Home size={16} /> Home</button>
                 <button onClick={() => navTo('analyze')} className={`px-4 py-2 rounded-full font-medium transition ${currentPage === 'analyze' ? 'bg-sky-500 text-white shadow-[0_0_30px_rgba(56,189,248,0.25)]' : 'text-slate-300 hover:bg-white/10'}`}>Analyze</button>
                 <button onClick={() => navTo('samples')} className={`px-4 py-2 rounded-full font-medium transition ${currentPage === 'samples' ? 'bg-sky-500 text-white shadow-[0_0_30px_rgba(56,189,248,0.25)]' : 'text-slate-300 hover:bg-white/10'}`}>Samples</button>
                 <button onClick={() => navTo('simulation')} className={`px-4 py-2 rounded-full font-medium transition ${currentPage === 'simulation' ? 'bg-sky-500 text-white shadow-[0_0_30px_rgba(56,189,248,0.25)]' : 'text-slate-300 hover:bg-white/10'}`}>Simulation</button>
@@ -271,10 +201,8 @@ export default function SpeakUpApp() {
 
       {/* Notification Banner */}
       <div className="w-full border-b border-sky-400/20 bg-sky-400/10 text-center py-2 px-4">
-        <p className="text-sm font-medium text-sky-300 inline-flex items-center justify-center gap-2">
-          <AlertCircle size={16} className="shrink-0" />
-          <span>IMPORTANT NOTICE: necs. service is currently unavailable due to upgrades.</span>
-          <AlertCircle size={16} className="shrink-0" />
+        <p className="text-sm font-medium text-sky-300">
+          🔴 IMPORTANT NOTICE: necs. service is currently unavailable due to upgrades. 🔴
         </p>
       </div>
 
@@ -282,7 +210,6 @@ export default function SpeakUpApp() {
       {mobileMenuOpen && (
         <div className="md:hidden border-b border-white/10 bg-[#081120]/95 backdrop-blur-xl">
           <nav className="max-w-7xl mx-auto px-6 py-4 flex flex-col gap-2">
-            <button onClick={() => navTo('home')} className={`px-4 py-3 rounded-2xl font-medium text-left transition inline-flex items-center gap-2 ${currentPage === 'home' ? 'bg-sky-500 text-white' : 'text-slate-300 hover:bg-white/10'}`}><Home size={16} /> Home</button>
             <button onClick={() => navTo('analyze')} className={`px-4 py-3 rounded-2xl font-medium text-left transition ${currentPage === 'analyze' ? 'bg-sky-500 text-white' : 'text-slate-300 hover:bg-white/10'}`}>Analyze</button>
             <button onClick={() => navTo('samples')} className={`px-4 py-3 rounded-2xl font-medium text-left transition ${currentPage === 'samples' ? 'bg-sky-500 text-white' : 'text-slate-300 hover:bg-white/10'}`}>Samples</button>
             <button onClick={() => navTo('simulation')} className={`px-4 py-3 rounded-2xl font-medium text-left transition ${currentPage === 'simulation' ? 'bg-sky-500 text-white' : 'text-slate-300 hover:bg-white/10'}`}>Simulation</button>
@@ -291,9 +218,7 @@ export default function SpeakUpApp() {
       )}
 
       <div className="max-w-6xl mx-auto px-4 py-8 sm:px-6">
-        {currentPage === 'home' ? (
-          <HomePage navTo={navTo} />
-        ) : currentPage === 'analyze' ? (
+        {currentPage === 'analyze' ? (
           <div className="space-y-6">
             <section className="overflow-hidden rounded-[32px] border border-white/10 bg-white/[0.04] shadow-[0_24px_120px_rgba(2,6,23,0.45)]">
               <div className="grid gap-8 px-6 py-8 lg:grid-cols-[1.25fr_0.75fr] lg:px-10 lg:py-10">
@@ -508,7 +433,7 @@ export default function SpeakUpApp() {
         )}
       </div>
 
-      <Footer setCurrentPage={navTo} />
+      <Footer setCurrentPage={setCurrentPage} />
       <Analytics />
 
       {showAdminPanel && isAuthenticated && <AdminPanel onClose={() => setShowAdminPanel(false)} />}
@@ -516,249 +441,9 @@ export default function SpeakUpApp() {
   );
 }
 
-const HomePage = memo(function HomePage({ navTo }) {
-  const feedbacksPerPage = 3;
-  const totalFeedbackPages = Math.ceil(HOME_FEEDBACK.length / feedbacksPerPage);
-  const [feedbackPage, setFeedbackPage] = useState(0);
-  const visibleFeedback = useMemo(() => {
-    const start = feedbackPage * feedbacksPerPage;
-    return HOME_FEEDBACK.slice(start, start + feedbacksPerPage);
-  }, [feedbackPage]);
-
-  return (
-    <div className="space-y-8">
-      <section className="overflow-hidden rounded-[36px] border border-white/10 bg-[radial-gradient(circle_at_top_left,_rgba(14,165,233,0.25),_transparent_30%),linear-gradient(135deg,_rgba(8,17,32,0.98),_rgba(5,10,18,0.95))] shadow-[0_24px_120px_rgba(2,6,23,0.45)]">
-        <div className="grid gap-8 px-6 py-8 lg:grid-cols-[1.1fr_0.9fr] lg:px-10 lg:py-10">
-          <div className="space-y-6">
-            <div className="inline-flex items-center gap-2 rounded-full border border-sky-400/30 bg-sky-400/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em] text-sky-200">
-              <Sparkles size={15} />
-              BRAND NEW HOMEPAGE
-            </div>
-            <div className="space-y-4">
-              <h1 className="text-5xl font-black tracking-tight text-white sm:text-6xl">
-                Master NEC Speaking
-              </h1>
-              <p className="max-w-2xl text-base leading-8 text-slate-300">
-                NECSpeaking (necs.) is an online learning platform that helps students to train English speaking ability, especially that of those aiming for the NEC. NECSpeaking offers a precise training experience, a simulation of the real test environment and an archive for creative, high-scoring sample speeches from ex-competitors. 
-              </p>
-            </div>
-            <div className="flex flex-col gap-3 sm:flex-row">
-              <button onClick={() => navTo('analyze')} className="inline-flex items-center justify-center gap-2 rounded-2xl bg-sky-500 px-8 py-3 font-semibold text-white transition hover:bg-sky-400">
-                Get Started
-                <ArrowRight size={17} />
-              </button>
-            </div>
-            <div className="grid gap-3 sm:grid-cols-3">
-              {HOME_STATS.map((stat) => {
-                const Icon = stat.icon;
-                return (
-                  <div key={stat.label} className="rounded-2xl border border-white/10 bg-slate-950/55 p-4">
-                    <div className="mb-3 inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-sky-400/15 text-sky-300">
-                      <Icon size={20} />
-                    </div>
-                    <div className="text-2xl font-black text-white">{stat.value}</div>
-                    <div className="mt-1 text-sm font-semibold text-slate-200">{stat.label}</div>
-                    <div className="mt-2 text-xs leading-6 text-slate-400">{stat.note}</div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          <div className="grid gap-4">
-            <div className="overflow-hidden rounded-[32px] border border-white/10 bg-white/[0.04]">
-              <img
-                src={HOME_HERO_IMAGE}
-                alt="Placeholder for home hero visual"
-                loading="eager"
-                className="h-full min-h-[280px] w-full object-cover"
-              />
-            </div>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="rounded-[28px] border border-white/10 bg-white/[0.04] p-5">
-                <div className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-400/15 text-emerald-300">
-                  <CheckCircle size={18} />
-                </div>
-                <div className="mt-4 text-lg font-bold text-white">Built for focused practice</div>
-                <div className="mt-2 text-sm leading-7 text-slate-300">With no advertisement, a streamlined, direct workflow, and a clean user interface, concentration is easier than ever.</div>
-              </div>
-              <div className="rounded-[28px] border border-white/10 bg-white/[0.04] p-5">
-                <div className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-amber-400/15 text-amber-300">
-                  <Star size={18} />
-                </div>
-                <div className="mt-4 text-lg font-bold text-white">Easy to use</div>
-                <div className="mt-2 text-sm leading-7 text-slate-300">As instructions are present anywhere you go, with an additional user manual at the end of the page, even 5-year-old Little Tony can use NECSpeaking!</div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
-        <div className="rounded-[32px] border border-white/10 bg-slate-950/65 p-6 shadow-[0_20px_80px_rgba(2,6,23,0.4)] sm:p-8">
-          <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-slate-300">
-            <Image size={14} />
-            About the Founder & developer
-          </div>
-          <div className="mt-5">
-            <h2 className="text-3xl font-black text-white">Nguyễn Hoàng Minh Trí</h2>
-            <div className="mt-5 grid gap-5 md:grid-cols-[240px_1fr] md:items-start">
-              <img
-                src={FOUNDER_IMAGE}
-                alt="Placeholder founder portrait"
-                loading="lazy"
-                className="h-70 w-full rounded-[28px] object-cover ring-1 ring-white/10"
-              />
-              <div>
-                <p className="text-sm leading-7 text-slate-300">
-                  I am a Grade 12 English-major student at Le Quy Don HSGS - Nam Nha Trang with national-level
-                  achievements in academic English and debate, currently transitioning into computer
-                  science and AI. I am deeply interested in integrating technology into education.
-                </p>
-              </div>
-            </div>
-            <div className="mt-5 rounded-[24px] border border-white/10 bg-white/[0.04] p-5">
-              <p className="text-sm leading-7 text-slate-400">
-                Things I'm so proud of in my high school years:
-              </p>
-              <p className="mt-3 text-sm leading-7 text-slate-400">
-                - 8.5 IELTS (9.0R - 9.0L - 7.5W - 7.5S) 
-              </p>
-              <p className="mt-3 text-sm leading-7 text-slate-400">
-                - 1550 SAT (760 EBR&W - 790 MATH)
-              </p>
-              <p className="mt-3 text-sm leading-7 text-slate-400">
-                - SILVER medal - Olympic 30/4 XXIX (24-25)
-              </p>
-              <p className="mt-3 text-sm leading-7 text-slate-400">
-                - Proud member of Khanh Hoa NEC Team 24-25
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div className="rounded-[32px] border border-white/10 bg-slate-950/65 p-6 shadow-[0_20px_80px_rgba(2,6,23,0.4)] sm:p-8">
-          <div className="flex items-center justify-between gap-4">
-            <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-slate-300">
-              <Users size={14} />
-              User feedback
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setFeedbackPage((page) => Math.max(page - 1, 0))}
-                disabled={feedbackPage === 0}
-                className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-slate-200 transition hover:bg-white/[0.08] disabled:cursor-not-allowed disabled:opacity-40"
-                aria-label="Show previous feedbacks"
-              >
-                <ChevronLeft size={18} />
-              </button>
-              <button
-                type="button"
-                onClick={() => setFeedbackPage((page) => Math.min(page + 1, totalFeedbackPages - 1))}
-                disabled={feedbackPage >= totalFeedbackPages - 1}
-                className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-slate-200 transition hover:bg-white/[0.08] disabled:cursor-not-allowed disabled:opacity-40"
-                aria-label="Show next feedbacks"
-              >
-                <ChevronRight size={18} />
-              </button>
-            </div>
-          </div>
-          <div className="mt-5 space-y-4">
-            {visibleFeedback.map((item) => (
-              <div key={`${item.name}-${item.role}`} className="rounded-[28px] border border-white/10 bg-white/[0.04] p-5">
-                <div className="flex items-start gap-4">
-                  <img
-                    src={item.image || FEEDBACK_AVATAR}
-                    alt={`Photo of ${item.name}`}
-                    loading="lazy"
-                    className="h-28 w-28 rounded-2xl object-cover ring-1 ring-white/10"
-                  />
-                  <div className="min-w-0 flex-1">
-                    <div>
-                      <div className="font-semibold text-white">{item.name}</div>
-                      <div className="mt-1 text-xs uppercase tracking-[0.2em] text-slate-500">{item.role}</div>
-                    </div>
-                    <p className="mt-3 text-sm leading-7 text-slate-300">{item.quote}</p>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section className="rounded-[32px] border border-white/10 bg-slate-950/65 p-6 shadow-[0_20px_80px_rgba(2,6,23,0.4)] sm:p-8">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-slate-300">
-              <Sparkles size={14} />
-              Core features
-            </div>
-            <h2 className="mt-4 text-3xl font-black text-white">Three ways to practice with necs.</h2>
-          </div>
-        </div>
-        <div className="mt-6 grid gap-4 lg:grid-cols-3">
-          {HOME_FEATURES.map((feature) => {
-            const Icon = feature.icon;
-            return (
-              <div key={feature.title} className="rounded-[28px] border border-white/10 bg-white/[0.04] p-6">
-                <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-sky-400/15 text-sky-300">
-                  <Icon size={22} />
-                </div>
-                <h3 className="mt-5 text-xl font-bold text-white">{feature.title}</h3>
-                <p className="mt-3 text-sm leading-7 text-slate-300">{feature.description}</p>
-                <button onClick={() => navTo(feature.title.toLowerCase())} className="mt-6 inline-flex items-center gap-2 text-sm font-semibold text-sky-300 transition hover:text-sky-200">
-                  Open {feature.title}
-                  <ChevronRight size={16} />
-                </button>
-              </div>
-            );
-          })}
-        </div>
-      </section>
-
-      <section className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
-        <div className="rounded-[32px] border border-white/10 bg-slate-950/65 p-6 shadow-[0_20px_80px_rgba(2,6,23,0.4)] sm:p-8">
-          <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-slate-300">
-            <CheckCircle size={14} />
-            Benefits of using necs.
-          </div>
-          <div className="mt-5 space-y-4">
-            {HOME_BENEFITS.map((benefit) => (
-              <div key={benefit} className="flex items-start gap-3 rounded-2xl border border-white/10 bg-white/[0.04] p-4">
-                <CheckCircle size={18} className="mt-0.5 shrink-0 text-emerald-300" />
-                <p className="text-sm leading-7 text-slate-300">{benefit}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="rounded-[32px] border border-white/10 bg-slate-950/65 p-6 shadow-[0_20px_80px_rgba(2,6,23,0.4)] sm:p-8">
-          <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-slate-300">
-            <HelpCircle size={14} />
-            FAQ
-          </div>
-          <div className="mt-5 space-y-4">
-            {HOME_FAQ.map((item) => (
-              <div key={item.question} className="rounded-[24px] border border-white/10 bg-white/[0.04] p-5">
-                <div className="text-base font-semibold text-white">{item.question}</div>
-                <p className="mt-2 text-sm leading-7 text-slate-300">{item.answer}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-    </div>
-  );
-});
-
 function SimulationMode() {
   const [simStep, setSimStep] = useState('intro');
   const [currentQuestion, setCurrentQuestion] = useState(null);
-  const [questionBank, setQuestionBank] = useState([]);
-  const [loadingQuestionBank, setLoadingQuestionBank] = useState(false);
-  const [selectedQuestionId, setSelectedQuestionId] = useState('random');
   const [countdown, setCountdown] = useState(60);
   const [recordingTime, setRecordingTime] = useState(0);
   const [isRecording, setIsRecording] = useState(false);
@@ -803,71 +488,37 @@ function SimulationMode() {
     }, 1000);
   }, []);
 
-  const startReadingTimer = useCallback(() => {
-    if (timerRef.current) clearInterval(timerRef.current);
-    setSimStep('reading');
-    setCountdown(60);
-    timerRef.current = setInterval(() => {
-      setCountdown(prev => {
-        if (prev <= 1) {
-          clearInterval(timerRef.current);
-          setSimStep('preparation');
-          setCountdown(300);
-          startPreparationTimer();
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-  }, [startPreparationTimer]);
-
-  const fetchQuestionBank = useCallback(async () => {
-    setLoadingQuestionBank(true);
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/questions`);
-      const data = await response.json();
-      setQuestionBank(data.questions || []);
-    } catch {
-      setQuestionBank([]);
-    } finally {
-      setLoadingQuestionBank(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchQuestionBank();
-  }, [fetchQuestionBank]);
-
-  const fetchAndSetQuestion = useCallback(async () => {
+  const fetchAndSetQuestion = useCallback(async (onSuccess) => {
     try {
       const response = await fetch(`${API_BASE_URL}/api/questions/random`);
       const data = await response.json();
-      if (data.error) { setError('No questions available. Please add questions in admin panel.'); return false; }
+      if (data.error) { setError('No questions available. Please add questions in admin panel.'); return; }
       setCurrentQuestion(data.question);
-      setError(null);
-      startReadingTimer();
-      return true;
+      onSuccess && onSuccess();
     } catch {
       setError('Failed to load question. Check your connection.');
-      return false;
     }
-  }, [startReadingTimer]);
+  }, []);
 
   const startSimulation = useCallback(async () => {
     if (!micTested) { alert('Please test your microphone first!'); return; }
-    if (selectedQuestionId !== 'random') {
-      const selectedQuestion = questionBank.find((question) => String(question.id) === selectedQuestionId);
-      if (!selectedQuestion) {
-        setError('Selected question could not be found. Please choose again.');
-        return;
-      }
-      setCurrentQuestion(selectedQuestion);
-      setError(null);
-      startReadingTimer();
-      return;
-    }
-    await fetchAndSetQuestion();
-  }, [micTested, selectedQuestionId, questionBank, startReadingTimer, fetchAndSetQuestion]);
+    await fetchAndSetQuestion(() => {
+      setSimStep('reading');
+      setCountdown(60);
+      timerRef.current = setInterval(() => {
+        setCountdown(prev => {
+          if (prev <= 1) {
+            clearInterval(timerRef.current);
+            setSimStep('preparation');
+            setCountdown(300);
+            startPreparationTimer();
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    });
+  }, [micTested, fetchAndSetQuestion, startPreparationTimer]);
 
   const skipReading = useCallback(() => {
     clearInterval(timerRef.current);
@@ -992,8 +643,23 @@ function SimulationMode() {
   }, []);
 
   const randomizeQuestion = useCallback(async () => {
-    await fetchAndSetQuestion();
-  }, [fetchAndSetQuestion]);
+    clearInterval(timerRef.current);
+    setCountdown(60);
+    await fetchAndSetQuestion(() => {
+      timerRef.current = setInterval(() => {
+        setCountdown(prev => {
+          if (prev <= 1) {
+            clearInterval(timerRef.current);
+            setSimStep('preparation');
+            setCountdown(300);
+            startPreparationTimer();
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    });
+  }, [fetchAndSetQuestion, startPreparationTimer]);
 
   return (
     <div className="space-y-6">
@@ -1011,8 +677,11 @@ function SimulationMode() {
 
       <div className="rounded-[32px] border border-white/10 bg-slate-950/65 p-6 shadow-[0_20px_80px_rgba(2,6,23,0.4)] sm:p-8">
         {simStep === 'intro' && (
-          <div className="text-center space-y-6">            
-            <h3 className="text-2xl font-bold text-white">🍀 Good luck! 🍀</h3>
+          <div className="text-center space-y-6">
+            <div className="mx-auto inline-flex h-24 w-24 items-center justify-center rounded-[28px] bg-sky-400/12 text-sky-300 ring-1 ring-sky-400/20">
+              <Mic size={42} />
+            </div>
+            <h3 className="text-2xl font-bold text-white">NEC Speaking Simulation</h3>
             <div className="mx-auto grid max-w-3xl gap-3 text-left md:grid-cols-2">
               <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-sm text-slate-300">Prepare pen and paper for drafting ideas.</div>
               <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-sm text-slate-300">You will have 60 seconds to read the question.</div>
@@ -1020,24 +689,6 @@ function SimulationMode() {
               <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-sm text-slate-300">Recording lasts exactly 5 minutes.</div>
             </div>
             <div className="space-y-3 pt-4 max-w-xl mx-auto">
-              <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-left">
-                <label className="mb-2 block text-xs font-bold uppercase tracking-[0.2em] text-slate-400">Question source</label>
-                <select
-                  value={selectedQuestionId}
-                  onChange={(e) => setSelectedQuestionId(e.target.value)}
-                  className="w-full rounded-xl border border-white/10 bg-[#07111f] px-3 py-2 text-sm text-white"
-                >
-                  <option value="random">Random question from bank</option>
-                  {questionBank.map((question) => (
-                    <option key={question.id} value={String(question.id)}>
-                      {question.topic} - {question.question}
-                    </option>
-                  ))}
-                </select>
-                <div className="mt-2 text-xs text-slate-400">
-                  {loadingQuestionBank ? 'Loading question bank...' : `${questionBank.length} questions available`}
-                </div>
-              </div>
               <button onClick={testMicrophone} className={`w-full py-3 rounded-2xl font-semibold transition ${micTested ? 'bg-emerald-500 text-white' : 'bg-white/[0.06] text-white hover:bg-white/[0.1]'}`}>
                 <div className="flex items-center justify-center gap-2">
                   <Mic size={18} />
@@ -1717,9 +1368,7 @@ function SampleLibrary() {
                 <h3 className="text-2xl font-bold mb-1">{selectedSample.topic}</h3>
                 <div className="text-sm text-gray-400">{selectedSample.speaker} | {selectedSample.score}/2.0</div>
               </div>
-              <button onClick={() => setSelectedSample(null)} className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/5 text-slate-200 transition hover:bg-white/10" aria-label="Close sample details">
-                <X size={18} />
-              </button>
+              <button onClick={() => setSelectedSample(null)} className="text-xl font-bold">x</button>
             </div>
             {selectedSample.transcript && (
               <div className="mb-4">
@@ -1758,7 +1407,6 @@ function Footer({ setCurrentPage }) {
           <div className="flex flex-col">
             <h4 className="text-lg font-semibold text-white mb-4">Quick Links</h4>
             <ul className="space-y-2 text-sm">
-              <li><button onClick={() => setCurrentPage('home')} className="text-gray-400 hover:text-[#1e90ff] transition">Home</button></li>
               <li><button onClick={() => setCurrentPage('analyze')} className="text-gray-400 hover:text-[#1e90ff] transition">Speech Evaluation</button></li>
               <li><button onClick={() => setCurrentPage('samples')} className="text-gray-400 hover:text-[#1e90ff] transition">Sample Library</button></li>
               <li><button onClick={() => setCurrentPage('simulation')} className="text-gray-400 hover:text-[#1e90ff] transition">NEC Speaking Simulation</button></li>
