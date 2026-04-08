@@ -290,7 +290,7 @@ export default function SpeakUpApp() {
         </div>
       )}
 
-      <div className="max-w-6xl mx-auto px-4 py-8 sm:px-6">
+      <div className="max-w-6xl mx-auto px-3 py-6 sm:px-6 sm:py-8">
         {currentPage === 'home' ? (
           <HomePage navTo={navTo} />
         ) : currentPage === 'analyze' ? (
@@ -998,7 +998,7 @@ function SimulationMode() {
   return (
     <div className="space-y-6">
       <div className="text-center mb-6">
-        <h2 className="text-3xl font-bold mb-2 text-white">NEC Speaking Simulation</h2>
+        <h2 className="text-2xl sm:text-3xl font-bold mb-2 text-white">NEC Speaking Simulation</h2>
         <p className="text-sm text-slate-300">Experience the real test interface</p>
       </div>
 
@@ -1009,7 +1009,7 @@ function SimulationMode() {
         </div>
       )}
 
-      <div className="rounded-[32px] border border-white/10 bg-slate-950/65 p-6 shadow-[0_20px_80px_rgba(2,6,23,0.4)] sm:p-8">
+      <div className="rounded-[28px] sm:rounded-[32px] border border-white/10 bg-slate-950/65 p-4 sm:p-8 shadow-[0_20px_80px_rgba(2,6,23,0.4)]">
         {simStep === 'intro' && (
           <div className="text-center space-y-6">            
             <h3 className="text-2xl font-bold text-white">🍀 Good luck! 🍀</h3>
@@ -1019,13 +1019,13 @@ function SimulationMode() {
               <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-sm text-slate-300">Then 5 minutes to prepare your response.</div>
               <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-sm text-slate-300">Recording lasts exactly 5 minutes.</div>
             </div>
-            <div className="space-y-3 pt-4 max-w-xl mx-auto">
-              <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-left">
+            <div className="space-y-3 pt-4 max-w-2xl mx-auto w-full">
+              <div className="w-full rounded-xl border border-gray-700 bg-gray-900 p-4 text-left">
                 <label className="mb-2 block text-xs font-bold uppercase tracking-[0.2em] text-slate-400">Question source</label>
                 <select
                   value={selectedQuestionId}
                   onChange={(e) => setSelectedQuestionId(e.target.value)}
-                  className="w-full rounded-xl border border-white/10 bg-[#07111f] px-3 py-2 text-sm text-white"
+                  className="w-full rounded-xl border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white"
                 >
                   <option value="random">Random question from bank</option>
                   {questionBank.map((question) => (
@@ -1743,7 +1743,7 @@ function SampleLibrary() {
 function Footer({ setCurrentPage }) {
   return (
     <footer className="mt-16 border-t border-[#222] bg-black">
-      <div className="max-w-7xl mx-auto px-12 py-12">
+      <div className="max-w-7xl mx-auto px-4 py-10 sm:px-6 sm:py-12 lg:px-12">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8 text-left">
           <div className="flex flex-col items-center md:items-start">
             <h3 className="text-xl font-bold text-white mb-4">Support necs.</h3>
