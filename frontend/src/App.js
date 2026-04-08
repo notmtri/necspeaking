@@ -295,74 +295,17 @@ export default function SpeakUpApp() {
           <HomePage navTo={navTo} />
         ) : currentPage === 'analyze' ? (
           <div className="space-y-6">
-            <section className="overflow-hidden rounded-[32px] border border-white/10 bg-white/[0.04] shadow-[0_24px_120px_rgba(2,6,23,0.45)]">
-              <div className="grid gap-8 px-6 py-8 lg:grid-cols-[1.25fr_0.75fr] lg:px-10 lg:py-10">
-                <div className="space-y-5">
-                  <div className="inline-flex items-center gap-2 rounded-full border border-sky-400/30 bg-sky-400/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em] text-sky-300">
-                    <CheckCircle size={14} />
-                    NEC Speaking Assistant
-                  </div>
-                  <div className="space-y-3">
-                    <h2 className="text-4xl font-black tracking-tight text-white sm:text-5xl">
-                      {step === 'results' ? 'Your speech analysis is ready.' : 'Sharper speaking feedback in one clean pass.'}
-                    </h2>
-                    <p className="max-w-2xl text-sm leading-7 text-slate-300 sm:text-base">
-                      Upload your response, preview it, and get structured feedback on content, accuracy, and delivery with a report you can keep.
-                    </p>
-                  </div>
-                  <div className="grid gap-3 sm:grid-cols-3">
-                    <div className="rounded-2xl border border-white/10 bg-slate-950/50 p-4">
-                      <div className="mb-3 inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-sky-400/15 text-sky-300">
-                        <Upload size={20} />
-                      </div>
-                      <div className="text-sm font-semibold text-white">Upload</div>
-                      <div className="mt-1 text-xs leading-6 text-slate-400">Bring in MP3, WAV, M4A, WEBM, or OGG files up to 5 minutes.</div>
-                    </div>
-                    <div className="rounded-2xl border border-white/10 bg-slate-950/50 p-4">
-                      <div className="mb-3 inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-sky-400/15 text-sky-300">
-                        <Play size={20} />
-                      </div>
-                      <div className="text-sm font-semibold text-white">Preview</div>
-                      <div className="mt-1 text-xs leading-6 text-slate-400">Listen back before submitting so you can catch issues early.</div>
-                    </div>
-                    <div className="rounded-2xl border border-white/10 bg-slate-950/50 p-4">
-                      <div className="mb-3 inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-sky-400/15 text-sky-300">
-                        <Download size={20} />
-                      </div>
-                      <div className="text-sm font-semibold text-white">Review</div>
-                      <div className="mt-1 text-xs leading-6 text-slate-400">Export a report after scoring so revision stays organized.</div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="grid gap-4 sm:grid-cols-3 lg:grid-cols-1">
-                  <div className="rounded-3xl border border-sky-400/20 bg-sky-400/10 p-5">
-                    <div className="text-xs font-semibold uppercase tracking-[0.22em] text-sky-300">Current Stage</div>
-                    <div className="mt-3 text-2xl font-black text-white">
-                      {step === 'input' ? 'Write + upload' : step === 'preview' ? 'Preview + submit' : step === 'uploading' ? 'Analyzing' : 'Results'}
-                    </div>
-                    <div className="mt-2 text-sm text-slate-300">
-                      {step === 'results' ? 'Your breakdown and feedback are visible below.' : 'Move through the flow in one direction without extra screens.'}
-                    </div>
-                  </div>
-                  <div className="rounded-3xl border border-white/10 bg-slate-950/55 p-5">
-                    <div className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">Focus Areas</div>
-                    <div className="mt-3 text-sm leading-7 text-slate-300">Content quality, language accuracy, and delivery clarity are scored separately.</div>
-                  </div>
-                  <div className="rounded-3xl border border-white/10 bg-slate-950/55 p-5">
-                    <div className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">Best Result</div>
-                    <div className="mt-3 text-sm leading-7 text-slate-300">Use a quiet room and preview your audio before running the analysis.</div>
-                  </div>
-                </div>
-              </div>
-            </section>
-
             {error && (
               <div className="rounded-2xl border border-red-400/25 bg-red-500/10 p-4 flex items-center gap-3 text-red-100">
                 <AlertCircle size={18} />
                 <span className="font-medium">{error}</span>
               </div>
             )}
+
+            <div className="text-center mb-6">
+              <h2 className="text-2xl sm:text-3xl font-bold mb-2 text-white">NEC Speech Analysis</h2>
+              <p className="text-sm text-slate-300">Get your speech graded and reviewed in seconds!</p>
+            </div>
 
             <div className="rounded-[32px] border border-white/10 bg-slate-950/65 p-6 shadow-[0_20px_80px_rgba(2,6,23,0.4)] sm:p-8">
               {step === 'input' && (
@@ -381,6 +324,14 @@ export default function SpeakUpApp() {
                     />
                   </div>
                   <div className="space-y-4">
+                    <div className="rounded-[28px] border border-white/10 bg-white/[0.03] p-5">
+                      <div className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">Workflow</div>
+                      <div className="mt-3 space-y-3 text-sm text-slate-300">
+                        <div className="flex items-center gap-3"><span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-slate-800 text-sky-300">1</span><span>Paste the speaking prompt.</span></div>
+                        <div className="flex items-center gap-3"><span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-slate-800 text-sky-300">2</span><span>Upload and preview the recording.</span></div>
+                        <div className="flex items-center gap-3"><span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-slate-800 text-sky-300">3</span><span>Run analysis and download the report.</span></div>
+                      </div>
+                    </div>
                     <div className="rounded-[28px] border border-dashed border-sky-400/35 bg-sky-400/8 p-5">
                       <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-sky-400/15 text-sky-300">
                         <FileAudio size={22} />
@@ -393,14 +344,6 @@ export default function SpeakUpApp() {
                         <input type="file" accept="audio/*" onChange={handleFileUpload} className="hidden" />
                       </label>
                       <p className="mt-3 text-xs text-slate-400">Supported: MP3, WAV, M4A, WEBM, OGG | Max 5 minutes</p>
-                    </div>
-                    <div className="rounded-[28px] border border-white/10 bg-white/[0.03] p-5">
-                      <div className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">Workflow</div>
-                      <div className="mt-3 space-y-3 text-sm text-slate-300">
-                        <div className="flex items-center gap-3"><span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-slate-800 text-sky-300">1</span><span>Paste the speaking prompt.</span></div>
-                        <div className="flex items-center gap-3"><span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-slate-800 text-sky-300">2</span><span>Upload and preview the recording.</span></div>
-                        <div className="flex items-center gap-3"><span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-slate-800 text-sky-300">3</span><span>Run analysis and download the report.</span></div>
-                      </div>
                     </div>
                   </div>
                 </div>
