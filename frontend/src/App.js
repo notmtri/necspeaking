@@ -1021,22 +1021,49 @@ function SimulationMode() {
             </div>
             <div className="space-y-3 pt-4 max-w-2xl mx-auto w-full">
               <div className="w-full rounded-xl border border-gray-700 bg-gray-900 p-4 text-left">
-                <label className="mb-2 block text-xs font-bold uppercase tracking-[0.2em] text-slate-400">Question source</label>
-                <select
-                  value={selectedQuestionId}
-                  onChange={(e) => setSelectedQuestionId(e.target.value)}
-                  className="w-full rounded-xl border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white"
-                >
-                  <option value="random">Random question from bank</option>
-                  {questionBank.map((question) => (
-                    <option key={question.id} value={String(question.id)}>
-                      {question.topic} - {question.question}
-                    </option>
-                  ))}
-                </select>
-                <div className="mt-2 text-xs text-slate-400">
-                  {loadingQuestionBank ? 'Loading question bank...' : `${questionBank.length} questions available`}
-                </div>
+                <h3 className="font-bold mb-3">Question Bank ({questionBank.length} questions)</h3>
+                {loadingQuestionBank ? (
+                  <div className="text-center py-8">
+                    <Loader className="animate-spin mx-auto" size={28} />
+                  </div>
+                ) : (
+                  <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedQuestionId('random')}
+                      className={`w-full text-left p-3 bg-gray-900 border rounded transition ${selectedQuestionId === 'random' ? 'border-sky-500' : 'border-gray-700'}`}
+                    >
+                      <div className="flex justify-between items-start mb-2">
+                        <div>
+                          <div className="font-bold">Random question</div>
+                          <div className="text-xs text-gray-400">Question Bank</div>
+                        </div>
+                      </div>
+                      <div className="text-sm text-gray-300">System picks one random question from the bank when simulation starts.</div>
+                    </button>
+
+                    {questionBank.length === 0 ? (
+                      <div className="text-center py-4 text-gray-400">No questions yet. Add your first question in admin panel.</div>
+                    ) : (
+                      questionBank.map((question) => (
+                        <button
+                          key={question.id}
+                          type="button"
+                          onClick={() => setSelectedQuestionId(String(question.id))}
+                          className={`w-full text-left p-3 bg-gray-900 border rounded transition ${selectedQuestionId === String(question.id) ? 'border-sky-500' : 'border-gray-700'}`}
+                        >
+                          <div className="flex justify-between items-start mb-2">
+                            <div>
+                              <div className="font-bold">{question.topic}</div>
+                              <div className="text-xs text-gray-400">{question.category || 'General'}</div>
+                            </div>
+                          </div>
+                          <div className="text-sm text-gray-300">{question.question}</div>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                )}
               </div>
               <button onClick={testMicrophone} className={`w-full py-3 rounded-2xl font-semibold transition ${micTested ? 'bg-emerald-500 text-white' : 'bg-white/[0.06] text-white hover:bg-white/[0.1]'}`}>
                 <div className="flex items-center justify-center gap-2">
