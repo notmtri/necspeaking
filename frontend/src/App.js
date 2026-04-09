@@ -311,7 +311,7 @@ export default function SpeakUpApp() {
       <div className="max-w-6xl mx-auto px-3 py-6 sm:px-6 sm:py-8">
         {isWarmingBackend && (
           <div className="mb-4 rounded-xl border border-amber-400/25 bg-amber-400/10 px-4 py-2 text-center text-sm text-amber-200">
-            Loading...
+            Loading service...please wait...
           </div>
         )}
         {currentPage === 'home' ? (
