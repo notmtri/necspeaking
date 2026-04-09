@@ -114,6 +114,7 @@ export default function SpeakUpApp() {
   const [showAdminPanel, setShowAdminPanel] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isWarmingBackend, setIsWarmingBackend] = useState(true);
 
   const audioRef = useRef(null);
 
@@ -122,6 +123,19 @@ export default function SpeakUpApp() {
       if (audioURL) URL.revokeObjectURL(audioURL);
     };
   }, [audioURL]);
+
+  useEffect(() => {
+    const warmBackend = async () => {
+      try {
+        await fetch(`${API_BASE_URL}/api/health`, { method: 'GET' });
+      } catch {
+        // Best-effort warmup only.
+      } finally {
+        setIsWarmingBackend(false);
+      }
+    };
+    warmBackend();
+  }, []);
 
   const handleFileUpload = useCallback((e) => {
     const file = e.target.files[0];
@@ -295,6 +309,11 @@ export default function SpeakUpApp() {
       )}
 
       <div className="max-w-6xl mx-auto px-3 py-6 sm:px-6 sm:py-8">
+        {isWarmingBackend && (
+          <div className="mb-4 rounded-xl border border-amber-400/25 bg-amber-400/10 px-4 py-2 text-center text-sm text-amber-200">
+            Loading...
+          </div>
+        )}
         {currentPage === 'home' ? (
           <HomePage navTo={navTo} />
         ) : currentPage === 'analyze' ? (
@@ -966,7 +985,7 @@ function SimulationMode() {
               <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-sm text-slate-300">Then 5 minutes to prepare your response.</div>
               <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-sm text-slate-300">Recording lasts exactly 5 minutes.</div>
             </div>
-            <div className="space-y-3 pt-4 max-w-2xl mx-auto w-full">
+            <div className="space-y-3 pt-4 max-w-4xl mx-auto w-full">
               <div className="w-full rounded-xl border border-gray-700 bg-gray-900 p-4 text-left">
                 <h3 className="font-bold mb-3">Question Bank ({questionBank.length} questions)</h3>
                 {loadingQuestionBank ? (
@@ -982,7 +1001,7 @@ function SimulationMode() {
                     >
                       <div className="flex justify-between items-start mb-2">
                         <div>
-                          <div className="font-bold">Random question</div>
+                          <div className="font-bold">🎲 Random question 🎲</div>
                           <div className="text-xs text-gray-400">Question Bank</div>
                         </div>
                       </div>
@@ -1723,7 +1742,7 @@ function Footer({ setCurrentPage }) {
             <h3 className="text-xl font-bold text-white mb-4">Support necs.</h3>
             <img src="/donation.png" alt="Donation QR Code" className="w-40 h-40 mb-3 rounded-lg border-2 border-gray-700" onError={(e) => { e.target.style.display = 'none'; }} />
             <div className="text-sm text-gray-400 text-center md:text-left">
-              <p className="font-semibold text-white mb-1">Buy me a coffee</p>
+              <p className="font-semibold text-white mb-1">Buy me a coffee ☕</p>
               <p>NGUYEN HOANG MINH TRI</p>
               <p>1041802514</p>
               <p>Vietcombank</p>

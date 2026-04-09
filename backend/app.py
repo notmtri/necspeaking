@@ -14,10 +14,6 @@ from werkzeug.utils import secure_filename
 from werkzeug.security import check_password_hash, generate_password_hash
 from groq import Groq
 import json
-from pydub import AudioSegment
-from docx import Document
-from docx.shared import Inches, Pt, RGBColor
-from docx.enum.text import WD_ALIGN_PARAGRAPH
 import io
 import re
 import random
@@ -73,13 +69,26 @@ print(f"[DB] Connecting to: {database_url[:50]}...")
 
 db.init_app(app)
 
-with app.app_context():
-    try:
-        db.create_all()
-        print("[DB] Database tables created successfully.")
-    except Exception as e:
-        print(f"[WARN] DB init warning: {e}")
-        print("[WARN] App will start anyway - tables may already exist.")
+def should_run_startup_db_sync():
+    """Avoid expensive create_all() on cloud cold starts unless explicitly enabled."""
+    create_tables_on_start = os.getenv('CREATE_TABLES_ON_START', '').strip().lower()
+    if create_tables_on_start in ['1', 'true', 'yes']:
+        return True
+    if create_tables_on_start in ['0', 'false', 'no']:
+        return False
+    # Default behavior: run on local SQLite only.
+    return database_url.startswith('sqlite')
+
+if should_run_startup_db_sync():
+    with app.app_context():
+        try:
+            db.create_all()
+            print("[DB] Database tables created successfully.")
+        except Exception as e:
+            print(f"[WARN] DB init warning: {e}")
+            print("[WARN] App will start anyway - tables may already exist.")
+else:
+    print("[DB] Skipping db.create_all() on startup.")
 
 # Cloudinary Configuration
 cloudinary.config(
@@ -229,10 +238,12 @@ def cleanup_old_files():
         print(f"Cleanup error: {e}")
 
 def get_audio_duration(file_path):
+    from pydub import AudioSegment
     audio = AudioSegment.from_file(file_path)
     return len(audio) / 1000.0
 
 def convert_to_wav(input_path, output_path):
+    from pydub import AudioSegment
     audio = AudioSegment.from_file(input_path)
     audio = audio.set_frame_rate(16000).set_channels(1)
     audio.export(output_path, format="wav")
@@ -352,6 +363,8 @@ def grade_speech(topic, transcript_data):
     return json.loads(result_text)
 
 def generate_docx(topic, transcript, grading_result):
+    from docx import Document
+    from docx.enum.text import WD_ALIGN_PARAGRAPH
     doc = Document()
     
     title = doc.add_heading('necs. - Speech Feedback Report', 0)
