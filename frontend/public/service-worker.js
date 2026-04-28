@@ -1,63 +1,88 @@
-const CACHE_VERSION = 'v1.0.1'; // Change this when you deploy updates
+const CACHE_VERSION = 'v1.1.0';
 const CACHE_NAME = `necs-cache-${CACHE_VERSION}`;
 
-const urlsToCache = [
+const APP_SHELL_ASSETS = [
   '/',
-  '/static/css/main.css',
-  '/static/js/main.js',
+  '/index.html',
   '/logo.png',
+  '/logo192.png',
+  '/logo512.png',
+  '/favicon.ico',
+  '/manifest.json',
   '/donation.png'
 ];
 
-// Install event - cache resources
 self.addEventListener('install', (event) => {
-  console.log('Service Worker installing...');
   event.waitUntil(
     caches.open(CACHE_NAME)
-      .then((cache) => {
-        console.log('Opened cache');
-        return cache.addAll(urlsToCache);
-      })
+      .then((cache) => cache.addAll(APP_SHELL_ASSETS))
   );
-  self.skipWaiting(); // Activate immediately
+  self.skipWaiting();
 });
 
-// Activate event - clean up old caches
 self.addEventListener('activate', (event) => {
-  console.log('Service Worker activating...');
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames.map((cacheName) => {
           if (cacheName !== CACHE_NAME) {
-            console.log('Deleting old cache:', cacheName);
             return caches.delete(cacheName);
           }
+          return null;
         })
       );
     })
   );
-  return self.clients.claim(); // Take control immediately
+  return self.clients.claim();
 });
 
-// Fetch event - network first, then cache
 self.addEventListener('fetch', (event) => {
+  const { request } = event;
+  const requestUrl = new URL(request.url);
+
+  if (request.method !== 'GET') {
+    return;
+  }
+
+  if (requestUrl.origin !== self.location.origin) {
+    return;
+  }
+
+  if (requestUrl.pathname.startsWith('/api/')) {
+    return;
+  }
+
+  if (request.mode === 'navigate') {
+    event.respondWith(
+      fetch(request)
+        .then((response) => {
+          const responseToCache = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put('/', responseToCache));
+          return response;
+        })
+        .catch(() => caches.match('/') || caches.match('/index.html'))
+    );
+    return;
+  }
+
   event.respondWith(
-    fetch(event.request)
-      .then((response) => {
-        // Clone the response
-        const responseToCache = response.clone();
-        
-        caches.open(CACHE_NAME)
-          .then((cache) => {
-            cache.put(event.request, responseToCache);
+    caches.match(request).then((cachedResponse) => {
+      const networkFetch = fetch(request)
+        .then((response) => {
+          if (!response || response.status !== 200 || response.type !== 'basic') {
+            return response;
+          }
+
+          const responseToCache = response.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(request, responseToCache);
           });
-        
-        return response;
-      })
-      .catch(() => {
-        // If network fails, try cache
-        return caches.match(event.request);
-      })
+
+          return response;
+        })
+        .catch(() => cachedResponse);
+
+      return cachedResponse || networkFetch;
+    })
   );
 });

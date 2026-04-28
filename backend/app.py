@@ -17,8 +17,10 @@ import json
 import io
 import re
 import random
+from urllib.parse import quote
+from sqlalchemy import inspect
 
-from database import db, Question, Sample
+from database import CommunityPost, db, Question, Sample, User, UserPracticeSession
 import cloudinary
 import cloudinary.uploader
 
@@ -31,8 +33,12 @@ app = Flask(__name__, static_folder='build', static_url_path='')
 
 # Security Configuration
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', secrets.token_hex(32))
+app.config['SESSION_COOKIE_NAME'] = os.getenv('SESSION_COOKIE_NAME', 'necs_session')
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_PATH'] = '/'
+session_cookie_domain = os.getenv('SESSION_COOKIE_DOMAIN', '').strip()
+if session_cookie_domain:
+    app.config['SESSION_COOKIE_DOMAIN'] = session_cookie_domain
 
 # Environment-specific cookie settings
 if os.getenv('PRODUCTION') == 'true':
@@ -69,6 +75,24 @@ print(f"[DB] Connecting to: {database_url[:50]}...")
 
 db.init_app(app)
 
+
+def ensure_auth_tables():
+    with app.app_context():
+        try:
+            inspector = inspect(db.engine)
+            table_names = inspector.get_table_names()
+            if 'users' not in table_names:
+                User.__table__.create(bind=db.engine, checkfirst=True)
+                print("[DB] Created missing users table.")
+            if 'user_practice_sessions' not in table_names:
+                UserPracticeSession.__table__.create(bind=db.engine, checkfirst=True)
+                print("[DB] Created missing user_practice_sessions table.")
+            if 'community_posts' not in table_names:
+                CommunityPost.__table__.create(bind=db.engine, checkfirst=True)
+                print("[DB] Created missing community_posts table.")
+        except Exception as e:
+            print(f"[WARN] Could not ensure auth tables: {e}")
+
 def should_run_startup_db_sync():
     """Avoid expensive create_all() on cloud cold starts unless explicitly enabled."""
     create_tables_on_start = os.getenv('CREATE_TABLES_ON_START', '').strip().lower()
@@ -90,6 +114,8 @@ if should_run_startup_db_sync():
 else:
     print("[DB] Skipping db.create_all() on startup.")
 
+ensure_auth_tables()
+
 # Cloudinary Configuration
 cloudinary.config(
     cloud_name=os.getenv('CLOUDINARY_CLOUD_NAME'),
@@ -99,7 +125,7 @@ cloudinary.config(
 )
 
 # SECURE CORS
-ALLOWED_ORIGINS = os.getenv('ALLOWED_ORIGINS', 'http://localhost:3000').split(',')
+ALLOWED_ORIGINS = [origin.strip() for origin in os.getenv('ALLOWED_ORIGINS', 'http://localhost:3000').split(',') if origin.strip()]
 
 CORS(app, resources={
     r"/api/*": {
@@ -128,6 +154,15 @@ if not ADMIN_PASSWORD_HASH:
 
 # Rate Limiting Storage (simple in-memory)
 rate_limit_storage = {}
+
+DEFAULT_USER_STATS = {
+    "practices": 0,
+    "avgScore": 0,
+    "streak": 0,
+    "bestScore": 0
+}
+DEFAULT_USER_PROGRESS = []
+DEFAULT_USER_COMMIT_WEEKS = []
 
 def rate_limit(max_requests=10, window_seconds=60):
     """Simple rate limiting decorator"""
@@ -165,7 +200,409 @@ def require_admin():
         return wrapped
     return decorator
 
+
+def normalize_email(email):
+    return (email or '').strip().lower()
+
+
+def normalize_username(username):
+    cleaned = re.sub(r'[^a-z0-9._]', '', (username or '').strip().lower())
+    return cleaned[:50]
+
+
+def validate_account_payload(data, is_signup=False):
+    email = normalize_email(data.get('email'))
+    password = data.get('password', '')
+    profile = data.get('profile') or {}
+
+    if not email:
+        return None, "Email is required."
+    if not re.fullmatch(r'^[^@\s]+@[^@\s]+\.[^@\s]+$', email):
+        return None, "Enter a valid email address."
+    if not password or len(password) < 8:
+        return None, "Password must be at least 8 characters."
+
+    payload = {
+        "email": email,
+        "password": password,
+        "name": (profile.get('name') or '').strip(),
+        "username": normalize_username(profile.get('username')),
+        "class_name": (profile.get('className') or '').strip(),
+        "school": (profile.get('school') or '').strip(),
+        "cohort": (profile.get('cohort') or '').strip(),
+        "role": (profile.get('role') or 'Student').strip(),
+        "bio": (profile.get('bio') or '').strip()
+    }
+
+    if payload["role"] not in ["Student", "Teacher"]:
+        payload["role"] = "Student"
+
+    if is_signup:
+        if not payload["name"]:
+            return None, "Full name is required."
+        if not payload["username"] or len(payload["username"]) < 3:
+            return None, "Username must be at least 3 characters."
+
+    return payload, None
+
+
+def get_current_user():
+    user_id = session.get('user_id')
+    if not user_id:
+        return None
+    return db.session.get(User, user_id)
+
+
+def require_login():
+    """Decorator to require user authentication"""
+    def decorator(f):
+        @wraps(f)
+        def wrapped(*args, **kwargs):
+            if not get_current_user():
+                return jsonify({"error": "Authentication required."}), 401
+            return f(*args, **kwargs)
+        return wrapped
+    return decorator
+
+
+def avatar_from_name(name):
+    initials = ''.join([part[:1].upper() for part in (name or 'NECS User').split()[:2]]) or 'N'
+    svg = f"""
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96">
+      <defs>
+        <linearGradient id="avatar" x1="0" x2="1" y1="0" y2="1">
+          <stop offset="0%" stop-color="#0ea5e9" />
+          <stop offset="100%" stop-color="#1e293b" />
+        </linearGradient>
+      </defs>
+      <rect width="96" height="96" rx="30" fill="url(#avatar)" />
+      <text x="48" y="56" text-anchor="middle" fill="#ffffff" font-size="34" font-weight="700" font-family="Arial, sans-serif">{initials}</text>
+    </svg>
+    """.strip()
+    return f"data:image/svg+xml;charset=UTF-8,{quote(svg)}"
+
+
+def round_score(value):
+    return round(float(value or 0), 2)
+
+
+def build_progress_points(sessions):
+    if not sessions:
+        return []
+
+    monthly_scores = {}
+    for practice in sessions:
+        month_key = practice.created_at.strftime('%b')
+        monthly_scores.setdefault(month_key, []).append(float((practice.scores or {}).get('total') or 0))
+
+    ordered_months = []
+    seen = set()
+    for practice in sessions:
+        month_key = practice.created_at.strftime('%b')
+        if month_key not in seen:
+            ordered_months.append(month_key)
+            seen.add(month_key)
+
+    points = []
+    for month_key in ordered_months[-6:]:
+        scores = monthly_scores.get(month_key, [])
+        average = sum(scores) / len(scores) if scores else 0
+        points.append({"label": month_key, "value": round_score(average)})
+    return points
+
+
+def build_commit_weeks(sessions):
+    if not sessions:
+        return []
+
+    counts_by_day = {}
+    for practice in sessions:
+        day_key = practice.created_at.date()
+        counts_by_day[day_key] = counts_by_day.get(day_key, 0) + 1
+
+    start_day = datetime.utcnow().date() - timedelta(days=41)
+    weeks = []
+    for week_index in range(6):
+        week = []
+        for day_index in range(7):
+            current_day = start_day + timedelta(days=week_index * 7 + day_index)
+            count = counts_by_day.get(current_day, 0)
+            week.append(min(count, 4))
+        weeks.append(week)
+    return weeks
+
+
+def calculate_streak(sessions):
+    if not sessions:
+        return 0
+
+    practice_days = sorted({practice.created_at.date() for practice in sessions}, reverse=True)
+    if not practice_days:
+        return 0
+
+    streak = 0
+    current_day = datetime.utcnow().date()
+    if practice_days[0] not in {current_day, current_day - timedelta(days=1)}:
+        return 0
+
+    expected_day = practice_days[0]
+    for day in practice_days:
+        if day == expected_day:
+            streak += 1
+            expected_day = expected_day - timedelta(days=1)
+        elif day < expected_day:
+            break
+    return streak
+
+
+def refresh_user_stats(user):
+    practices = UserPracticeSession.query.filter_by(user_id=user.id).order_by(UserPracticeSession.created_at.asc()).all()
+    totals = [float((practice.scores or {}).get('total') or 0) for practice in practices]
+    average_score = (sum(totals) / len(totals)) if totals else 0
+    best_score = max(totals) if totals else 0
+
+    user.stats = {
+        "practices": len(practices),
+        "avgScore": round_score(average_score),
+        "streak": calculate_streak(practices),
+        "bestScore": round_score(best_score)
+    }
+    user.progress = build_progress_points(practices)
+    user.commit_weeks = build_commit_weeks(practices)
+
+
+def create_practice_session(user, topic, transcript_text, duration, scores):
+    practice = UserPracticeSession(
+        user_id=user.id,
+        topic=topic,
+        transcript=transcript_text,
+        duration=float(duration or 0),
+        scores={
+            "content": round_score(scores.get("content")),
+            "accuracy": round_score(scores.get("accuracy")),
+            "delivery": round_score(scores.get("delivery")),
+            "total": round_score(scores.get("total"))
+        }
+    )
+    db.session.add(practice)
+    db.session.flush()
+    refresh_user_stats(user)
+    return practice
+
 # ============= AUTHENTICATION ROUTES =============
+
+@app.route('/api/auth/signup', methods=['POST'])
+@rate_limit(max_requests=5, window_seconds=300)
+def signup():
+    try:
+        data = request.get_json(silent=True) or {}
+        payload, error = validate_account_payload(data, is_signup=True)
+        if error:
+            return jsonify({"error": error}), 400
+
+        existing_email = User.query.filter_by(email=payload["email"]).first()
+        if existing_email:
+            return jsonify({"error": "An account with this email already exists."}), 409
+
+        existing_username = User.query.filter_by(username=payload["username"]).first()
+        if existing_username:
+            return jsonify({"error": "That username is already taken."}), 409
+
+        user = User(
+            email=payload["email"],
+            username=payload["username"],
+            password_hash=generate_password_hash(payload["password"]),
+            name=payload["name"],
+            class_name=payload["class_name"],
+            school=payload["school"],
+            cohort=payload["cohort"],
+            role=payload["role"],
+            bio=payload["bio"] or 'Practicing consistently and tracking progress on necs.',
+            avatar=avatar_from_name(payload["name"]),
+            stats=dict(DEFAULT_USER_STATS),
+            progress=list(DEFAULT_USER_PROGRESS),
+            commit_weeks=[list(week) for week in DEFAULT_USER_COMMIT_WEEKS]
+        )
+
+        db.session.add(user)
+        db.session.commit()
+
+        session['user_id'] = user.id
+        session.permanent = True
+
+        return jsonify({"success": True, "user": user.to_dict()}), 201
+    except Exception as e:
+        db.session.rollback()
+        print(f"[AUTH] Signup error: {str(e)}")
+        return jsonify({"error": "Signup failed."}), 500
+
+
+@app.route('/api/auth/login', methods=['POST'])
+@rate_limit(max_requests=8, window_seconds=300)
+def login():
+    try:
+        data = request.get_json(silent=True) or {}
+        payload, error = validate_account_payload(data, is_signup=False)
+        if error:
+            return jsonify({"error": error}), 400
+
+        user = User.query.filter_by(email=payload["email"]).first()
+        if not user or not check_password_hash(user.password_hash, payload["password"]):
+            return jsonify({"error": "Invalid email or password."}), 401
+
+        session['user_id'] = user.id
+        session.permanent = True
+
+        return jsonify({"success": True, "user": user.to_dict()})
+    except Exception as e:
+        print(f"[AUTH] Login error: {str(e)}")
+        return jsonify({"error": "Login failed."}), 500
+
+
+@app.route('/api/auth/me', methods=['GET'])
+def auth_me():
+    user = get_current_user()
+    return jsonify({"authenticated": bool(user), "user": user.to_dict() if user else None})
+
+
+@app.route('/api/auth/community', methods=['GET'])
+def auth_community():
+    users = User.query.order_by(User.updated_at.desc(), User.created_at.desc()).all()
+    return jsonify({"profiles": [user.to_public_dict() for user in users]})
+
+
+@app.route('/api/community/posts', methods=['GET'])
+def get_community_posts():
+    posts = CommunityPost.query.order_by(CommunityPost.created_at.desc()).limit(50).all()
+    return jsonify({"posts": [post.to_dict() for post in posts]})
+
+
+@app.route('/api/community/posts', methods=['POST'])
+@require_login()
+@rate_limit(max_requests=10, window_seconds=300)
+def create_community_post():
+    try:
+        user = get_current_user()
+        data = request.get_json(silent=True) or {}
+        title = (data.get('title') or '').strip()
+        body = (data.get('body') or '').strip()
+
+        if not title:
+            return jsonify({"error": "Post title is required."}), 400
+        if not body:
+            return jsonify({"error": "Post body is required."}), 400
+        if len(title) > 180:
+            return jsonify({"error": "Post title is too long."}), 400
+        if len(body) > 4000:
+            return jsonify({"error": "Post body is too long."}), 400
+
+        post = CommunityPost(
+            user_id=user.id,
+            title=title,
+            body=body,
+        )
+        db.session.add(post)
+        db.session.commit()
+        db.session.refresh(post)
+
+        return jsonify({"success": True, "post": post.to_dict()}), 201
+    except Exception as e:
+        db.session.rollback()
+        print(f"[COMMUNITY] Create post error: {str(e)}")
+        return jsonify({"error": "Could not publish post."}), 500
+
+
+@app.route('/api/auth/practice-history', methods=['GET'])
+@require_login()
+def auth_practice_history():
+    user = get_current_user()
+    sessions = UserPracticeSession.query.filter_by(user_id=user.id).order_by(UserPracticeSession.created_at.desc()).limit(12).all()
+    return jsonify({"sessions": [session_item.to_dict() for session_item in sessions]})
+
+
+@app.route('/api/auth/logout', methods=['POST'])
+def auth_logout():
+    session.pop('user_id', None)
+    return jsonify({"success": True})
+
+
+@app.route('/api/auth/profile', methods=['PUT'])
+@require_login()
+def update_profile():
+    try:
+        user = get_current_user()
+        data = request.get_json(silent=True) or {}
+
+        name = (data.get('name') or user.name).strip()
+        username = normalize_username(data.get('username', user.username))
+        role = (data.get('role') or user.role or 'Student').strip()
+
+        if not name:
+            return jsonify({"error": "Name is required."}), 400
+        if not username or len(username) < 3:
+            return jsonify({"error": "Username must be at least 3 characters."}), 400
+        if role not in ["Student", "Teacher"]:
+            role = "Student"
+
+        username_owner = User.query.filter(User.username == username, User.id != user.id).first()
+        if username_owner:
+            return jsonify({"error": "That username is already taken."}), 409
+
+        user.name = name
+        user.username = username
+        user.class_name = (data.get('className') or '').strip()
+        user.school = (data.get('school') or '').strip()
+        user.cohort = (data.get('cohort') or '').strip()
+        user.role = role
+        user.bio = (data.get('bio') or '').strip()
+
+        avatar = (data.get('avatar') or '').strip()
+        user.avatar = avatar or avatar_from_name(name)
+
+        db.session.commit()
+        return jsonify({"success": True, "user": user.to_dict()})
+    except Exception as e:
+        db.session.rollback()
+        print(f"[AUTH] Profile update error: {str(e)}")
+        return jsonify({"error": "Profile update failed."}), 500
+
+
+@app.route('/api/auth/password', methods=['PUT'])
+@require_login()
+def update_password():
+    try:
+        user = get_current_user()
+        data = request.get_json(silent=True) or {}
+        current_password = data.get('currentPassword', '')
+        new_password = data.get('newPassword', '')
+
+        if not check_password_hash(user.password_hash, current_password):
+            return jsonify({"error": "Current password is incorrect."}), 401
+        if len(new_password) < 8:
+            return jsonify({"error": "New password must be at least 8 characters."}), 400
+
+        user.password_hash = generate_password_hash(new_password)
+        db.session.commit()
+        return jsonify({"success": True})
+    except Exception as e:
+        db.session.rollback()
+        print(f"[AUTH] Password update error: {str(e)}")
+        return jsonify({"error": "Password update failed."}), 500
+
+
+@app.route('/api/auth/account', methods=['DELETE'])
+@require_login()
+def delete_account():
+    try:
+        user = get_current_user()
+        session.pop('user_id', None)
+        db.session.delete(user)
+        db.session.commit()
+        return jsonify({"success": True})
+    except Exception as e:
+        db.session.rollback()
+        print(f"[AUTH] Delete account error: {str(e)}")
+        return jsonify({"error": "Account deletion failed."}), 500
 
 @app.route('/api/admin/login', methods=['POST'])
 @rate_limit(max_requests=5, window_seconds=300)
@@ -496,6 +933,19 @@ def analyze_speech():
         transcript_data = transcribe_audio(filepath)
         grading_result = grade_speech(topic, transcript_data)
         doc_stream = generate_docx(topic, transcript_data["text"], grading_result)
+        current_user = get_current_user()
+        refreshed_user = None
+
+        if current_user:
+            create_practice_session(
+                current_user,
+                topic,
+                transcript_data["text"],
+                transcript_data["duration"],
+                grading_result["scores"]
+            )
+            db.session.commit()
+            refreshed_user = current_user.to_dict()
         
         os.remove(filepath)
         
@@ -510,10 +960,12 @@ def analyze_speech():
             "feedback": grading_result["feedback"],
             "sample_response": grading_result["sample_response"],
             "document_base64": doc_base64,
-            "document_filename": f"necs_feedback_{timestamp}.docx"
+            "document_filename": f"necs_feedback_{timestamp}.docx",
+            "user": refreshed_user
         })
     
     except Exception as e:
+        db.session.rollback()
         print(f"Error: {str(e)}")
         if 'filepath' in locals() and os.path.exists(filepath):
             os.remove(filepath)
