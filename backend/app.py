@@ -466,7 +466,7 @@ def signup():
         db.session.commit()
 
         session['user_id'] = user.id
-        session.permanent = True
+        session.permanent = False
 
         return jsonify({"success": True, "user": user.to_dict()}), 201
     except Exception as e:
@@ -489,7 +489,7 @@ def login():
             return jsonify({"error": "Invalid email or password."}), 401
 
         session['user_id'] = user.id
-        session.permanent = True
+        session.permanent = False
 
         return jsonify({"success": True, "user": user.to_dict()})
     except Exception as e:
@@ -676,7 +676,7 @@ def admin_login():
 
         if check_password_hash(ADMIN_PASSWORD_HASH, password):
             session['admin_authenticated'] = True
-            session.permanent = True
+            session.permanent = False
             return jsonify({
                 "success": True,
                 "message": "Login successful"

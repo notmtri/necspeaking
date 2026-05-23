@@ -37,7 +37,7 @@ const HomePage = memo(function HomePage({ navTo, openAuth, continueAsGuest, curr
                 Create an account to keep your profile consistent across sessions. Guest mode is still available.
               </div>
             )}
-            <div className="flex flex-col gap-3 sm:flex-row">
+            <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
               <button onClick={() => openAuth('login')} className="inline-flex items-center justify-center gap-2 rounded-2xl bg-sky-500 px-8 py-3 font-semibold text-white transition hover:bg-sky-400">
                 <LogIn size={17} />
                 Log In
@@ -45,6 +45,10 @@ const HomePage = memo(function HomePage({ navTo, openAuth, continueAsGuest, curr
               <button onClick={continueAsGuest} className="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.05] px-8 py-3 font-semibold text-slate-200 transition hover:bg-white/[0.1]">
                 <ArrowRight size={17} />
                 Continue as Guest
+              </button>
+              <button onClick={() => navTo('community')} className="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.05] px-8 py-3 font-semibold text-slate-200 transition hover:bg-white/[0.1]">
+                <Users size={17} />
+                Browse Community
               </button>
             </div>
             <div className="grid gap-3 sm:grid-cols-3">
