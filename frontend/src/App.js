@@ -1,10 +1,11 @@
-﻿// Complete App.js - Full Application with All Components and Mobile Hamburger Menu
+// Complete App.js - Full Application with All Components and Mobile Hamburger Menu
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { Analytics } from "@vercel/analytics/react"
 import { Upload, Play, Pause, Download, CheckCircle, AlertCircle, Loader, FileAudio } from 'lucide-react';
 import { AdminLoginModal, ToastViewport } from './components/AppOverlays';
 import { AppHeader, AppStatusStack, Footer } from './components/AppChrome';
-import { API_BASE_URL, downloadDocumentFromBase64, readGuestModePreference, writeGuestModePreference } from './appShared';
+import { API_BASE_URL, DEFAULT_ANNOUNCEMENT, downloadDocumentFromBase64, pageFromLocation, pathForPage, readGuestModePreference, writeGuestModePreference } from './appShared';
+import { apiFetch, isAbortError, waitForAnalysisJob } from './apiClient';
 import AdminPanel from './pages/AdminPanel';
 import AuthPage from './pages/AuthPage';
 import CommunityPage from './pages/CommunityPage';
@@ -14,7 +15,9 @@ import SampleLibrary from './pages/SampleLibrary';
 import SimulationMode from './pages/SimulationMode';
 
 export default function SpeakUpApp() {
-  const [currentPage, setCurrentPage] = useState('home');
+  const [currentPage, setCurrentPage] = useState(() => {
+    return pageFromLocation(window.location);
+  });
   const [step, setStep] = useState('input');
   const [topic, setTopic] = useState('');
   const [audioFile, setAudioFile] = useState(null);
@@ -22,8 +25,8 @@ export default function SpeakUpApp() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [results, setResults] = useState(null);
   const [error, setError] = useState(null);
+  const [analysisProgressMessage, setAnalysisProgressMessage] = useState('Queued for processing.');
   const [showAdminPanel, setShowAdminPanel] = useState(false);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isWarmingBackend, setIsWarmingBackend] = useState(true);
   const [authMode, setAuthMode] = useState('login');
@@ -38,13 +41,82 @@ export default function SpeakUpApp() {
   const [currentUser, setCurrentUser] = useState(null);
   const [publicProfiles, setPublicProfiles] = useState([]);
   const [selectedProfileId, setSelectedProfileId] = useState(null);
+  const [announcement, setAnnouncement] = useState(DEFAULT_ANNOUNCEMENT);
   const [toasts, setToasts] = useState([]);
   const [adminLoginOpen, setAdminLoginOpen] = useState(false);
   const [adminPassword, setAdminPassword] = useState('');
   const [adminLoginError, setAdminLoginError] = useState('');
   const [adminLoginSubmitting, setAdminLoginSubmitting] = useState(false);
+  const [adminAuthenticated, setAdminAuthenticated] = useState(false);
 
   const audioRef = useRef(null);
+  const [installPrompt, setInstallPrompt] = useState(null);
+  const [isOffline, setIsOffline] = useState(!navigator.onLine);
+
+  useEffect(() => {
+    const handlePopState = () => {
+      setCurrentPage(pageFromLocation(window.location));
+      setMobileMenuOpen(false);
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  useEffect(() => {
+    const handleBeforeInstallPrompt = (e) => {
+      e.preventDefault();
+      setInstallPrompt(e);
+    };
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+  }, []);
+
+  const handleInstallApp = useCallback(async () => {
+    if (!installPrompt) return;
+    installPrompt.prompt();
+    const { outcome } = await installPrompt.userChoice;
+    if (outcome === 'accepted') {
+      setInstallPrompt(null);
+    }
+  }, [installPrompt]);
+
+  useEffect(() => {
+    const goOnline = () => setIsOffline(false);
+    const goOffline = () => setIsOffline(true);
+    window.addEventListener('online', goOnline);
+    window.addEventListener('offline', goOffline);
+    return () => {
+      window.removeEventListener('online', goOnline);
+      window.removeEventListener('offline', goOffline);
+    };
+  }, []);
+
+  useEffect(() => {
+    const handleSwUpdate = (event) => {
+      const registration = event.detail;
+      const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      setToasts((current) => [
+        ...current,
+        {
+          id,
+          message: 'A new version of the app is available.',
+          tone: 'update',
+          action: {
+            label: 'Reload Now',
+            onClick: () => {
+              if (registration && registration.waiting) {
+                registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+              } else {
+                window.location.reload();
+              }
+            }
+          }
+        }
+      ]);
+    };
+    window.addEventListener('sw-update-available', handleSwUpdate);
+    return () => window.removeEventListener('sw-update-available', handleSwUpdate);
+  }, []);
 
   const dismissToast = useCallback((id) => {
     setToasts((current) => current.filter((toast) => toast.id !== id));
@@ -58,34 +130,42 @@ export default function SpeakUpApp() {
     }, tone === 'error' ? 6000 : 4000);
   }, []);
 
-  const loadCommunityProfiles = useCallback(async () => {
+  const loadCommunityProfiles = useCallback(async (options = {}) => {
     setCommunityLoading(true);
     try {
-      const response = await fetch(`${API_BASE_URL}/api/auth/community`, {
-        credentials: 'include',
-      });
-      const data = await response.json();
-      if (response.ok && Array.isArray(data.profiles)) {
+      const data = await apiFetch('/api/auth/community', { signal: options.signal });
+      if (Array.isArray(data.profiles)) {
         setPublicProfiles(data.profiles);
       }
-    } catch {
+    } catch (error) {
+      if (isAbortError(error)) return;
       setPublicProfiles([]);
     } finally {
-      setCommunityLoading(false);
+      if (!options.signal?.aborted) setCommunityLoading(false);
     }
   }, []);
 
-  const loadPracticeHistory = useCallback(async () => {
+  const loadPracticeHistory = useCallback(async (options = {}) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/auth/practice-history`, {
-        credentials: 'include',
-      });
-      const data = await response.json();
-      if (response.ok && Array.isArray(data.sessions)) {
+      const data = await apiFetch('/api/auth/practice-history', { signal: options.signal });
+      if (Array.isArray(data.sessions)) {
         setPracticeHistory(data.sessions);
       }
-    } catch {
+    } catch (error) {
+      if (isAbortError(error)) return;
       setPracticeHistory([]);
+    }
+  }, []);
+
+  const loadAnnouncement = useCallback(async (options = {}) => {
+    try {
+      const data = await apiFetch('/api/site/announcement', { signal: options.signal });
+      if (data.announcement) {
+        setAnnouncement(data.announcement);
+      }
+    } catch (error) {
+      if (isAbortError(error)) return;
+      setAnnouncement(DEFAULT_ANNOUNCEMENT);
     }
   }, []);
 
@@ -96,17 +176,23 @@ export default function SpeakUpApp() {
   }, [audioURL]);
 
   useEffect(() => {
+    const controller = new AbortController();
     const warmBackend = async () => {
       try {
-        await fetch(`${API_BASE_URL}/api/health`, { method: 'GET' });
-      } catch {
+        await Promise.all([
+          apiFetch('/api/health', { method: 'GET', signal: controller.signal }),
+          loadAnnouncement({ signal: controller.signal }),
+        ]);
+      } catch (error) {
+        if (isAbortError(error)) return;
         // Best-effort warmup only.
       } finally {
-        setIsWarmingBackend(false);
+        if (!controller.signal.aborted) setIsWarmingBackend(false);
       }
     };
     warmBackend();
-  }, []);
+    return () => controller.abort();
+  }, [loadAnnouncement]);
 
   useEffect(() => {
     writeGuestModePreference(guestMode);
@@ -119,36 +205,58 @@ export default function SpeakUpApp() {
   }, [guestMode, currentUser]);
 
   useEffect(() => {
+    const controller = new AbortController();
     const loadCurrentUser = async () => {
       try {
-        const response = await fetch(`${API_BASE_URL}/api/auth/me`, {
-          credentials: 'include',
-        });
-        const data = await response.json();
-        if (response.ok && data.authenticated && data.user) {
+        const data = await apiFetch('/api/auth/me', { signal: controller.signal });
+        if (data.authenticated && data.user) {
           setCurrentUser(data.user);
           setSelectedProfileId(data.user.id);
           setGuestMode(false);
-          await loadPracticeHistory();
+          await loadPracticeHistory({ signal: controller.signal });
         }
-      } catch {
+      } catch (error) {
+        if (isAbortError(error)) return;
         // Keep the app usable even if auth restoration fails.
       } finally {
-        setAuthChecking(false);
+        if (!controller.signal.aborted) setAuthChecking(false);
       }
     };
     loadCurrentUser();
+    return () => controller.abort();
   }, [loadPracticeHistory]);
 
   useEffect(() => {
+    const controller = new AbortController();
+    const loadAdminSession = async () => {
+      try {
+        const data = await apiFetch('/api/admin/check', { signal: controller.signal });
+        if (!controller.signal.aborted) {
+          setAdminAuthenticated(Boolean(data.authenticated));
+        }
+      } catch (error) {
+        if (!isAbortError(error) && !controller.signal.aborted) {
+          setAdminAuthenticated(false);
+        }
+      }
+    };
+    loadAdminSession();
+    return () => controller.abort();
+  }, []);
+
+  useEffect(() => {
     if (currentPage === 'community' && !communityLoading && publicProfiles.length === 0) {
-      loadCommunityProfiles();
+      const controller = new AbortController();
+      loadCommunityProfiles({ signal: controller.signal });
+      return () => controller.abort();
     }
   }, [communityLoading, currentPage, loadCommunityProfiles, publicProfiles.length]);
 
   useEffect(() => {
     if (currentUser && currentPage === 'profile' && practiceHistory.length === 0) {
-      loadPracticeHistory();
+      const controller = new AbortController();
+      loadPracticeHistory({ signal: controller.signal });
+      return () => controller.abort();
     }
   }, [currentPage, currentUser, loadPracticeHistory, practiceHistory.length]);
 
@@ -182,35 +290,46 @@ export default function SpeakUpApp() {
   }, [isPlaying]);
 
   const analyzeAudio = useCallback(async () => {
+    if (isOffline) {
+      setError('You are offline. Cannot perform analysis.');
+      return;
+    }
     if (!topic.trim()) { setError('Please enter a topic'); return; }
     if (!audioFile) { setError('Please upload audio'); return; }
 
     setStep('uploading');
     setError(null);
+    setAnalysisProgressMessage('Uploading audio and queueing analysis.');
 
     const formData = new FormData();
     formData.append('audio', audioFile);
     formData.append('topic', topic);
+    formData.append('source', 'analyze');
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/analyze`, { method: 'POST', body: formData, credentials: 'include' });
-      const data = await response.json();
-      if (data.success) {
-        setResults(data);
-        if (data.user) {
-          setCurrentUser(data.user);
-          setSelectedProfileId(data.user.id);
-          loadPracticeHistory();
-          loadCommunityProfiles();
-        }
-        setStep('results');
+      const data = await apiFetch('/api/analyze', { method: 'POST', body: formData });
+      const job = await waitForAnalysisJob(data.job.id, {
+        onTick: (jobState) => setAnalysisProgressMessage(jobState?.progressMessage || 'Processing analysis job.'),
+      });
+
+      const result = job.result || null;
+      if (!result) {
+        throw new Error('Analysis job completed without a result payload.');
       }
-      else { setError(data.error || 'Analysis failed'); setStep('preview'); }
-    } catch {
-      setError('Connection failed. Make sure the backend is running.');
+
+      setResults(result);
+      if (result.user) {
+        setCurrentUser(result.user);
+        setSelectedProfileId(result.user.id);
+        loadPracticeHistory();
+        loadCommunityProfiles();
+      }
+      setStep('results');
+    } catch (error) {
+      setError(error.message || 'Connection failed. Make sure the backend is running.');
       setStep('preview');
     }
-  }, [topic, audioFile, loadCommunityProfiles, loadPracticeHistory]);
+  }, [topic, audioFile, loadCommunityProfiles, loadPracticeHistory, isOffline]);
 
   const downloadDocument = useCallback(() => {
     if (!results) {
@@ -237,13 +356,18 @@ export default function SpeakUpApp() {
     setResults(null);
     setError(null);
     setIsPlaying(false);
+    setAnalysisProgressMessage('Queued for processing.');
   }, [audioURL]);
 
   const openAdminPanel = useCallback(async () => {
+    if (adminAuthenticated) {
+      setShowAdminPanel(true);
+      return;
+    }
     setAdminPassword('');
     setAdminLoginError('');
     setAdminLoginOpen(true);
-  }, []);
+  }, [adminAuthenticated]);
 
   const submitAdminLogin = useCallback(async () => {
     if (!adminPassword.trim()) {
@@ -254,27 +378,37 @@ export default function SpeakUpApp() {
     setAdminLoginSubmitting(true);
     setAdminLoginError('');
     try {
-      const res = await fetch(`${API_BASE_URL}/api/admin/login`, {
+      const data = await apiFetch('/api/admin/login', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ password: adminPassword })
+        body: { password: adminPassword }
       });
-      const data = await res.json();
-      if (res.ok && data.success) {
-        setIsAuthenticated(true);
+      if (data.success) {
+        setAdminAuthenticated(true);
         setShowAdminPanel(true);
         setAdminLoginOpen(false);
         setAdminPassword('');
       } else {
         setAdminLoginError(data.error || 'Incorrect password.');
       }
-    } catch {
-      setAdminLoginError('Could not reach the admin login endpoint. Make sure the backend is running.');
+    } catch (error) {
+      setAdminLoginError(error.message || 'Could not reach the admin login endpoint. Make sure the backend is running.');
     } finally {
       setAdminLoginSubmitting(false);
     }
   }, [adminPassword]);
+
+  const handleAdminLogout = useCallback(async () => {
+    try {
+      await apiFetch('/api/admin/logout', { method: 'POST' });
+    } catch {
+      // Clear local admin state even if the request fails.
+    }
+    setAdminAuthenticated(false);
+    setShowAdminPanel(false);
+    setAdminLoginOpen(false);
+    setAdminPassword('');
+    setAdminLoginError('');
+  }, []);
 
   const getScoreColor = useCallback((score, max) => {
     const percentage = (score / max) * 100;
@@ -284,6 +418,10 @@ export default function SpeakUpApp() {
   }, []);
 
   const navTo = useCallback((page) => {
+    const nextPath = pathForPage(page);
+    if (window.location.pathname !== nextPath) {
+      window.history.pushState({}, '', nextPath);
+    }
     setCurrentPage(page);
     setMobileMenuOpen(false);
     if (page === 'analyze') reset();
@@ -292,32 +430,29 @@ export default function SpeakUpApp() {
   const openAuth = useCallback((mode = 'login') => {
     setAuthError('');
     setAuthMode(mode);
-    setCurrentPage('auth');
+    navTo('auth');
     setMobileMenuOpen(false);
-  }, []);
+  }, [navTo]);
 
   const continueAsGuest = useCallback(() => {
     setAuthError('');
     setGuestMode(true);
     setGuestModeBannerVisible(true);
-    setCurrentPage('analyze');
+    navTo('analyze');
     setMobileMenuOpen(false);
-  }, []);
+  }, [navTo]);
 
   const handleAuthSubmit = useCallback(async ({ mode, email, password, profile }) => {
     setAuthSubmitting(true);
     setAuthError('');
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/auth/${mode}`, {
+      const data = await apiFetch(`/api/auth/${mode}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ email, password, profile }),
+        body: { email, password, profile },
       });
-      const data = await response.json();
 
-      if (!response.ok || !data.user) {
+      if (!data.user) {
         setAuthError(data.error || 'Authentication failed.');
         return false;
       }
@@ -327,28 +462,25 @@ export default function SpeakUpApp() {
       setSelectedProfileId(data.user.id);
       await loadPracticeHistory();
       await loadCommunityProfiles();
-      setCurrentPage('profile');
+      navTo('profile');
       return true;
-    } catch {
-      setAuthError('Could not reach the account endpoint. Make sure the backend is running.');
+    } catch (error) {
+      setAuthError(error.message || 'Could not reach the account endpoint. Make sure the backend is running.');
       return false;
     } finally {
       setAuthSubmitting(false);
     }
-  }, [loadCommunityProfiles, loadPracticeHistory]);
+  }, [loadCommunityProfiles, loadPracticeHistory, navTo]);
 
   const handleProfileSave = useCallback(async (updates) => {
     setAuthError('');
     try {
-      const response = await fetch(`${API_BASE_URL}/api/auth/profile`, {
+      const data = await apiFetch('/api/auth/profile', {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify(updates),
+        body: updates,
       });
-      const data = await response.json();
 
-      if (!response.ok || !data.user) {
+      if (!data.user) {
         setAuthError(data.error || 'Could not save profile changes.');
         return false;
       }
@@ -357,8 +489,8 @@ export default function SpeakUpApp() {
       setSelectedProfileId(data.user.id);
       await loadCommunityProfiles();
       return true;
-    } catch {
-      setAuthError('Could not save profile changes.');
+    } catch (error) {
+      setAuthError(error.message || 'Could not save profile changes.');
       return false;
     }
   }, [loadCommunityProfiles]);
@@ -367,20 +499,13 @@ export default function SpeakUpApp() {
     setPasswordSubmitting(true);
     setAuthError('');
     try {
-      const response = await fetch(`${API_BASE_URL}/api/auth/password`, {
+      await apiFetch('/api/auth/password', {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ currentPassword, newPassword }),
+        body: { currentPassword, newPassword },
       });
-      const data = await response.json();
-      if (!response.ok) {
-        setAuthError(data.error || 'Could not update password.');
-        return false;
-      }
       return true;
-    } catch {
-      setAuthError('Could not update password.');
+    } catch (error) {
+      setAuthError(error.message || 'Could not update password.');
       return false;
     } finally {
       setPasswordSubmitting(false);
@@ -389,8 +514,8 @@ export default function SpeakUpApp() {
 
   const handleProfileSelect = useCallback((profileId) => {
     setSelectedProfileId(profileId);
-    setCurrentPage('community');
-  }, []);
+    navTo('community');
+  }, [navTo]);
 
   const handleAnalysisUserUpdate = useCallback(async (user) => {
     if (!user) return;
@@ -402,10 +527,7 @@ export default function SpeakUpApp() {
 
   const handleLogout = useCallback(async () => {
     try {
-      await fetch(`${API_BASE_URL}/api/auth/logout`, {
-        method: 'POST',
-        credentials: 'include',
-      });
+      await apiFetch('/api/auth/logout', { method: 'POST' });
     } catch {
       // Clear local UI state even if the request fails.
     }
@@ -414,24 +536,16 @@ export default function SpeakUpApp() {
     setAuthError('');
     setPracticeHistory([]);
     setSelectedProfileId(null);
-    setCurrentPage('home');
+    navTo('home');
     setMobileMenuOpen(false);
     loadCommunityProfiles();
-  }, [loadCommunityProfiles]);
+  }, [loadCommunityProfiles, navTo]);
 
   const handleDeleteAccount = useCallback(async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/auth/account`, {
-        method: 'DELETE',
-        credentials: 'include',
-      });
-      const data = await response.json();
-      if (!response.ok) {
-        setAuthError(data.error || 'Could not delete this account.');
-        return false;
-      }
-    } catch {
-      setAuthError('Could not delete this account.');
+      await apiFetch('/api/auth/account', { method: 'DELETE' });
+    } catch (error) {
+      setAuthError(error.message || 'Could not delete this account.');
       return false;
     }
 
@@ -439,11 +553,11 @@ export default function SpeakUpApp() {
     setGuestMode(false);
     setPracticeHistory([]);
     setSelectedProfileId(null);
-    setCurrentPage('home');
+    navTo('home');
     setMobileMenuOpen(false);
     loadCommunityProfiles();
     return true;
-  }, [loadCommunityProfiles]);
+  }, [loadCommunityProfiles, navTo]);
 
   const selectedProfile = useMemo(
     () => publicProfiles.find((profile) => profile.id === selectedProfileId) || null,
@@ -456,10 +570,15 @@ export default function SpeakUpApp() {
         currentPage={currentPage}
         navTo={navTo}
         currentUser={currentUser}
+        guestMode={guestMode}
+        adminAuthenticated={adminAuthenticated}
         openAuth={openAuth}
         openAdminPanel={openAdminPanel}
         mobileMenuOpen={mobileMenuOpen}
         setMobileMenuOpen={setMobileMenuOpen}
+        installPrompt={installPrompt}
+        handleInstallApp={handleInstallApp}
+        announcement={announcement}
       />
 
       <div className={currentPage === 'auth' ? 'mx-auto max-w-6xl px-3 py-6 sm:px-6 sm:py-8' : 'mx-auto w-full max-w-7xl px-4 py-4 sm:px-6 sm:py-6 lg:px-8'}>
@@ -472,6 +591,7 @@ export default function SpeakUpApp() {
           authError={authError}
           currentPage={currentPage}
           isWarmingBackend={isWarmingBackend}
+          isOffline={isOffline}
         />
         {currentPage === 'home' ? (
           <HomePage navTo={navTo} openAuth={openAuth} continueAsGuest={continueAsGuest} currentUser={currentUser} />
@@ -525,7 +645,7 @@ export default function SpeakUpApp() {
                         <FileAudio size={22} />
                       </div>
                       <div className="text-lg font-bold text-white">Upload your response</div>
-                      <div className="mt-2 text-sm leading-7 text-slate-300">Choose one recording file. You’ll be able to preview it before analysis.</div>
+                      <div className="mt-2 text-sm leading-7 text-slate-300">Choose one recording file. You'll be able to preview it before analysis.</div>
                       <label className="mt-5 inline-flex w-full items-center justify-center gap-3 rounded-2xl bg-sky-500 px-4 py-3 font-semibold text-white transition hover:bg-sky-400">
                         <Upload size={18} />
                         <span>Upload Audio File</span>
@@ -554,8 +674,12 @@ export default function SpeakUpApp() {
                       <button onClick={togglePlayback} className="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.05] px-6 py-3 text-white transition hover:bg-white/[0.09]">
                         {isPlaying ? <><Pause size={16} /> Pause Preview</> : <><Play size={16} /> Play Preview</>}
                       </button>
-                      <button onClick={analyzeAudio} className="inline-flex items-center justify-center gap-2 rounded-2xl bg-sky-500 px-6 py-3 font-semibold text-white transition hover:bg-sky-400">
-                        <CheckCircle size={16} /> Analyze Speech
+                      <button
+                        onClick={analyzeAudio}
+                        disabled={isOffline}
+                        className={`inline-flex items-center justify-center gap-2 rounded-2xl px-6 py-3 font-semibold text-white transition ${isOffline ? 'bg-slate-700 cursor-not-allowed opacity-50' : 'bg-sky-500 hover:bg-sky-400'}`}
+                      >
+                        <CheckCircle size={16} /> {isOffline ? 'Offline - Cannot Analyze' : 'Analyze Speech'}
                       </button>
                     </div>
                     <div className="mt-6 rounded-2xl border border-sky-400/15 bg-sky-400/8 p-4 text-sm text-slate-300">
@@ -572,7 +696,8 @@ export default function SpeakUpApp() {
                     <Loader className="animate-spin" size={40} />
                   </div>
                   <div className="text-xl font-semibold text-white">Analyzing your speech...</div>
-                  <div className="mt-2 text-sm text-slate-400">This can take a little longer while backend services are busy.</div>
+                  <div className="mt-2 text-sm text-slate-300">{analysisProgressMessage}</div>
+                  <div className="mt-1 text-sm text-slate-500">This can take a little longer while backend services are busy.</div>
                 </div>
               )}
 
@@ -635,7 +760,7 @@ export default function SpeakUpApp() {
         ) : currentPage === 'samples' ? (
           <SampleLibrary />
         ) : currentPage === 'simulation' ? (
-          <SimulationMode onAnalysisUserUpdate={handleAnalysisUserUpdate} notify={pushToast} />
+          <SimulationMode onAnalysisUserUpdate={handleAnalysisUserUpdate} notify={pushToast} isOffline={isOffline} />
         ) : (
           <HomePage navTo={navTo} openAuth={openAuth} continueAsGuest={continueAsGuest} currentUser={currentUser} />
         )}
@@ -644,7 +769,15 @@ export default function SpeakUpApp() {
       <Footer setCurrentPage={navTo} />
       <Analytics />
 
-      {showAdminPanel && isAuthenticated && <AdminPanel onClose={() => setShowAdminPanel(false)} notify={pushToast} />}
+      {showAdminPanel && adminAuthenticated && (
+        <AdminPanel
+          onClose={() => setShowAdminPanel(false)}
+          onLogout={handleAdminLogout}
+          notify={pushToast}
+          announcement={announcement}
+          onAnnouncementChange={setAnnouncement}
+        />
+      )}
       <AdminLoginModal
         open={adminLoginOpen}
         password={adminPassword}
@@ -663,5 +796,6 @@ export default function SpeakUpApp() {
     </div>
   );
 }
+
 
 

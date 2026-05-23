@@ -1,9 +1,10 @@
-from flask import Flask, request, jsonify, send_file, send_from_directory, session
+from flask import Flask, g, jsonify, redirect, request, send_file, send_from_directory, session
 from flask_cors import CORS
 from dotenv import load_dotenv
+import json
+import logging
 import os
 import warnings
-import base64
 import secrets
 from functools import wraps
 from datetime import datetime, timedelta
@@ -12,15 +13,18 @@ warnings.filterwarnings("ignore", message="Core Pydantic V1 functionality")
 
 from werkzeug.utils import secure_filename
 from werkzeug.security import check_password_hash, generate_password_hash
+from werkzeug.exceptions import HTTPException, RequestEntityTooLarge
 from groq import Groq
-import json
-import io
 import re
 import random
 from urllib.parse import quote
 from sqlalchemy import inspect
 
-from database import CommunityPost, db, Question, Sample, User, UserPracticeSession
+from analysis_service import allowed_file, build_job_storage_path, cleanup_old_files, get_audio_duration
+from database import AnalysisJob, AppAnnouncement, CommunityPost, RateLimitEntry, db, Question, Sample, User, UserPracticeSession, is_special_admin
+from job_worker import AnalysisWorker, should_start_embedded_worker
+from rate_limiter import rate_limit, rate_limiter
+from user_progress import create_practice_session
 import cloudinary
 import cloudinary.uploader
 
@@ -31,8 +35,39 @@ app = Flask(__name__, static_folder='build', static_url_path='')
 # REMOVED REDIS LIMITER - Use custom rate limiting instead
 # If you need Redis later, add it back with proper configuration
 
+IS_PRODUCTION = os.getenv('PRODUCTION', '').strip().lower() == 'true'
+
+
+def sanitize_broken_proxy_env():
+    for key in ['HTTP_PROXY', 'HTTPS_PROXY', 'ALL_PROXY', 'http_proxy', 'https_proxy', 'all_proxy']:
+        value = os.getenv(key, '').strip().lower()
+        if value in {
+            'http://127.0.0.1:9',
+            'http://localhost:9',
+            'https://127.0.0.1:9',
+            'https://localhost:9',
+        }:
+            os.environ.pop(key, None)
+            print(f"[NET] Ignoring broken proxy setting from {key}.")
+
+
+sanitize_broken_proxy_env()
+
+
+def require_env(name):
+    value = os.getenv(name)
+    if IS_PRODUCTION and not value:
+        raise RuntimeError(f"{name} must be set when PRODUCTION=true.")
+    return value
+
+
 # Security Configuration
-app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', secrets.token_hex(32))
+secret_key = require_env('SECRET_KEY')
+if not secret_key:
+    secret_key = secrets.token_hex(32)
+    print("[WARN] SECRET_KEY is not set. Generated a temporary development key.")
+
+app.config['SECRET_KEY'] = secret_key
 app.config['SESSION_COOKIE_NAME'] = os.getenv('SESSION_COOKIE_NAME', 'necs_session')
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_PATH'] = '/'
@@ -41,7 +76,7 @@ if session_cookie_domain:
     app.config['SESSION_COOKIE_DOMAIN'] = session_cookie_domain
 
 # Environment-specific cookie settings
-if os.getenv('PRODUCTION') == 'true':
+if IS_PRODUCTION:
     app.config['SESSION_COOKIE_SECURE'] = True
     app.config['SESSION_COOKIE_SAMESITE'] = 'None'  # Required for cross-origin
 else:
@@ -76,22 +111,25 @@ print(f"[DB] Connecting to: {database_url[:50]}...")
 db.init_app(app)
 
 
-def ensure_auth_tables():
+def ensure_runtime_tables():
     with app.app_context():
         try:
             inspector = inspect(db.engine)
             table_names = inspector.get_table_names()
-            if 'users' not in table_names:
-                User.__table__.create(bind=db.engine, checkfirst=True)
-                print("[DB] Created missing users table.")
-            if 'user_practice_sessions' not in table_names:
-                UserPracticeSession.__table__.create(bind=db.engine, checkfirst=True)
-                print("[DB] Created missing user_practice_sessions table.")
-            if 'community_posts' not in table_names:
-                CommunityPost.__table__.create(bind=db.engine, checkfirst=True)
-                print("[DB] Created missing community_posts table.")
+            managed_tables = [
+                ('users', User.__table__),
+                ('user_practice_sessions', UserPracticeSession.__table__),
+                ('community_posts', CommunityPost.__table__),
+                ('app_announcements', AppAnnouncement.__table__),
+                ('analysis_jobs', AnalysisJob.__table__),
+                ('rate_limit_entries', RateLimitEntry.__table__),
+            ]
+            for table_name, table in managed_tables:
+                if table_name not in table_names:
+                    table.create(bind=db.engine, checkfirst=True)
+                    print(f"[DB] Created missing {table_name} table.")
         except Exception as e:
-            print(f"[WARN] Could not ensure auth tables: {e}")
+            print(f"[WARN] Could not ensure runtime tables: {e}")
 
 def should_run_startup_db_sync():
     """Avoid expensive create_all() on cloud cold starts unless explicitly enabled."""
@@ -114,7 +152,7 @@ if should_run_startup_db_sync():
 else:
     print("[DB] Skipping db.create_all() on startup.")
 
-ensure_auth_tables()
+ensure_runtime_tables()
 
 # Cloudinary Configuration
 cloudinary.config(
@@ -125,35 +163,153 @@ cloudinary.config(
 )
 
 # SECURE CORS
-ALLOWED_ORIGINS = [origin.strip() for origin in os.getenv('ALLOWED_ORIGINS', 'http://localhost:3000').split(',') if origin.strip()]
+default_allowed_origins = 'http://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,http://127.0.0.1:3001'
+allowed_origins_raw = require_env('ALLOWED_ORIGINS') or default_allowed_origins
+ALLOWED_ORIGINS = [origin.strip() for origin in allowed_origins_raw.split(',') if origin.strip()]
 
 CORS(app, resources={
     r"/api/*": {
         "origins": ALLOWED_ORIGINS,
         "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],  # Added OPTIONS
-        "allow_headers": ["Content-Type"],
+        "allow_headers": ["Content-Type", "X-CSRF-Token", "X-Request-ID"],
         "supports_credentials": True,
-        "expose_headers": ["Content-Type"]  # Added this
+        "expose_headers": ["Content-Type", "X-Request-ID"]  # Added this
     }
 })
 
+
+def wants_json_response():
+    return request.path.startswith('/api/')
+
+
+logger = logging.getLogger('necs.backend')
+if not logger.handlers:
+    handler = logging.StreamHandler()
+    handler.setFormatter(logging.Formatter('%(message)s'))
+    logger.addHandler(handler)
+logger.setLevel(logging.INFO)
+logger.propagate = False
+
+CSRF_EXEMPT_PATHS = {
+    '/api/auth/login',
+    '/api/auth/signup',
+    '/api/admin/login',
+}
+
+
+def ensure_csrf_token():
+    token = session.get('csrf_token')
+    if not token:
+        token = secrets.token_urlsafe(32)
+        session['csrf_token'] = token
+    return token
+
+
+def csrf_protection_enabled():
+    return not app.config.get('TESTING', False)
+
+
+@app.before_request
+def attach_request_context():
+    g.request_id = request.headers.get('X-Request-ID') or secrets.token_hex(8)
+    g.request_started_at = datetime.utcnow()
+    if wants_json_response():
+        ensure_csrf_token()
+
+    if not csrf_protection_enabled():
+        return None
+    if request.method in {'GET', 'HEAD', 'OPTIONS'}:
+        return None
+    if not wants_json_response():
+        return None
+    if request.path in CSRF_EXEMPT_PATHS:
+        return None
+
+    expected_token = session.get('csrf_token')
+    supplied_token = request.headers.get('X-CSRF-Token', '')
+    if not expected_token or not supplied_token or supplied_token != expected_token:
+        return jsonify({"error": "CSRF validation failed."}), 403
+    return None
+
+
+@app.after_request
+def finalize_response(response):
+    request_id = getattr(g, 'request_id', '')
+    if request_id:
+        response.headers['X-Request-ID'] = request_id
+
+    if wants_json_response():
+        csrf_token = session.get('csrf_token')
+        if csrf_token:
+            response.set_cookie(
+                'csrf_token',
+                csrf_token,
+                secure=app.config['SESSION_COOKIE_SECURE'],
+                httponly=False,
+                samesite=app.config['SESSION_COOKIE_SAMESITE'],
+                path='/',
+            )
+
+    started_at = getattr(g, 'request_started_at', None)
+    duration_ms = int((datetime.utcnow() - started_at).total_seconds() * 1000) if started_at else None
+    log_payload = {
+        'requestId': request_id,
+        'method': request.method,
+        'path': request.path,
+        'status': response.status_code,
+        'durationMs': duration_ms,
+        'remoteAddr': request.headers.get('X-Forwarded-For', request.remote_addr),
+    }
+    logger.info(json.dumps(log_payload))
+    return response
+
+
+@app.errorhandler(RequestEntityTooLarge)
+def handle_file_too_large(e):
+    return jsonify({"error": "Uploaded file is too large."}), 413
+
+
+@app.errorhandler(HTTPException)
+def handle_http_exception(e):
+    if wants_json_response():
+        return jsonify({"error": e.description or e.name}), e.code
+    return e
+
+
+@app.errorhandler(Exception)
+def handle_unexpected_exception(e):
+    if isinstance(e, HTTPException):
+        return handle_http_exception(e)
+    logger.error(json.dumps({
+        "requestId": getattr(g, 'request_id', ''),
+        "event": "unhandled_exception",
+        "error": str(e),
+        "path": request.path,
+        "method": request.method,
+    }))
+    if wants_json_response():
+        return jsonify({"error": "Internal server error."}), 500
+    raise e
+
 app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024
-app.config['UPLOAD_FOLDER'] = 'uploads'
-ALLOWED_EXTENSIONS = {'wav', 'mp3', 'm4a', 'webm', 'ogg'}
+app.config['UPLOAD_FOLDER'] = os.path.join(app.root_path, 'uploads')
 
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
-groq_client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+groq_api_key = require_env("GROQ_API_KEY")
+groq_client = Groq(api_key=groq_api_key) if groq_api_key else None
+if not groq_client:
+    print("[WARN] GROQ_API_KEY is not set. Speech analysis endpoints will fail until it is configured.")
 
-# ADMIN PASSWORD - FIXED
-ADMIN_PASSWORD_HASH = os.getenv('ADMIN_PASSWORD_HASH')
+rate_limiter.init_app(app)
+analysis_worker = AnalysisWorker(app, lambda: get_groq_client(), app.config['UPLOAD_FOLDER']) if should_start_embedded_worker() else None
+
+# Admin password configuration
+ADMIN_PASSWORD_HASH = require_env('ADMIN_PASSWORD_HASH')
 if not ADMIN_PASSWORD_HASH:
-    print("[WARN] Using fallback password hash. Set ADMIN_PASSWORD_HASH in production.")
-    ADMIN_PASSWORD_HASH = generate_password_hash('040108Minhtri')
-    print(f"[AUTH] Generated hash for testing: {ADMIN_PASSWORD_HASH[:50]}...")
-
-# Rate Limiting Storage (simple in-memory)
-rate_limit_storage = {}
+    dev_admin_password = os.getenv('ADMIN_DEV_PASSWORD', 'admin-dev-password')
+    ADMIN_PASSWORD_HASH = generate_password_hash(dev_admin_password)
+    print("[WARN] ADMIN_PASSWORD_HASH is not set. Using ADMIN_DEV_PASSWORD for local development only.")
 
 DEFAULT_USER_STATS = {
     "practices": 0,
@@ -163,31 +319,6 @@ DEFAULT_USER_STATS = {
 }
 DEFAULT_USER_PROGRESS = []
 DEFAULT_USER_COMMIT_WEEKS = []
-
-def rate_limit(max_requests=10, window_seconds=60):
-    """Simple rate limiting decorator"""
-    def decorator(f):
-        @wraps(f)
-        def wrapped(*args, **kwargs):
-            client_ip = request.remote_addr
-            current_time = datetime.now()
-            
-            if client_ip not in rate_limit_storage:
-                rate_limit_storage[client_ip] = []
-            
-            # Clean old requests
-            rate_limit_storage[client_ip] = [
-                req_time for req_time in rate_limit_storage[client_ip]
-                if (current_time - req_time).seconds < window_seconds
-            ]
-            
-            if len(rate_limit_storage[client_ip]) >= max_requests:
-                return jsonify({"error": "Rate limit exceeded. Try again later."}), 429
-            
-            rate_limit_storage[client_ip].append(current_time)
-            return f(*args, **kwargs)
-        return wrapped
-    return decorator
 
 def require_admin():
     """Decorator to require admin authentication"""
@@ -265,6 +396,20 @@ def require_login():
     return decorator
 
 
+DEFAULT_ANNOUNCEMENT_MESSAGE = 'IMPORTANT NOTICE: Authentication system is still under development, please continue as guest.'
+
+
+def get_or_create_announcement():
+    announcement = AppAnnouncement.query.order_by(AppAnnouncement.id.asc()).first()
+    if announcement:
+        return announcement
+
+    announcement = AppAnnouncement(enabled=True, message=DEFAULT_ANNOUNCEMENT_MESSAGE)
+    db.session.add(announcement)
+    db.session.commit()
+    return announcement
+
+
 def avatar_from_name(name):
     initials = ''.join([part[:1].upper() for part in (name or 'NECS User').split()[:2]]) or 'N'
     svg = f"""
@@ -282,117 +427,10 @@ def avatar_from_name(name):
     return f"data:image/svg+xml;charset=UTF-8,{quote(svg)}"
 
 
-def round_score(value):
-    return round(float(value or 0), 2)
-
-
-def build_progress_points(sessions):
-    if not sessions:
-        return []
-
-    monthly_scores = {}
-    for practice in sessions:
-        month_key = practice.created_at.strftime('%b')
-        monthly_scores.setdefault(month_key, []).append(float((practice.scores or {}).get('total') or 0))
-
-    ordered_months = []
-    seen = set()
-    for practice in sessions:
-        month_key = practice.created_at.strftime('%b')
-        if month_key not in seen:
-            ordered_months.append(month_key)
-            seen.add(month_key)
-
-    points = []
-    for month_key in ordered_months[-6:]:
-        scores = monthly_scores.get(month_key, [])
-        average = sum(scores) / len(scores) if scores else 0
-        points.append({"label": month_key, "value": round_score(average)})
-    return points
-
-
-def build_commit_weeks(sessions):
-    if not sessions:
-        return []
-
-    counts_by_day = {}
-    for practice in sessions:
-        day_key = practice.created_at.date()
-        counts_by_day[day_key] = counts_by_day.get(day_key, 0) + 1
-
-    start_day = datetime.utcnow().date() - timedelta(days=41)
-    weeks = []
-    for week_index in range(6):
-        week = []
-        for day_index in range(7):
-            current_day = start_day + timedelta(days=week_index * 7 + day_index)
-            count = counts_by_day.get(current_day, 0)
-            week.append(min(count, 4))
-        weeks.append(week)
-    return weeks
-
-
-def calculate_streak(sessions):
-    if not sessions:
-        return 0
-
-    practice_days = sorted({practice.created_at.date() for practice in sessions}, reverse=True)
-    if not practice_days:
-        return 0
-
-    streak = 0
-    current_day = datetime.utcnow().date()
-    if practice_days[0] not in {current_day, current_day - timedelta(days=1)}:
-        return 0
-
-    expected_day = practice_days[0]
-    for day in practice_days:
-        if day == expected_day:
-            streak += 1
-            expected_day = expected_day - timedelta(days=1)
-        elif day < expected_day:
-            break
-    return streak
-
-
-def refresh_user_stats(user):
-    practices = UserPracticeSession.query.filter_by(user_id=user.id).order_by(UserPracticeSession.created_at.asc()).all()
-    totals = [float((practice.scores or {}).get('total') or 0) for practice in practices]
-    average_score = (sum(totals) / len(totals)) if totals else 0
-    best_score = max(totals) if totals else 0
-
-    user.stats = {
-        "practices": len(practices),
-        "avgScore": round_score(average_score),
-        "streak": calculate_streak(practices),
-        "bestScore": round_score(best_score)
-    }
-    user.progress = build_progress_points(practices)
-    user.commit_weeks = build_commit_weeks(practices)
-
-
-def create_practice_session(user, topic, transcript_text, duration, scores):
-    practice = UserPracticeSession(
-        user_id=user.id,
-        topic=topic,
-        transcript=transcript_text,
-        duration=float(duration or 0),
-        scores={
-            "content": round_score(scores.get("content")),
-            "accuracy": round_score(scores.get("accuracy")),
-            "delivery": round_score(scores.get("delivery")),
-            "total": round_score(scores.get("total"))
-        }
-    )
-    db.session.add(practice)
-    db.session.flush()
-    refresh_user_stats(user)
-    return practice
-
 # ============= AUTHENTICATION ROUTES =============
 
 @app.route('/api/auth/signup', methods=['POST'])
-@rate_limit(max_requests=5, window_seconds=300)
+@rate_limit('auth-signup', max_requests=5, window_seconds=300)
 def signup():
     try:
         data = request.get_json(silent=True) or {}
@@ -438,7 +476,7 @@ def signup():
 
 
 @app.route('/api/auth/login', methods=['POST'])
-@rate_limit(max_requests=8, window_seconds=300)
+@rate_limit('auth-login', max_requests=8, window_seconds=300)
 def login():
     try:
         data = request.get_json(silent=True) or {}
@@ -471,15 +509,21 @@ def auth_community():
     return jsonify({"profiles": [user.to_public_dict() for user in users]})
 
 
+@app.route('/api/site/announcement', methods=['GET'])
+def get_site_announcement():
+    announcement = get_or_create_announcement()
+    return jsonify({"announcement": announcement.to_dict()})
+
+
 @app.route('/api/community/posts', methods=['GET'])
 def get_community_posts():
-    posts = CommunityPost.query.order_by(CommunityPost.created_at.desc()).limit(50).all()
+    posts = CommunityPost.query.filter_by(hidden=False).order_by(CommunityPost.created_at.desc()).limit(50).all()
     return jsonify({"posts": [post.to_dict() for post in posts]})
 
 
 @app.route('/api/community/posts', methods=['POST'])
 @require_login()
-@rate_limit(max_requests=10, window_seconds=300)
+@rate_limit('community-post-create', max_requests=10, window_seconds=300)
 def create_community_post():
     try:
         user = get_current_user()
@@ -510,6 +554,24 @@ def create_community_post():
         db.session.rollback()
         print(f"[COMMUNITY] Create post error: {str(e)}")
         return jsonify({"error": "Could not publish post."}), 500
+
+
+@app.route('/api/community/posts/<int:post_id>/report', methods=['POST'])
+@rate_limit('community-post-report', max_requests=20, window_seconds=3600)
+def report_community_post(post_id):
+    post = db.session.get(CommunityPost, post_id)
+    if not post or post.hidden:
+        return jsonify({"error": "Post not found."}), 404
+
+    try:
+        post.reported_count = int(post.reported_count or 0) + 1
+        post.last_reported_at = datetime.utcnow()
+        db.session.commit()
+        return jsonify({"success": True, "reportedCount": post.reported_count})
+    except Exception as error:
+        db.session.rollback()
+        print(f"[COMMUNITY] Report post error: {error}")
+        return jsonify({"error": "Could not report post."}), 500
 
 
 @app.route('/api/auth/practice-history', methods=['GET'])
@@ -605,26 +667,21 @@ def delete_account():
         return jsonify({"error": "Account deletion failed."}), 500
 
 @app.route('/api/admin/login', methods=['POST'])
-@rate_limit(max_requests=5, window_seconds=300)
+@rate_limit('admin-login', max_requests=5, window_seconds=300)
 def admin_login():
     """Secure admin login endpoint"""
     try:
-        data = request.get_json()
+        data = request.get_json(silent=True) or {}
         password = data.get('password', '')
-        
-        print(f"[AUTH] Login attempt - Password received: {bool(password)}")
-        print(f"[AUTH] Hash exists: {bool(ADMIN_PASSWORD_HASH)}")
-        
+
         if check_password_hash(ADMIN_PASSWORD_HASH, password):
             session['admin_authenticated'] = True
             session.permanent = True
-            print("[AUTH] Login successful.")
             return jsonify({
                 "success": True,
                 "message": "Login successful"
             })
         else:
-            print("[AUTH] Password check failed.")
             return jsonify({"error": "Invalid password"}), 401
             
     except Exception as e:
@@ -644,6 +701,31 @@ def check_admin():
         "authenticated": session.get('admin_authenticated', False)
     })
 
+
+@app.route('/api/admin/announcement', methods=['PUT'])
+@require_admin()
+def update_announcement():
+    try:
+        data = request.get_json(silent=True) or {}
+        enabled = bool(data.get('enabled'))
+        message = (data.get('message') or '').strip()
+
+        if enabled and not message:
+            return jsonify({"error": "Announcement text is required when the banner is enabled."}), 400
+        if len(message) > 500:
+            return jsonify({"error": "Announcement text is too long."}), 400
+
+        announcement = get_or_create_announcement()
+        announcement.enabled = enabled
+        announcement.message = message
+        db.session.commit()
+
+        return jsonify({"success": True, "announcement": announcement.to_dict()})
+    except Exception as e:
+        db.session.rollback()
+        print(f"[ADMIN] Announcement update error: {str(e)}")
+        return jsonify({"error": "Could not update announcement."}), 500
+
 # ============= EXISTING ROUTES =============
 
 def clean_metadata_file():
@@ -657,212 +739,30 @@ def clean_metadata_file():
 
 clean_metadata_file()
 
-def allowed_file(filename):
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+def get_groq_client():
+    if not groq_client:
+        raise RuntimeError("GROQ_API_KEY is not configured.")
+    return groq_client
 
-def cleanup_old_files():
-    try:
-        current_time = datetime.now().timestamp()
-        for filename in os.listdir(app.config['UPLOAD_FOLDER']):
-            filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-            if filename in ['samples', 'simulations', 'questions.json', 'metadata.json']:
-                continue
-            if os.path.isfile(filepath):
-                file_age = current_time - os.path.getmtime(filepath)
-                if file_age > 3600:
-                    os.remove(filepath)
-    except Exception as e:
-        print(f"Cleanup error: {e}")
 
-def get_audio_duration(file_path):
-    from pydub import AudioSegment
-    audio = AudioSegment.from_file(file_path)
-    return len(audio) / 1000.0
+def resolve_storage_path(path):
+    if not path:
+        return ''
+    if os.path.isabs(path):
+        return path
 
-def convert_to_wav(input_path, output_path):
-    from pydub import AudioSegment
-    audio = AudioSegment.from_file(input_path)
-    audio = audio.set_frame_rate(16000).set_channels(1)
-    audio.export(output_path, format="wav")
-    return output_path
-
-def transcribe_audio(file_path):
-    try:
-        with open(file_path, 'rb') as audio_file:
-            transcription = groq_client.audio.transcriptions.create(
-                file=("audio.wav", audio_file.read()),
-                model="whisper-large-v3-turbo",
-                response_format="json",
-            )
-        
-        duration = get_audio_duration(file_path)
-        transcript_text = transcription.text if hasattr(transcription, 'text') else str(transcription)
-        
-        return {
-            "text": transcript_text,
-            "words": [],
-            "duration": duration
-        }
-    except Exception as e:
-        print(f"Transcription error: {str(e)}")
-        raise Exception(f"Transcription failed: {str(e)}")
-
-def grade_speech(topic, transcript_data):
-    transcript_text = transcript_data["text"]
-    total_words = len(transcript_text.split())
-    duration = transcript_data["duration"]
-    words_per_minute = (total_words / duration * 60) if duration > 0 else 0
-    
-    prompt = f"""You are an expert English speaking examiner. Grade the following speech response based on this rubric:
-
-**Rubric (Total: 2.0 points)**
-1. Content (0.9/2.0 points)
-   - Sufficiently address all requirements of the test question
-   - Develop supporting ideas with relevant reasons and examples
-   - Display a range of original and practical ideas
-
-2. Accuracy (0.6/2.0 points)
-   - Demonstrate a wide variety of vocabulary and grammatical structures
-   - Make correct use of words, grammatical structures and linking devices
-   - Demonstrate correct pronunciation with appropriate intonation
-
-3. Delivery (0.5/2.0 points)
-   - Maintain fluency throughout
-   - Demonstrate effective use of presentation skills
-
-**Topic/Question:** {topic}
-
-**Speech Transcript:** {transcript_text}
-
-**Speech Metrics:**
-- Total words: {total_words}
-- Duration: {duration:.1f} seconds
-- Speaking pace: {words_per_minute:.0f} words/minute
-
-**Instructions:**
-1. Provide scores for each criterion (rounded to 2 decimal places)
-2. Give detailed feedback for each criterion with specific examples from the transcript
-3. Point out both strengths and areas for improvement
-4. Generate a comprehensive sample 2.0/2.0 response to the same topic that would take approximately 5 minutes to speak (around 600-750 words). The sample should:
-   - Start with "My question is... (if question number is provided), and the prompt is... Here is my response." and then answer the question fully
-   - End with "This is the end of my speech. Thank you."
-   - Be detailed and well-structured with clear introduction, body paragraphs, and conclusion
-   - Include specific examples, explanations, and supporting details
-   - Demonstrate sophisticated vocabulary and varied sentence structures
-   - Show natural flow with appropriate transitions
-   - Be comprehensive enough to fill a 5-minute speaking time
-   - Be creative in the introduction to hook the listener's attention
-   - Grade at C2 level of the CEFR framework
-   - Be very strict
-
-**Return your response in this EXACT JSON format:**
-{{
-    "scores": {{
-        "content": 0.00,
-        "accuracy": 0.00,
-        "delivery": 0.00,
-        "total": 0.00
-    }},
-    "feedback": {{
-        "content": "Detailed feedback with examples...",
-        "accuracy": "Detailed feedback with examples...",
-        "delivery": "Detailed feedback with examples..."
-    }},
-    "sample_response": "A complete 2.0/2.0 sample response to the topic..."
-}}"""
-
-    response = groq_client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
-        messages=[{"role": "user", "content": prompt}],
-        temperature=0.3
-    )
-    
-    result_text = response.choices[0].message.content
-    
-    if "```json" in result_text:
-        result_text = result_text.split("```json")[1].split("```")[0].strip()
-    elif "```" in result_text:
-        result_text = result_text.split("```")[1].split("```")[0].strip()
-    
-    result_text = result_text.replace('"', '"').replace('"', '"')
-    result_text = result_text.replace(''', "'").replace(''', "'")
-    result_text = result_text.replace('—', '-').replace('–', '-')
-    result_text = result_text.replace('\u2018', "'").replace('\u2019', "'")
-    result_text = result_text.replace('\u201c', '"').replace('\u201d', '"')
-    result_text = result_text.replace('\u2013', '-').replace('\u2014', '-')
-    result_text = re.sub(r'[\u200b-\u200f\u202a-\u202e\u2060\uFEFF]', '', result_text)
-    result_text = result_text.replace('\u202f', ' ')
-    result_text = result_text.replace('\ufeff', '')
-    result_text = result_text.replace('\u00A0', ' ')
-    result_text = re.sub(r'[^\x00-\x7F]+', '', result_text)
-    result_text = re.sub(r'[\x00-\x1F\x7F]', '', result_text)
-    
-    return json.loads(result_text)
-
-def generate_docx(topic, transcript, grading_result):
-    from docx import Document
-    from docx.enum.text import WD_ALIGN_PARAGRAPH
-    doc = Document()
-    
-    title = doc.add_heading('necs. - Speech Feedback Report', 0)
-    title.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    
-    doc.add_paragraph(f"Date: {datetime.now().strftime('%B %d, %Y')}")
-    doc.add_paragraph(f"Topic: {topic}")
-    doc.add_paragraph()
-    
-    doc.add_heading('Score Summary', 1)
-    scores = grading_result['scores']
-    
-    table = doc.add_table(rows=5, cols=2)
-    table.style = 'Light Grid Accent 1'
-    
-    score_data = [
-        ('Content', f"{scores['content']}/0.9"),
-        ('Accuracy', f"{scores['accuracy']}/0.6"),
-        ('Delivery', f"{scores['delivery']}/0.5"),
-        ('', ''),
-        ('TOTAL SCORE', f"{scores['total']}/2.0")
+    candidates = [
+        os.path.join(app.root_path, path),
+        os.path.join(os.getcwd(), path),
     ]
-    
-    for i, (criterion, score) in enumerate(score_data):
-        table.rows[i].cells[0].text = criterion
-        table.rows[i].cells[1].text = score
-        if i == 4:
-            for cell in table.rows[i].cells:
-                for paragraph in cell.paragraphs:
-                    for run in paragraph.runs:
-                        run.bold = True
-    
-    doc.add_paragraph()
-    
-    doc.add_heading('Detailed Feedback', 1)
-    feedback = grading_result['feedback']
-    
-    doc.add_heading('1. Content', 2)
-    doc.add_paragraph(feedback['content'])
-    
-    doc.add_heading('2. Accuracy', 2)
-    doc.add_paragraph(feedback['accuracy'])
-    
-    doc.add_heading('3. Delivery', 2)
-    doc.add_paragraph(feedback['delivery'])
-    
-    doc.add_page_break()
-    
-    doc.add_heading('Your Speech Transcript', 1)
-    doc.add_paragraph(transcript)
-    
-    doc.add_page_break()
-    
-    doc.add_heading('Sample 2.0/2.0 Response', 1)
-    doc.add_paragraph(grading_result['sample_response'])
-    
-    file_stream = io.BytesIO()
-    doc.save(file_stream)
-    file_stream.seek(0)
-    
-    return file_stream
+    for candidate in candidates:
+        if os.path.exists(candidate):
+            return candidate
+    return candidates[0]
+
+
+if analysis_worker:
+    analysis_worker.start()
 
 @app.route('/')
 def serve():
@@ -884,92 +784,163 @@ def api_home():
 
 @app.route('/api/health', methods=['GET'])
 def health_check():
-    return jsonify({"status": "healthy"})
+    return jsonify({
+        "status": "healthy",
+        "rateLimiter": "redis" if rate_limiter.using_redis else "database",
+        "embeddedWorker": bool(analysis_worker),
+    })
+
+
+@app.route('/api/admin/runtime', methods=['GET'])
+@require_admin()
+def admin_runtime_status():
+    queued_jobs = AnalysisJob.query.filter_by(status='pending').count()
+    processing_jobs = AnalysisJob.query.filter_by(status='processing').count()
+    return jsonify({
+        "success": True,
+        "runtime": {
+            "rateLimiter": "redis" if rate_limiter.using_redis else "database",
+            "embeddedWorker": bool(analysis_worker),
+            "redisConfigured": bool(os.getenv('REDIS_URL', '').strip()),
+            "production": IS_PRODUCTION,
+            "queuedJobs": queued_jobs,
+            "processingJobs": processing_jobs,
+        }
+    })
+
+
+@app.route('/api/admin/community/posts', methods=['GET'])
+@require_admin()
+def admin_community_posts():
+    posts = CommunityPost.query.order_by(CommunityPost.created_at.desc()).limit(100).all()
+    return jsonify({"posts": [post.to_dict(include_moderation=True) for post in posts]})
+
+
+@app.route('/api/admin/community/posts/<int:post_id>/visibility', methods=['PUT'])
+@require_admin()
+def admin_update_community_post_visibility(post_id):
+    post = db.session.get(CommunityPost, post_id)
+    if not post:
+        return jsonify({"error": "Post not found."}), 404
+
+    try:
+        data = request.get_json(silent=True) or {}
+        hidden = bool(data.get('hidden'))
+        reason = (data.get('reason') or '').strip()
+        post.hidden = hidden
+        post.hidden_reason = reason
+        post.moderated_at = datetime.utcnow()
+        db.session.commit()
+        return jsonify({"success": True, "post": post.to_dict(include_moderation=True)})
+    except Exception as error:
+        db.session.rollback()
+        print(f"[ADMIN] Community visibility update error: {error}")
+        return jsonify({"error": "Could not update post visibility."}), 500
+
+
+@app.route('/api/admin/community/posts/<int:post_id>', methods=['DELETE'])
+@require_admin()
+def admin_delete_community_post(post_id):
+    post = db.session.get(CommunityPost, post_id)
+    if not post:
+        return jsonify({"error": "Post not found."}), 404
+
+    try:
+        db.session.delete(post)
+        db.session.commit()
+        return jsonify({"success": True})
+    except Exception as error:
+        db.session.rollback()
+        print(f"[ADMIN] Community delete error: {error}")
+        return jsonify({"error": "Could not delete post."}), 500
 
 @app.route('/api/analyze', methods=['POST'])
-@rate_limit(max_requests=10, window_seconds=3600)
+@rate_limit('analysis-create', max_requests=10, window_seconds=3600)
 def analyze_speech():
     try:
-        cleanup_old_files()
-        
-        if 'audio' not in request.files:
-            return jsonify({"error": "No audio file provided"}), 400
-        
-        if 'topic' not in request.form:
-            return jsonify({"error": "No topic provided"}), 400
-        
-        audio_file = request.files['audio']
-        topic = request.form['topic']
-        
-        if audio_file.filename == '':
-            return jsonify({"error": "No file selected"}), 400
-        
-        if not allowed_file(audio_file.filename):
-            return jsonify({"error": "Invalid file format"}), 400
-        
-        filename = secure_filename(audio_file.filename)
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        filename = f"{timestamp}_{filename}"
-        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-        audio_file.save(filepath)
-        
-        duration = get_audio_duration(filepath)
-        if duration > 320:
-            os.remove(filepath)
-            return jsonify({"error": "Audio file exceeds 5 minute limit"}), 400
-        
-        wav_filepath = filepath.rsplit('.', 1)[0] + '_compressed.wav'
-        convert_to_wav(filepath, wav_filepath)
-        if filepath != wav_filepath:
-            os.remove(filepath)
-        filepath = wav_filepath
-        
-        file_size_mb = os.path.getsize(filepath) / (1024 * 1024)
-        
-        if file_size_mb > 20:
-            os.remove(filepath)
-            return jsonify({"error": "Audio file too large"}), 400
-        
-        transcript_data = transcribe_audio(filepath)
-        grading_result = grade_speech(topic, transcript_data)
-        doc_stream = generate_docx(topic, transcript_data["text"], grading_result)
-        current_user = get_current_user()
-        refreshed_user = None
+        cleanup_old_files(app.config['UPLOAD_FOLDER'])
 
-        if current_user:
-            create_practice_session(
-                current_user,
-                topic,
-                transcript_data["text"],
-                transcript_data["duration"],
-                grading_result["scores"]
-            )
-            db.session.commit()
-            refreshed_user = current_user.to_dict()
-        
-        os.remove(filepath)
-        
-        doc_bytes = doc_stream.getvalue()
-        doc_base64 = base64.b64encode(doc_bytes).decode('utf-8')
-        
+        if 'audio' not in request.files:
+            return jsonify({"error": "No audio file provided."}), 400
+
+        if 'topic' not in request.form:
+            return jsonify({"error": "No topic provided."}), 400
+
+        audio_file = request.files['audio']
+        topic = (request.form.get('topic') or '').strip()
+        source = (request.form.get('source') or 'analyze').strip().lower()
+
+        if audio_file.filename == '':
+            return jsonify({"error": "No file selected."}), 400
+
+        if not allowed_file(audio_file.filename):
+            return jsonify({"error": "Invalid file format."}), 400
+        if not topic:
+            return jsonify({"error": "Topic is required."}), 400
+
+        filepath = build_job_storage_path(app.config['UPLOAD_FOLDER'], audio_file.filename)
+        audio_file.save(filepath)
+
+        current_user = get_current_user()
+        job = AnalysisJob(
+            user_id=current_user.id if current_user else None,
+            topic=topic,
+            source=source if source in {'analyze', 'simulation'} else 'analyze',
+            original_filename=secure_filename(audio_file.filename),
+            stored_audio_path=filepath,
+            status='pending',
+            progress_message='Queued for processing.',
+        )
+        db.session.add(job)
+        db.session.commit()
+
         return jsonify({
             "success": True,
-            "transcript": transcript_data["text"],
-            "duration": transcript_data["duration"],
-            "scores": grading_result["scores"],
-            "feedback": grading_result["feedback"],
-            "sample_response": grading_result["sample_response"],
-            "document_base64": doc_base64,
-            "document_filename": f"necs_feedback_{timestamp}.docx",
-            "user": refreshed_user
-        })
-    
+            "job": job.to_dict(),
+        }), 202
+
     except Exception as e:
         db.session.rollback()
-        print(f"Error: {str(e)}")
+        print(f"[ANALYZE] Queueing error: {str(e)}")
         if 'filepath' in locals() and os.path.exists(filepath):
             os.remove(filepath)
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "Could not queue analysis job."}), 500
+
+
+@app.route('/api/analyze/jobs/<job_id>', methods=['GET'])
+def get_analysis_job(job_id):
+    job = db.session.get(AnalysisJob, job_id)
+    if not job:
+        return jsonify({"error": "Analysis job not found."}), 404
+
+    current_user = get_current_user()
+    if job.user_id and (not current_user or job.user_id != current_user.id) and not session.get('admin_authenticated'):
+        return jsonify({"error": "Unauthorized."}), 403
+
+    return jsonify({"job": job.to_dict()})
+
+
+@app.route('/api/analyze/jobs/<job_id>/document', methods=['GET'])
+def download_analysis_job_document(job_id):
+    job = db.session.get(AnalysisJob, job_id)
+    external_url = (job.result_payload or {}).get('document_external_url') if job else ''
+    local_path = resolve_storage_path(job.document_path) if job else ''
+    if not job or job.status != 'completed' or (not external_url and (not local_path or not os.path.exists(local_path))):
+        return jsonify({"error": "Document is not available for this job."}), 404
+
+    current_user = get_current_user()
+    if job.user_id and (not current_user or job.user_id != current_user.id) and not session.get('admin_authenticated'):
+        return jsonify({"error": "Unauthorized."}), 403
+
+    if external_url:
+        return redirect(external_url)
+
+    return send_file(
+        local_path,
+        as_attachment=True,
+        download_name=(job.result_payload or {}).get('document_filename') or f"necs_feedback_{job.id}.docx",
+        mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    )
 
 # ============= SECURED ADMIN ROUTES =============
 
@@ -983,7 +954,7 @@ def get_samples():
 
 @app.route('/api/samples/upload', methods=['POST'])
 @require_admin()
-@rate_limit(max_requests=20, window_seconds=3600)
+@rate_limit('sample-upload', max_requests=20, window_seconds=3600)
 def upload_sample():
     try:
         if 'audio' not in request.files:
@@ -1151,3 +1122,5 @@ def get_random_question():
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
+
+

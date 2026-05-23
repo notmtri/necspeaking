@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { CheckCircle, Lock, LogOut, Trash2, Upload, User } from 'lucide-react';
-import { createDefaultProfile, DEFAULT_COMMIT_WEEKS } from '../appShared';
-import { CommitHeatmap, LabeledInput, ProfileDetailRow, ProfileMetricCard, ProfileSectionCard, ProgressMiniChart } from '../components/ProfileBits';
+import { createDefaultProfile, getDisplayRole, isAdminProfile } from '../appShared';
+import { LabeledInput, ProfileDetailRow, ProfileMetricCard, ProfileSectionCard } from '../components/ProfileBits';
 
 function ProfileTabButton({ active, onClick, children }) {
   return (
@@ -65,9 +65,8 @@ export default function ProfilePage({ currentUser, practiceHistory, onSave, onLo
     reader.readAsDataURL(file);
   };
 
-  const contributionDays = (draft.commitWeeks || []).flat().reduce((total, day) => total + (day > 0 ? 1 : 0), 0);
-  const progressPoints = draft.progress || [];
-  const commitWeeks = draft.commitWeeks?.length ? draft.commitWeeks : DEFAULT_COMMIT_WEEKS;
+  const displayRole = getDisplayRole(draft);
+  const adminProfile = isAdminProfile(draft);
 
   const handleDelete = () => {
     if (deletePhrase.trim() !== 'I want to delete my NECSpeaking account!') {
@@ -110,7 +109,7 @@ export default function ProfilePage({ currentUser, practiceHistory, onSave, onLo
             </div>
             <h2 className="mt-4 text-4xl font-black tracking-tight text-white sm:text-5xl">Your account, your settings, your stats.</h2>
             <p className="mt-3 text-sm leading-7 text-slate-300 sm:text-base">
-              Everything you need is here: identity, at-a-glance info, monthly score history, and personal settings.
+              Everything you need is here: identity, at-a-glance info, saved practice history, and personal settings.
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -137,8 +136,13 @@ export default function ProfilePage({ currentUser, practiceHistory, onSave, onLo
                     <h3 className="mt-5 text-2xl font-bold text-white">{draft.name}</h3>
                     <div className="mt-1 text-lg font-semibold text-sky-300">@{draft.username}</div>
                     <div className="mt-3 inline-flex items-center rounded-full border border-white/10 bg-white/[0.05] px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-slate-300">
-                      {draft.role}
+                      {displayRole}
                     </div>
+                    {adminProfile && (
+                      <div className="mt-3 inline-flex items-center rounded-full border border-amber-300/30 bg-amber-300/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-amber-100">
+                        necs. admin
+                      </div>
+                    )}
                     <p className="mt-4 max-w-[24ch] text-sm leading-6 text-slate-300">{draft.bio}</p>
                   </div>
                 </ProfileSectionCard>
@@ -147,7 +151,7 @@ export default function ProfilePage({ currentUser, practiceHistory, onSave, onLo
                   <div className="grid gap-4 sm:grid-cols-2">
                     <ProfileDetailRow label="Name" value={draft.name} />
                     <ProfileDetailRow label="Username" value={`@${draft.username}`} />
-                    <ProfileDetailRow label="Role" value={draft.role} />
+                    <ProfileDetailRow label="Role" value={displayRole} />
                     <ProfileDetailRow label="Streak" value={`${draft.stats.streak} days`} />
                     <ProfileDetailRow label="Class" value={draft.className || 'Not set'} />
                     <ProfileDetailRow label="School" value={draft.school || 'Not set'} />
@@ -157,18 +161,12 @@ export default function ProfilePage({ currentUser, practiceHistory, onSave, onLo
                 </ProfileSectionCard>
 
                 <ProfileSectionCard title="Stats" eyebrow="Performance">
-                  <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                  <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
                     <ProfileMetricCard label="Practices" value={draft.stats.practices} tone="sky" />
                     <ProfileMetricCard label="Average score" value={draft.stats.avgScore} tone="emerald" />
                     <ProfileMetricCard label="Best score" value={draft.stats.bestScore} tone="amber" />
-                    <ProfileMetricCard label="Active days" value={contributionDays} tone="slate" />
                   </div>
                 </ProfileSectionCard>
-
-                <div className="grid gap-3 xl:gap-2 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-                  <ProgressMiniChart points={progressPoints} />
-                  <CommitHeatmap weeks={commitWeeks} />
-                </div>
 
                 <ProfileSectionCard title="Recent practice" eyebrow="Saved activity">
                   <div className="space-y-3">
@@ -218,7 +216,8 @@ export default function ProfilePage({ currentUser, practiceHistory, onSave, onLo
                     <LabeledInput label="Cohort" value={draft.cohort} onChange={(value) => updateField('cohort', value)} placeholder="NEC 25-26" variant="classic" />
                     <label className="block">
                       <span className="mb-2 block text-sm font-semibold text-slate-300">Role</span>
-                      <select value={draft.role} onChange={(event) => updateField('role', event.target.value)} className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-slate-100 outline-none transition focus:border-sky-400/30 focus:ring-2 focus:ring-sky-400/10">
+                      <select value={adminProfile ? 'Admin' : draft.role} onChange={(event) => updateField('role', event.target.value)} disabled={adminProfile} className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-slate-100 outline-none transition focus:border-sky-400/30 focus:ring-2 focus:ring-sky-400/10 disabled:cursor-not-allowed disabled:opacity-70">
+                        {adminProfile && <option>Admin</option>}
                         <option>Student</option>
                         <option>Teacher</option>
                       </select>

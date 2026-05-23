@@ -86,12 +86,28 @@ export function ToastViewport({ toasts, dismissToast }) {
           ? 'border-rose-400/25 bg-rose-500/12 text-rose-50'
           : toast.tone === 'success'
             ? 'border-emerald-400/25 bg-emerald-500/12 text-emerald-50'
-            : 'border-sky-400/25 bg-sky-500/12 text-sky-50';
+            : toast.tone === 'update'
+              ? 'border-amber-400/25 bg-amber-500/12 text-amber-50'
+              : 'border-sky-400/25 bg-sky-500/12 text-sky-50';
 
         return (
           <div key={toast.id} className={`pointer-events-auto rounded-2xl border px-4 py-3 shadow-[0_20px_60px_rgba(2,6,23,0.4)] backdrop-blur ${toneClasses}`}>
             <div className="flex items-start gap-3">
-              <div className="flex-1 text-sm leading-6">{toast.message}</div>
+              <div className="flex-1 text-sm leading-6">
+                <div>{toast.message}</div>
+                {toast.action && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      toast.action.onClick();
+                      dismissToast(toast.id);
+                    }}
+                    className="mt-2 rounded-xl bg-white/10 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-white/20"
+                  >
+                    {toast.action.label}
+                  </button>
+                )}
+              </div>
               <button type="button" onClick={() => dismissToast(toast.id)} className="rounded-full border border-white/10 bg-white/[0.04] p-1 text-current/80 transition hover:bg-white/[0.08] hover:text-current">
                 <X size={14} />
               </button>

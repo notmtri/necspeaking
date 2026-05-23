@@ -1,4 +1,9 @@
 {
+  "scripts": {
+    "start": "npm --prefix frontend start",
+    "build": "npm --prefix frontend run build",
+    "test": "npm --prefix frontend test"
+  },
   "devDependencies": {
     "workbox-webpack-plugin": "^7.3.0"
   },

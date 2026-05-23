@@ -1,8 +1,9 @@
 import React, { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { AlertCircle, CheckCircle, Circle, Download, Loader, Mic, Pause, Play } from 'lucide-react';
 import { API_BASE_URL, downloadDocumentFromBase64 } from '../appShared';
+import { apiFetch, isAbortError, waitForAnalysisJob } from '../apiClient';
 
-function SimulationMode({ onAnalysisUserUpdate, notify }) {
+function SimulationMode({ onAnalysisUserUpdate, notify, isOffline }) {
   const [simStep, setSimStep] = useState('intro');
   const [currentQuestion, setCurrentQuestion] = useState(null);
   const [questionBank, setQuestionBank] = useState([]);
@@ -16,6 +17,7 @@ function SimulationMode({ onAnalysisUserUpdate, notify }) {
   const [results, setResults] = useState(null);
   const [error, setError] = useState(null);
   const [micTested, setMicTested] = useState(false);
+  const [analysisProgressMessage, setAnalysisProgressMessage] = useState('Queued for processing.');
 
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
@@ -110,27 +112,28 @@ function SimulationMode({ onAnalysisUserUpdate, notify }) {
     }, 1000);
   }, [startPreparationTimer]);
 
-  const fetchQuestionBank = useCallback(async () => {
+  const fetchQuestionBank = useCallback(async (signal) => {
     setLoadingQuestionBank(true);
     try {
-      const response = await fetch(`${API_BASE_URL}/api/questions`);
-      const data = await response.json();
+      const data = await apiFetch('/api/questions', { signal });
       setQuestionBank(data.questions || []);
-    } catch {
+    } catch (error) {
+      if (isAbortError(error)) return;
       setQuestionBank([]);
     } finally {
-      setLoadingQuestionBank(false);
+      if (!signal?.aborted) setLoadingQuestionBank(false);
     }
   }, []);
 
   useEffect(() => {
-    fetchQuestionBank();
+    const controller = new AbortController();
+    fetchQuestionBank(controller.signal);
+    return () => controller.abort();
   }, [fetchQuestionBank]);
 
   const fetchAndSetQuestion = useCallback(async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/questions/random`);
-      const data = await response.json();
+      const data = await apiFetch('/api/questions/random');
       if (data.error) {
         setError('No questions available. Please add questions in admin panel.');
         return false;
@@ -139,13 +142,17 @@ function SimulationMode({ onAnalysisUserUpdate, notify }) {
       setError(null);
       startReadingTimer();
       return true;
-    } catch {
-      setError('Failed to load question. Check your connection.');
+    } catch (error) {
+      setError(error.message || 'Failed to load question. Check your connection.');
       return false;
     }
   }, [startReadingTimer]);
 
   const startSimulation = useCallback(async () => {
+    if (isOffline) {
+      notify?.('You are offline. Cannot start simulation.', 'error');
+      return;
+    }
     if (!micTested) {
       notify?.('Please test your microphone before starting the simulation.', 'error');
       return;
@@ -162,7 +169,7 @@ function SimulationMode({ onAnalysisUserUpdate, notify }) {
       return;
     }
     await fetchAndSetQuestion();
-  }, [fetchAndSetQuestion, micTested, notify, questionBank, selectedQuestionId, startReadingTimer]);
+  }, [fetchAndSetQuestion, micTested, notify, questionBank, selectedQuestionId, startReadingTimer, isOffline]);
 
   const skipReading = useCallback(() => {
     clearInterval(timerRef.current);
@@ -184,29 +191,35 @@ function SimulationMode({ onAnalysisUserUpdate, notify }) {
   }, []);
 
   const analyzeRecording = useCallback(async () => {
+    if (isOffline) {
+      setError('You are offline. Cannot perform analysis.');
+      return;
+    }
     if (!recordedBlob || !currentQuestion) return;
     setSimStep('analyzing');
+    setAnalysisProgressMessage('Uploading audio and queueing analysis.');
     const formData = new FormData();
     formData.append('audio', recordedBlob, 'recording.webm');
     formData.append('topic', currentQuestion.question);
+    formData.append('source', 'simulation');
     try {
-      const response = await fetch(`${API_BASE_URL}/api/analyze`, { method: 'POST', body: formData, credentials: 'include' });
-      const data = await response.json();
-      if (data.success) {
-        setResults(data);
-        if (data.user) {
-          await onAnalysisUserUpdate?.(data.user);
-        }
-        setSimStep('results');
-      } else {
-        setError(data.error || 'Analysis failed');
-        setSimStep('playback');
+      const data = await apiFetch('/api/analyze', { method: 'POST', body: formData });
+      const job = await waitForAnalysisJob(data.job.id, {
+        onTick: (jobState) => setAnalysisProgressMessage(jobState?.progressMessage || 'Processing analysis job.'),
+      });
+      if (!job.result) {
+        throw new Error('Analysis job completed without a result payload.');
       }
-    } catch {
-      setError('Connection failed. Make sure the backend is running.');
+      setResults(job.result);
+      if (job.result.user) {
+        await onAnalysisUserUpdate?.(job.result.user);
+      }
+      setSimStep('results');
+    } catch (error) {
+      setError(error.message || 'Connection failed. Make sure the backend is running.');
       setSimStep('playback');
     }
-  }, [currentQuestion, onAnalysisUserUpdate, recordedBlob]);
+  }, [currentQuestion, onAnalysisUserUpdate, recordedBlob, isOffline]);
 
   const resetSimulation = useCallback(() => {
     setSimStep('intro');
@@ -219,6 +232,7 @@ function SimulationMode({ onAnalysisUserUpdate, notify }) {
     setRecordedBlob(null);
     setResults(null);
     setError(null);
+    setAnalysisProgressMessage('Queued for processing.');
     if (timerRef.current) clearInterval(timerRef.current);
   }, [recordedAudioURL]);
 
@@ -283,7 +297,7 @@ function SimulationMode({ onAnalysisUserUpdate, notify }) {
       <div className="rounded-[28px] sm:rounded-[32px] border border-white/10 bg-slate-950/65 p-4 sm:p-8 shadow-[0_20px_80px_rgba(2,6,23,0.4)]">
         {simStep === 'intro' && (
           <div className="text-center space-y-6">
-            <h3 className="text-2xl font-bold text-white">🍀 Good luck! 🍀</h3>
+            <h3 className="text-2xl font-bold text-white">Good luck.</h3>
             <div className="mx-auto grid max-w-3xl gap-3 text-left md:grid-cols-2">
               <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-sm text-slate-300">Prepare pen and paper for drafting ideas.</div>
               <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-sm text-slate-300">You will have 60 seconds to read the question.</div>
@@ -306,7 +320,7 @@ function SimulationMode({ onAnalysisUserUpdate, notify }) {
                     >
                       <div className="flex justify-between items-start mb-2">
                         <div>
-                          <div className="font-bold">🎲 Random question 🎲</div>
+                          <div className="font-bold">Random question</div>
                           <div className="text-xs text-gray-400">Question Bank</div>
                         </div>
                       </div>
@@ -339,8 +353,12 @@ function SimulationMode({ onAnalysisUserUpdate, notify }) {
                   {micTested ? 'Microphone Ready' : 'Test Microphone'}
                 </div>
               </button>
-              <button onClick={startSimulation} disabled={!micTested} className={`w-full py-3 rounded-2xl font-semibold transition ${micTested ? 'bg-sky-500 text-white hover:bg-sky-400' : 'bg-slate-700 text-slate-400 cursor-not-allowed'}`}>
-                Start Simulation
+              <button
+                onClick={startSimulation}
+                disabled={!micTested || isOffline}
+                className={`w-full py-3 rounded-2xl font-semibold transition ${micTested && !isOffline ? 'bg-sky-500 text-white hover:bg-sky-400' : 'bg-slate-700 text-slate-400 cursor-not-allowed'}`}
+              >
+                {isOffline ? 'Offline - Cannot Start' : 'Start Simulation'}
               </button>
             </div>
           </div>
@@ -407,7 +425,13 @@ function SimulationMode({ onAnalysisUserUpdate, notify }) {
             <div className="text-slate-300">Duration: {formatTime(recordingTime)}</div>
             <AudioPlayback audioUrl={recordedAudioURL} />
             <div className="flex flex-col gap-3 sm:flex-row">
-              <button onClick={analyzeRecording} className="flex-1 py-3 rounded-2xl bg-sky-500 text-white font-semibold transition hover:bg-sky-400">Analyze My Speech</button>
+              <button
+                onClick={analyzeRecording}
+                disabled={isOffline}
+                className={`flex-1 py-3 rounded-2xl font-semibold transition ${isOffline ? 'bg-slate-700 text-slate-400 cursor-not-allowed opacity-60' : 'bg-sky-500 text-white hover:bg-sky-400'}`}
+              >
+                {isOffline ? 'Offline - Cannot Analyze' : 'Analyze My Speech'}
+              </button>
               <button onClick={downloadRecording} className="px-6 py-3 rounded-2xl border border-white/10 bg-white/[0.04] text-white font-semibold transition hover:bg-white/[0.08]"><Download size={18} /></button>
             </div>
             <button onClick={resetSimulation} className="w-full py-3 rounded-2xl border border-white/10 bg-white/[0.04] text-white transition hover:bg-white/[0.08]">Start New Simulation</button>
@@ -420,6 +444,7 @@ function SimulationMode({ onAnalysisUserUpdate, notify }) {
               <Loader className="animate-spin" size={40} />
             </div>
             <div className="font-semibold text-white">Analyzing your speech...</div>
+            <div className="mt-2 text-sm text-slate-300">{analysisProgressMessage}</div>
           </div>
         )}
 
@@ -555,3 +580,4 @@ const AudioPlayback = memo(function AudioPlayback({ audioUrl }) {
 });
 
 export default SimulationMode;
+

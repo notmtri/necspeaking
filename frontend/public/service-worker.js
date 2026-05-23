@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'v1.1.0';
+const CACHE_VERSION = 'v1.1.2';
 const CACHE_NAME = `necs-cache-${CACHE_VERSION}`;
 
 const APP_SHELL_ASSETS = [
@@ -17,7 +17,6 @@ self.addEventListener('install', (event) => {
     caches.open(CACHE_NAME)
       .then((cache) => cache.addAll(APP_SHELL_ASSETS))
   );
-  self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
@@ -85,4 +84,10 @@ self.addEventListener('fetch', (event) => {
       return cachedResponse || networkFetch;
     })
   );
+});
+
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
 });

@@ -1,9 +1,11 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Edit3, Loader, Lock, Trash2 } from 'lucide-react';
+import { Activity, Bell, Edit3, EyeOff, Loader, Lock, LogOut, Trash2 } from 'lucide-react';
 import { ConfirmModal } from '../components/AppOverlays';
-import { API_BASE_URL } from '../appShared';
+import { apiFetch, isAbortError } from '../apiClient';
 
-function AdminPanel({ onClose, notify }) {
+const EMPTY_ANNOUNCEMENT = { enabled: false, message: '' };
+
+function AdminPanel({ onClose, onLogout, notify, announcement, onAnnouncementChange }) {
   const [activeTab, setActiveTab] = useState('upload');
   const [audioFile, setAudioFile] = useState(null);
   const [topic, setTopic] = useState('');
@@ -13,7 +15,7 @@ function AdminPanel({ onClose, notify }) {
   const [transcript, setTranscript] = useState('');
   const [feedback, setFeedback] = useState('');
   const [uploading, setUploading] = useState(false);
-  const [message, setMessage] = useState('');
+  const [statusByScope, setStatusByScope] = useState({});
   const [samples, setSamples] = useState([]);
   const [loadingSamples, setLoadingSamples] = useState(true);
   const [editingId, setEditingId] = useState(null);
@@ -24,46 +26,125 @@ function AdminPanel({ onClose, notify }) {
   const [newQuestionText, setNewQuestionText] = useState('');
   const [editingQuestionId, setEditingQuestionId] = useState(null);
   const [editQuestionData, setEditQuestionData] = useState({});
+  const [announcementDraft, setAnnouncementDraft] = useState(announcement || EMPTY_ANNOUNCEMENT);
+  const [announcementSaving, setAnnouncementSaving] = useState(false);
+  const [communityPosts, setCommunityPosts] = useState([]);
+  const [loadingCommunityPosts, setLoadingCommunityPosts] = useState(false);
+  const [runtimeStatus, setRuntimeStatus] = useState(null);
+  const [loadingRuntime, setLoadingRuntime] = useState(false);
   const [confirmState, setConfirmState] = useState(null);
 
-  const fetchSamples = useCallback(async () => {
-    setLoadingSamples(true);
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/samples`);
-      const data = await response.json();
-      setSamples(data.samples || []);
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setLoadingSamples(false);
-    }
+  useEffect(() => {
+    setAnnouncementDraft(announcement || EMPTY_ANNOUNCEMENT);
+  }, [announcement]);
+
+  const setScopedStatus = useCallback((scope, text, tone = 'success') => {
+    setStatusByScope((current) => ({ ...current, [scope]: { text, tone } }));
   }, []);
 
-  const fetchQuestions = useCallback(async () => {
-    setLoadingQuestions(true);
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/questions`);
-      const data = await response.json();
-      setQuestions(data.questions || []);
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setLoadingQuestions(false);
-    }
+  const clearScopedStatus = useCallback((scope) => {
+    setStatusByScope((current) => {
+      const next = { ...current };
+      delete next[scope];
+      return next;
+    });
   }, []);
+
+  const renderStatus = useCallback((scope) => {
+    const status = statusByScope[scope];
+    if (!status?.text) return null;
+
+    const toneClasses = status.tone === 'error'
+      ? 'border border-rose-400/20 bg-rose-500/10 text-rose-100'
+      : 'border border-emerald-400/20 bg-emerald-500/10 text-emerald-100';
+
+    return (
+      <div className={`mb-4 rounded-lg px-3 py-2 text-sm ${toneClasses}`}>
+        {status.text}
+      </div>
+    );
+  }, [statusByScope]);
 
   useEffect(() => {
-    if (activeTab === 'manage') fetchSamples();
-    if (activeTab === 'questions') fetchQuestions();
-  }, [activeTab, fetchQuestions, fetchSamples]);
+    clearScopedStatus(activeTab);
+  }, [activeTab, clearScopedStatus]);
+
+  const fetchSamples = useCallback(async (signal) => {
+    setLoadingSamples(true);
+    try {
+      const data = await apiFetch('/api/samples', { signal });
+      setSamples(data.samples || []);
+    } catch (error) {
+      if (!isAbortError(error)) {
+        console.error(error);
+        setScopedStatus('manage', error.message || 'Could not load samples.', 'error');
+      }
+    } finally {
+      if (!signal?.aborted) setLoadingSamples(false);
+    }
+  }, [setScopedStatus]);
+
+  const fetchQuestions = useCallback(async (signal) => {
+    setLoadingQuestions(true);
+    try {
+      const data = await apiFetch('/api/questions', { signal });
+      setQuestions(data.questions || []);
+    } catch (error) {
+      if (!isAbortError(error)) {
+        console.error(error);
+        setScopedStatus('questions', error.message || 'Could not load questions.', 'error');
+      }
+    } finally {
+      if (!signal?.aborted) setLoadingQuestions(false);
+    }
+  }, [setScopedStatus]);
+
+  const fetchCommunityPosts = useCallback(async (signal) => {
+    setLoadingCommunityPosts(true);
+    try {
+      const data = await apiFetch('/api/admin/community/posts', { signal });
+      setCommunityPosts(data.posts || []);
+    } catch (error) {
+      if (!isAbortError(error)) {
+        console.error(error);
+        setScopedStatus('moderation', error.message || 'Could not load community posts.', 'error');
+      }
+    } finally {
+      if (!signal?.aborted) setLoadingCommunityPosts(false);
+    }
+  }, [setScopedStatus]);
+
+  const fetchRuntimeStatus = useCallback(async (signal) => {
+    setLoadingRuntime(true);
+    try {
+      const data = await apiFetch('/api/admin/runtime', { signal });
+      setRuntimeStatus(data.runtime || null);
+    } catch (error) {
+      if (!isAbortError(error)) {
+        console.error(error);
+        setScopedStatus('runtime', error.message || 'Could not load runtime status.', 'error');
+      }
+    } finally {
+      if (!signal?.aborted) setLoadingRuntime(false);
+    }
+  }, [setScopedStatus]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    if (activeTab === 'manage') fetchSamples(controller.signal);
+    if (activeTab === 'questions') fetchQuestions(controller.signal);
+    if (activeTab === 'moderation') fetchCommunityPosts(controller.signal);
+    if (activeTab === 'runtime') fetchRuntimeStatus(controller.signal);
+    return () => controller.abort();
+  }, [activeTab, fetchCommunityPosts, fetchQuestions, fetchRuntimeStatus, fetchSamples]);
 
   const handleUpload = useCallback(async () => {
     if (!audioFile || !topic || !speaker || !transcript || !feedback) {
-      setMessage('Please fill in all fields');
+      setScopedStatus('upload', 'Please fill in all fields.', 'error');
       return;
     }
     setUploading(true);
-    setMessage('');
+    clearScopedStatus('upload');
     const formData = new FormData();
     formData.append('audio', audioFile);
     formData.append('topic', topic);
@@ -73,10 +154,10 @@ function AdminPanel({ onClose, notify }) {
     formData.append('transcript', transcript);
     formData.append('feedback', feedback);
     try {
-      const response = await fetch(`${API_BASE_URL}/api/samples/upload`, { method: 'POST', credentials: 'include', body: formData });
-      const data = await response.json();
+      const data = await apiFetch('/api/samples/upload', { method: 'POST', body: formData });
       if (data.success) {
-        setMessage('Sample uploaded successfully!');
+        setScopedStatus('upload', 'Sample uploaded successfully.');
+        notify?.('Sample uploaded.', 'success');
         setAudioFile(null);
         setTopic('');
         setQuestion('');
@@ -85,14 +166,14 @@ function AdminPanel({ onClose, notify }) {
         setTranscript('');
         setFeedback('');
       } else {
-        setMessage(`Error: ${data.error || 'Upload failed'}`);
+        setScopedStatus('upload', data.error || 'Upload failed.', 'error');
       }
-    } catch {
-      setMessage('Error: Connection failed');
+    } catch (error) {
+      setScopedStatus('upload', error.message || 'Connection failed.', 'error');
     } finally {
       setUploading(false);
     }
-  }, [audioFile, feedback, question, score, speaker, topic, transcript]);
+  }, [audioFile, clearScopedStatus, feedback, notify, question, score, setScopedStatus, speaker, topic, transcript]);
 
   const startEdit = useCallback((sample) => {
     setEditingId(sample.id);
@@ -115,61 +196,58 @@ function AdminPanel({ onClose, notify }) {
     try {
       const form = new FormData();
       Object.entries(editData).forEach(([key, value]) => form.append(key, value));
-      const response = await fetch(`${API_BASE_URL}/api/samples/${editingId}`, { method: 'PUT', credentials: 'include', body: form });
-      const data = await response.json();
+      const data = await apiFetch(`/api/samples/${editingId}`, { method: 'PUT', body: form });
       if (data.success) {
-        setMessage('Updated successfully');
+        setScopedStatus('manage', 'Sample updated successfully.');
+        notify?.('Sample updated.', 'success');
         await fetchSamples();
         cancelEdit();
       } else {
-        setMessage(`Error: ${data.error || 'Update failed'}`);
+        setScopedStatus('manage', data.error || 'Update failed.', 'error');
       }
-    } catch {
-      setMessage('Error: Connection failed');
+    } catch (error) {
+      setScopedStatus('manage', error.message || 'Connection failed.', 'error');
     }
-  }, [cancelEdit, editData, editingId, fetchSamples]);
+  }, [cancelEdit, editData, editingId, fetchSamples, notify, setScopedStatus]);
 
   const deleteSample = useCallback(async (id) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/samples/${id}`, { method: 'DELETE', credentials: 'include' });
-      const data = await response.json();
+      const data = await apiFetch(`/api/samples/${id}`, { method: 'DELETE' });
       if (data.success) {
-        setMessage('Deleted successfully');
+        setScopedStatus('manage', 'Sample deleted successfully.');
         notify?.('Sample deleted.', 'success');
         await fetchSamples();
       } else {
-        setMessage(`Error: ${data.error || 'Delete failed'}`);
+        setScopedStatus('manage', data.error || 'Delete failed.', 'error');
       }
-    } catch {
-      setMessage('Error: Connection failed');
+    } catch (error) {
+      setScopedStatus('manage', error.message || 'Connection failed.', 'error');
     }
-  }, [fetchSamples, notify]);
+  }, [fetchSamples, notify, setScopedStatus]);
 
   const addQuestion = useCallback(async () => {
     if (!newQuestionTopic || !newQuestionText) {
-      setMessage('Please fill in topic and question');
+      setScopedStatus('questions', 'Please fill in topic and question.', 'error');
       return;
     }
     try {
-      const response = await fetch(`${API_BASE_URL}/api/questions`, {
+      const data = await apiFetch('/api/questions', {
         method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ topic: newQuestionTopic, question: newQuestionText }),
+        body: { topic: newQuestionTopic, question: newQuestionText },
       });
-      const data = await response.json();
       if (data.success) {
-        setMessage('Question added successfully!');
+        setScopedStatus('questions', 'Question added successfully.');
+        notify?.('Question added.', 'success');
         setNewQuestionTopic('');
         setNewQuestionText('');
         await fetchQuestions();
       } else {
-        setMessage(`Error: ${data.error || 'Failed to add question'}`);
+        setScopedStatus('questions', data.error || 'Failed to add question.', 'error');
       }
-    } catch {
-      setMessage('Error: Connection failed');
+    } catch (error) {
+      setScopedStatus('questions', error.message || 'Connection failed.', 'error');
     }
-  }, [fetchQuestions, newQuestionText, newQuestionTopic]);
+  }, [fetchQuestions, newQuestionText, newQuestionTopic, notify, setScopedStatus]);
 
   const startEditQuestion = useCallback((questionItem) => {
     setEditingQuestionId(questionItem.id);
@@ -183,40 +261,37 @@ function AdminPanel({ onClose, notify }) {
 
   const saveEditQuestion = useCallback(async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/questions/${editingQuestionId}`, {
+      const data = await apiFetch(`/api/questions/${editingQuestionId}`, {
         method: 'PUT',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(editQuestionData),
+        body: editQuestionData,
       });
-      const data = await response.json();
       if (data.success) {
-        setMessage('Question updated');
+        setScopedStatus('questions', 'Question updated.');
+        notify?.('Question updated.', 'success');
         await fetchQuestions();
         cancelEditQuestion();
       } else {
-        setMessage(`Error: ${data.error || 'Update failed'}`);
+        setScopedStatus('questions', data.error || 'Update failed.', 'error');
       }
-    } catch {
-      setMessage('Error: Connection failed');
+    } catch (error) {
+      setScopedStatus('questions', error.message || 'Connection failed.', 'error');
     }
-  }, [cancelEditQuestion, editQuestionData, editingQuestionId, fetchQuestions]);
+  }, [cancelEditQuestion, editQuestionData, editingQuestionId, fetchQuestions, notify, setScopedStatus]);
 
   const deleteQuestion = useCallback(async (id) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/questions/${id}`, { method: 'DELETE', credentials: 'include' });
-      const data = await response.json();
+      const data = await apiFetch(`/api/questions/${id}`, { method: 'DELETE' });
       if (data.success) {
-        setMessage('Question deleted');
+        setScopedStatus('questions', 'Question deleted.');
         notify?.('Question deleted.', 'success');
         await fetchQuestions();
       } else {
-        setMessage(`Error: ${data.error || 'Delete failed'}`);
+        setScopedStatus('questions', data.error || 'Delete failed.', 'error');
       }
-    } catch {
-      setMessage('Error: Connection failed');
+    } catch (error) {
+      setScopedStatus('questions', error.message || 'Connection failed.', 'error');
     }
-  }, [fetchQuestions, notify]);
+  }, [fetchQuestions, notify, setScopedStatus]);
 
   const confirmDeleteSample = useCallback((id) => {
     setConfirmState({
@@ -242,24 +317,85 @@ function AdminPanel({ onClose, notify }) {
     });
   }, [deleteQuestion]);
 
+  const saveAnnouncement = useCallback(async () => {
+    setAnnouncementSaving(true);
+    clearScopedStatus('announcement');
+    try {
+      const data = await apiFetch('/api/admin/announcement', {
+        method: 'PUT',
+        body: announcementDraft,
+      });
+      if (data.success && data.announcement) {
+        setAnnouncementDraft(data.announcement);
+        onAnnouncementChange?.(data.announcement);
+        setScopedStatus('announcement', 'Announcement updated.');
+        notify?.('Announcement updated.', 'success');
+      }
+    } catch (error) {
+      setScopedStatus('announcement', error.message || 'Could not update announcement.', 'error');
+    } finally {
+      setAnnouncementSaving(false);
+    }
+  }, [announcementDraft, clearScopedStatus, notify, onAnnouncementChange, setScopedStatus]);
+
+  const updatePostVisibility = useCallback(async (postId, hidden) => {
+    try {
+      const data = await apiFetch(`/api/admin/community/posts/${postId}/visibility`, {
+        method: 'PUT',
+        body: {
+          hidden,
+          reason: hidden ? 'Hidden by admin review.' : '',
+        },
+      });
+      if (data.success && data.post) {
+        setCommunityPosts((current) => current.map((post) => (post.id === postId ? data.post : post)));
+        setScopedStatus('moderation', hidden ? 'Post hidden.' : 'Post restored.');
+        notify?.(hidden ? 'Post hidden.' : 'Post restored.', 'success');
+      }
+    } catch (error) {
+      setScopedStatus('moderation', error.message || 'Could not update post visibility.', 'error');
+    }
+  }, [notify, setScopedStatus]);
+
+  const deleteCommunityPost = useCallback(async (postId) => {
+    try {
+      const data = await apiFetch(`/api/admin/community/posts/${postId}`, { method: 'DELETE' });
+      if (data.success) {
+        setCommunityPosts((current) => current.filter((post) => post.id !== postId));
+        setScopedStatus('moderation', 'Post deleted.');
+        notify?.('Post deleted.', 'success');
+      }
+    } catch (error) {
+      setScopedStatus('moderation', error.message || 'Could not delete post.', 'error');
+    }
+  }, [notify, setScopedStatus]);
+
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
       <div className="rounded-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto p-6 bg-gray-800 border border-gray-700">
         <div className="flex justify-between items-center mb-4">
           <div className="flex items-center gap-3"><Lock size={18} /><h2 className="text-2xl font-bold">Admin Panel</h2></div>
-          <button onClick={onClose} className="text-xl font-bold">Close</button>
+          <div className="flex items-center gap-2">
+            <button onClick={onLogout} className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-200 transition hover:bg-white/10">
+              <LogOut size={16} />
+              Log out
+            </button>
+            <button onClick={onClose} className="text-xl font-bold">Close</button>
+          </div>
         </div>
-
-        {message && <div className="mb-4 p-3 rounded-md bg-green-700/10 border border-green-700/20">{message}</div>}
 
         <div className="mb-4 flex gap-2 flex-wrap">
           <button onClick={() => setActiveTab('upload')} className={`px-3 py-2 rounded ${activeTab === 'upload' ? 'bg-[#1e90ff] text-white' : 'bg-gray-700'}`}>Upload Sample</button>
           <button onClick={() => setActiveTab('manage')} className={`px-3 py-2 rounded ${activeTab === 'manage' ? 'bg-[#1e90ff] text-white' : 'bg-gray-700'}`}>Manage Samples</button>
           <button onClick={() => setActiveTab('questions')} className={`px-3 py-2 rounded ${activeTab === 'questions' ? 'bg-[#1e90ff] text-white' : 'bg-gray-700'}`}>Question Bank</button>
+          <button onClick={() => setActiveTab('announcement')} className={`px-3 py-2 rounded ${activeTab === 'announcement' ? 'bg-[#1e90ff] text-white' : 'bg-gray-700'}`}>Announcement</button>
+          <button onClick={() => setActiveTab('moderation')} className={`px-3 py-2 rounded ${activeTab === 'moderation' ? 'bg-[#1e90ff] text-white' : 'bg-gray-700'}`}>Moderation</button>
+          <button onClick={() => setActiveTab('runtime')} className={`px-3 py-2 rounded ${activeTab === 'runtime' ? 'bg-[#1e90ff] text-white' : 'bg-gray-700'}`}>Runtime</button>
         </div>
 
         {activeTab === 'upload' ? (
           <div className="space-y-4">
+            {renderStatus('upload')}
             <div><label className="block text-sm font-semibold mb-1">Audio File *</label><input type="file" accept="audio/*" onChange={(event) => setAudioFile(event.target.files[0])} className="w-full text-sm" /></div>
             <div><label className="block text-sm font-semibold mb-1">Topic *</label><input value={topic} onChange={(event) => setTopic(event.target.value)} className="w-full px-3 py-2 rounded bg-gray-900 border border-gray-700" /></div>
             <div><label className="block text-sm font-semibold mb-1">Speaking Question</label><textarea value={question} onChange={(event) => setQuestion(event.target.value)} rows="2" className="w-full px-3 py-2 rounded bg-gray-900 border border-gray-700" /></div>
@@ -271,6 +407,7 @@ function AdminPanel({ onClose, notify }) {
           </div>
         ) : activeTab === 'manage' ? (
           <div>
+            {renderStatus('manage')}
             {loadingSamples ? (
               <div className="text-center py-8"><Loader className="animate-spin mx-auto mb-2" size={36} /><div>Loading samples...</div></div>
             ) : (
@@ -304,8 +441,9 @@ function AdminPanel({ onClose, notify }) {
               </div>
             )}
           </div>
-        ) : (
+        ) : activeTab === 'questions' ? (
           <div className="space-y-6">
+            {renderStatus('questions')}
             <div className="p-4 bg-gray-900 rounded-xl border border-gray-700">
               <h3 className="font-bold mb-3">Add New Question</h3>
               <div className="space-y-3">
@@ -348,6 +486,111 @@ function AdminPanel({ onClose, notify }) {
                     </div>
                   ))}
                 </div>
+              )}
+            </div>
+          </div>
+        ) : activeTab === 'announcement' ? (
+          <div className="space-y-6">
+            {renderStatus('announcement')}
+            <div className="p-4 bg-gray-900 rounded-xl border border-gray-700">
+              <div className="flex items-center gap-3 mb-4">
+                <Bell size={18} />
+                <h3 className="font-bold">Announcement Bar</h3>
+              </div>
+              <div className="space-y-4">
+                <label className="flex items-center justify-between gap-4 rounded-lg border border-gray-700 bg-gray-800 px-4 py-3">
+                  <div>
+                    <div className="font-semibold text-white">Show announcement</div>
+                    <div className="text-sm text-gray-400">Display the banner directly under the main menu.</div>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={Boolean(announcementDraft.enabled)}
+                    onChange={(event) => setAnnouncementDraft((current) => ({ ...current, enabled: event.target.checked }))}
+                    className="h-4 w-4"
+                  />
+                </label>
+                <div>
+                  <label className="block text-sm font-semibold mb-2">Announcement text</label>
+                  <textarea
+                    value={announcementDraft.message || ''}
+                    onChange={(event) => setAnnouncementDraft((current) => ({ ...current, message: event.target.value }))}
+                    rows="4"
+                    placeholder="IMPORTANT NOTICE: ..."
+                    className="w-full px-3 py-2 rounded bg-gray-800 border border-gray-700"
+                  />
+                </div>
+                <div className="rounded-lg border border-gray-700 bg-gray-800 p-4">
+                  <div className="text-xs uppercase tracking-[0.18em] text-gray-400 mb-2">Preview</div>
+                  {announcementDraft.enabled && announcementDraft.message ? (
+                    <div className="w-full border border-sky-400/20 bg-sky-400/10 text-center py-2 px-4 rounded text-sm font-medium text-sky-300">
+                      {announcementDraft.message}
+                    </div>
+                  ) : (
+                    <div className="text-sm text-gray-400">Announcement is currently hidden.</div>
+                  )}
+                </div>
+                <button onClick={saveAnnouncement} disabled={announcementSaving} className="w-full py-3 rounded bg-[#1e90ff] text-white font-semibold disabled:opacity-70">
+                  {announcementSaving ? 'Saving...' : 'Save Announcement'}
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : activeTab === 'moderation' ? (
+          <div className="space-y-6">
+            {renderStatus('moderation')}
+            {loadingCommunityPosts ? (
+              <div className="text-center py-8"><Loader className="animate-spin mx-auto mb-2" size={36} /><div>Loading community posts...</div></div>
+            ) : communityPosts.length === 0 ? (
+              <div className="rounded-xl border border-gray-700 bg-gray-900 p-4 text-sm text-gray-300">No community posts found.</div>
+            ) : (
+              <div className="space-y-3">
+                {communityPosts.map((post) => (
+                  <div key={post.id} className="rounded-xl border border-gray-700 bg-gray-900 p-4 space-y-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <div className="font-bold text-white">{post.title}</div>
+                        <div className="text-xs text-gray-400">@{post.author?.username || 'unknown'} | reports: {post.reportedCount || 0}</div>
+                      </div>
+                      <div className="flex gap-2">
+                        <button onClick={() => updatePostVisibility(post.id, !post.hidden)} className="px-2 py-1 rounded bg-amber-600 text-white">
+                          <EyeOff size={14} />
+                        </button>
+                        <button onClick={() => deleteCommunityPost(post.id)} className="px-2 py-1 rounded bg-red-600 text-white">
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </div>
+                    <div className="text-sm text-gray-300">{post.body}</div>
+                    <div className="text-xs text-gray-400">
+                      status: {post.hidden ? `hidden${post.hiddenReason ? ` - ${post.hiddenReason}` : ''}` : 'visible'}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="space-y-6">
+            {renderStatus('runtime')}
+            <div className="rounded-xl border border-gray-700 bg-gray-900 p-4">
+              <div className="flex items-center gap-3 mb-4">
+                <Activity size={18} />
+                <h3 className="font-bold">Runtime Status</h3>
+              </div>
+              {loadingRuntime ? (
+                <div className="text-sm text-gray-400">Loading runtime status...</div>
+              ) : runtimeStatus ? (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="rounded-lg border border-gray-700 bg-gray-800 p-3 text-sm text-gray-200">Rate limiter: <span className="font-semibold">{runtimeStatus.rateLimiter}</span></div>
+                  <div className="rounded-lg border border-gray-700 bg-gray-800 p-3 text-sm text-gray-200">Embedded worker: <span className="font-semibold">{String(runtimeStatus.embeddedWorker)}</span></div>
+                  <div className="rounded-lg border border-gray-700 bg-gray-800 p-3 text-sm text-gray-200">Redis configured: <span className="font-semibold">{String(runtimeStatus.redisConfigured)}</span></div>
+                  <div className="rounded-lg border border-gray-700 bg-gray-800 p-3 text-sm text-gray-200">Production: <span className="font-semibold">{String(runtimeStatus.production)}</span></div>
+                  <div className="rounded-lg border border-gray-700 bg-gray-800 p-3 text-sm text-gray-200">Queued jobs: <span className="font-semibold">{runtimeStatus.queuedJobs ?? 0}</span></div>
+                  <div className="rounded-lg border border-gray-700 bg-gray-800 p-3 text-sm text-gray-200">Processing jobs: <span className="font-semibold">{runtimeStatus.processingJobs ?? 0}</span></div>
+                </div>
+              ) : (
+                <div className="text-sm text-gray-400">Runtime status unavailable.</div>
               )}
             </div>
           </div>

@@ -1,6 +1,6 @@
 import React, { memo, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { Loader, Pause, Play, X } from 'lucide-react';
-import { API_BASE_URL } from '../appShared';
+import { apiFetch, isAbortError } from '../apiClient';
 
 const PlaybackBar = memo(function PlaybackBar({ audioUrl, onClose, autoPlay = false }) {
   const [isPlaying, setIsPlaying] = useState(false);
@@ -104,21 +104,22 @@ export default function SampleLibrary() {
   const [playingSample, setPlayingSample] = useState(null);
   const deferredSearchTerm = useDeferredValue(searchTerm);
 
-  const fetchSamples = useCallback(async () => {
+  const fetchSamples = useCallback(async (signal) => {
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/samples`);
-      const data = await res.json();
+      const data = await apiFetch('/api/samples', { signal });
       setSamples(data.samples || []);
-    } catch (e) {
-      console.error(e);
+    } catch (error) {
+      if (!isAbortError(error)) console.error(error);
     } finally {
-      setLoading(false);
+      if (!signal?.aborted) setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    fetchSamples();
+    const controller = new AbortController();
+    fetchSamples(controller.signal);
+    return () => controller.abort();
   }, [fetchSamples]);
 
   const filteredSamples = useMemo(() => {

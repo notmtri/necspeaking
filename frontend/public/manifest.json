@@ -1,20 +1,90 @@
 {
-  "short_name": "NECSpeaking",
-  "name": "NECS Speaking Practice",
+  "short_name": "necs.",
+  "name": "necs. | Master NEC Speaking",
+  "description": "Practice National English Competition (NEC) speaking with audio analysis, sample responses, and mock simulation workflows.",
+  "categories": [
+    "education",
+    "productivity"
+  ],
   "icons": [
     {
       "src": "logo192.png",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "logo192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
     },
     {
       "src": "logo512.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "logo512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ],
   "start_url": "/",
   "display": "standalone",
+  "orientation": "portrait-primary",
   "theme_color": "#04111f",
-  "background_color": "#04111f"
+  "background_color": "#04111f",
+  "shortcuts": [
+    {
+      "name": "Speech Evaluation",
+      "short_name": "Evaluation",
+      "description": "Evaluate your speech responses using AI analysis",
+      "url": "/analyze",
+      "icons": [
+        {
+          "src": "logo192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Speech Simulation",
+      "short_name": "Simulation",
+      "description": "Practice under real test environment conditions",
+      "url": "/simulation",
+      "icons": [
+        {
+          "src": "logo192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Sample Library",
+      "short_name": "Samples",
+      "description": "Explore high-scoring sample speaking tasks",
+      "url": "/samples",
+      "icons": [
+        {
+          "src": "logo192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "hero.png",
+      "sizes": "500x375",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Home Screen - Master NEC Speaking"
+    }
+  ]
 }

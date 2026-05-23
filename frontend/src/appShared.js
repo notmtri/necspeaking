@@ -1,7 +1,46 @@
 import { BarChart3, BookOpen, CheckCircle, Mic, Sparkles, Users } from 'lucide-react';
 
 export const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://127.0.0.1:5000';
-export const SHOW_NOTIFICATION_BANNER = true;
+export const ADMIN_USERNAME = 'notmtri';
+export const DEFAULT_ANNOUNCEMENT = {
+  enabled: true,
+  message: 'IMPORTANT NOTICE: Authentication system is still under development, please continue as guest.',
+};
+
+export const PAGE_PATHS = {
+  home: '/',
+  auth: '/auth',
+  profile: '/profile',
+  community: '/community',
+  analyze: '/analyze',
+  samples: '/samples',
+  simulation: '/simulation',
+};
+
+const PATH_PAGES = Object.entries(PAGE_PATHS).reduce((pages, [page, path]) => {
+  pages[path] = page;
+  return pages;
+}, {});
+
+export const pageFromLocation = (location = window.location) => {
+  const normalizedPath = location.pathname.replace(/\/+$/, '') || '/';
+  if (PATH_PAGES[normalizedPath]) return PATH_PAGES[normalizedPath];
+
+  const params = new URLSearchParams(location.search);
+  const queryPage = params.get('page');
+  if (queryPage && PAGE_PATHS[queryPage]) return queryPage;
+
+  return 'home';
+};
+
+export const pathForPage = (page) => PAGE_PATHS[page] || PAGE_PATHS.home;
+
+export const isAdminProfile = (profile) => {
+  const username = (profile?.username || '').trim().toLowerCase().replace(/^@/, '');
+  return Boolean(profile?.isAdmin) || username === ADMIN_USERNAME;
+};
+
+export const getDisplayRole = (profile) => (isAdminProfile(profile) ? 'Admin' : (profile?.role || 'Student'));
 
 const createPlaceholderImage = (title, subtitle, accent = '#0ea5e9') => {
   const svg = `
@@ -91,15 +130,6 @@ export const writeGuestModePreference = (value) => {
     // Ignore storage failures and keep the in-memory setting.
   }
 };
-
-export const DEFAULT_COMMIT_WEEKS = [
-  [0, 0, 0, 0, 0, 0, 0],
-  [0, 0, 0, 0, 0, 0, 0],
-  [0, 0, 0, 0, 0, 0, 0],
-  [0, 0, 0, 0, 0, 0, 0],
-  [0, 0, 0, 0, 0, 0, 0],
-  [0, 0, 0, 0, 0, 0, 0],
-];
 
 export const createAvatarDataUri = (name = 'necs user', accent = '#0ea5e9') => {
   const initials = name

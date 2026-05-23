@@ -1,0 +1,119 @@
+import { API_BASE_URL } from './appShared';
+
+export class ApiError extends Error {
+  constructor(message, { status = 0, data = null } = {}) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+    this.data = data;
+  }
+}
+
+export const isAbortError = (error) => error?.name === 'AbortError';
+
+const sleep = (ms) => new Promise((resolve) => window.setTimeout(resolve, ms));
+const MUTATING_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
+
+function readCookie(name) {
+  const escapedName = name.replace(/[-[\]/{}()*+?.\\^$|]/g, '\\$&');
+  const match = document.cookie.match(new RegExp(`(?:^|; )${escapedName}=([^;]*)`));
+  return match ? decodeURIComponent(match[1]) : '';
+}
+
+export async function apiFetch(path, options = {}) {
+  const {
+    body,
+    headers,
+    parseJson = true,
+    ...rest
+  } = options;
+
+  const requestHeaders = new Headers(headers || {});
+  const isFormData = body instanceof FormData;
+  const method = String(rest.method || 'GET').toUpperCase();
+
+  if (body !== undefined && !isFormData && !requestHeaders.has('Content-Type')) {
+    requestHeaders.set('Content-Type', 'application/json');
+  }
+  if (MUTATING_METHODS.has(method) && !requestHeaders.has('X-CSRF-Token')) {
+    const csrfToken = readCookie('csrf_token');
+    if (csrfToken) {
+      requestHeaders.set('X-CSRF-Token', csrfToken);
+    }
+  }
+
+  let response;
+  try {
+    response = await fetch(`${API_BASE_URL}${path}`, {
+      credentials: 'include',
+      ...rest,
+      headers: requestHeaders,
+      body: body !== undefined && !isFormData && typeof body !== 'string'
+        ? JSON.stringify(body)
+        : body,
+    });
+  } catch (error) {
+    if (isAbortError(error)) throw error;
+    throw new ApiError('Could not reach the backend service. Check your connection and backend server.', { status: 0 });
+  }
+
+  if (!parseJson) {
+    if (!response.ok) {
+      throw new ApiError(response.statusText || 'Request failed.', { status: response.status });
+    }
+    return response;
+  }
+
+  let data = null;
+  const contentType = response.headers.get('content-type') || '';
+  if (contentType.includes('application/json')) {
+    try {
+      data = await response.json();
+    } catch {
+      data = null;
+    }
+  } else {
+    const text = await response.text().catch(() => '');
+    data = text ? { error: text } : null;
+  }
+
+  if (!response.ok) {
+    throw new ApiError(data?.error || data?.message || `Request failed with status ${response.status}.`, {
+      status: response.status,
+      data,
+    });
+  }
+
+  return data;
+}
+
+export async function waitForAnalysisJob(jobId, options = {}) {
+  const {
+    signal,
+    intervalMs = 2000,
+    onTick,
+  } = options;
+
+  while (true) {
+    if (signal?.aborted) {
+      throw new DOMException('The operation was aborted.', 'AbortError');
+    }
+
+    const data = await apiFetch(`/api/analyze/jobs/${jobId}`, { signal });
+    const job = data.job;
+    onTick?.(job);
+
+    if (job?.status === 'completed') {
+      return job;
+    }
+
+    if (job?.status === 'failed') {
+      throw new ApiError(job.error || 'Analysis job failed.', {
+        status: 500,
+        data: job,
+      });
+    }
+
+    await sleep(intervalMs);
+  }
+}

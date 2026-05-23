@@ -1,10 +1,12 @@
 import React, { useCallback, useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { ArrowRight, Bell, Search, Trophy, Users, X } from 'lucide-react';
-import { API_BASE_URL, createAvatarDataUri } from '../appShared';
-import { CommitHeatmap, ProfileDetailRow, ProfileMetricCard, ProfileSectionCard, ProgressMiniChart } from '../components/ProfileBits';
+import { createAvatarDataUri, getDisplayRole, isAdminProfile } from '../appShared';
+import { apiFetch, isAbortError } from '../apiClient';
+import { ProfileDetailRow, ProfileMetricCard, ProfileSectionCard } from '../components/ProfileBits';
 
 function ProfileOverlayModal({ profile, onClose }) {
-  const activeDays = (profile.commitWeeks || []).flat().filter((day) => day > 0).length;
+  const displayRole = getDisplayRole(profile);
+  const adminProfile = isAdminProfile(profile);
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-950/80 p-4 backdrop-blur-sm sm:p-6">
@@ -33,8 +35,13 @@ function ProfileOverlayModal({ profile, onClose }) {
                 className="h-40 w-40 rounded-[34px] border border-white/10 object-cover p-1 shadow-[0_18px_40px_rgba(2,6,23,0.35)] sm:h-48 sm:w-48"
               />
               <div className="mt-5 inline-flex items-center rounded-full border border-white/10 bg-white/[0.05] px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-slate-300">
-                {profile.role}
+                {displayRole}
               </div>
+              {adminProfile && (
+                <div className="mt-3 inline-flex items-center rounded-full border border-amber-300/30 bg-amber-300/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-amber-100">
+                  necs. admin
+                </div>
+              )}
               <p className="mt-4 max-w-xl text-sm leading-7 text-slate-300">{profile.bio || 'No bio added yet.'}</p>
             </div>
           </ProfileSectionCard>
@@ -44,7 +51,7 @@ function ProfileOverlayModal({ profile, onClose }) {
               <div className="grid gap-4 sm:grid-cols-2">
                 <ProfileDetailRow label="Name" value={profile.name} />
                 <ProfileDetailRow label="Username" value={`@${profile.username}`} />
-                <ProfileDetailRow label="Role" value={profile.role || 'Student'} />
+                <ProfileDetailRow label="Role" value={displayRole} />
                 <ProfileDetailRow label="Class" value={profile.className || 'Not set'} />
                 <ProfileDetailRow label="School" value={profile.school || 'Not set'} />
                 <ProfileDetailRow label="Cohort" value={profile.cohort || 'Not set'} />
@@ -53,18 +60,12 @@ function ProfileOverlayModal({ profile, onClose }) {
             </ProfileSectionCard>
 
             <ProfileSectionCard title="Stats" eyebrow="Performance">
-              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
                 <ProfileMetricCard label="Practices" value={profile.stats?.practices || 0} tone="sky" />
                 <ProfileMetricCard label="Average score" value={profile.stats?.avgScore || 0} tone="emerald" />
                 <ProfileMetricCard label="Best score" value={profile.stats?.bestScore || 0} tone="amber" />
-                <ProfileMetricCard label="Active days" value={activeDays} tone="slate" />
               </div>
             </ProfileSectionCard>
-
-            <div className="grid gap-6 lg:grid-cols-2">
-              <ProgressMiniChart points={profile.progress || []} />
-              <CommitHeatmap weeks={profile.commitWeeks || []} />
-            </div>
           </div>
         </div>
       </div>
@@ -78,6 +79,7 @@ export default function CommunityPage({ profiles, selectedProfile, onSelectProfi
   const [postsLoading, setPostsLoading] = useState(true);
   const [postError, setPostError] = useState('');
   const [postSubmitting, setPostSubmitting] = useState(false);
+  const [reportingPostId, setReportingPostId] = useState(null);
   const [overlayProfile, setOverlayProfile] = useState(null);
   const [postDraft, setPostDraft] = useState({
     title: '',
@@ -100,30 +102,25 @@ export default function CommunityPage({ profiles, selectedProfile, onSelectProfi
   );
   const canCreatePost = Boolean(currentUser);
 
-  const fetchCommunityPosts = useCallback(async () => {
+  const fetchCommunityPosts = useCallback(async (signal) => {
     setPostsLoading(true);
     setPostError('');
     try {
-      const response = await fetch(`${API_BASE_URL}/api/community/posts`, {
-        credentials: 'include',
-      });
-      const data = await response.json();
-      if (!response.ok) {
-        setPostError(data.error || 'Could not load community posts.');
-        setCommunityPosts([]);
-        return;
-      }
+      const data = await apiFetch('/api/community/posts', { signal });
       setCommunityPosts(Array.isArray(data.posts) ? data.posts : []);
-    } catch {
-      setPostError('Could not load community posts.');
+    } catch (error) {
+      if (isAbortError(error)) return;
+      setPostError(error.message || 'Could not load community posts.');
       setCommunityPosts([]);
     } finally {
-      setPostsLoading(false);
+      if (!signal?.aborted) setPostsLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    fetchCommunityPosts();
+    const controller = new AbortController();
+    fetchCommunityPosts(controller.signal);
+    return () => controller.abort();
   }, [fetchCommunityPosts]);
 
   const submitPost = useCallback(async () => {
@@ -134,21 +131,18 @@ export default function CommunityPage({ profiles, selectedProfile, onSelectProfi
     setPostSubmitting(true);
     setPostError('');
     try {
-      const response = await fetch(`${API_BASE_URL}/api/community/posts`, {
+      const data = await apiFetch('/api/community/posts', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ title, body }),
+        body: { title, body },
       });
-      const data = await response.json();
-      if (!response.ok || !data.post) {
+      if (!data.post) {
         setPostError(data.error || 'Could not publish post.');
         return;
       }
       setCommunityPosts((current) => [data.post, ...current]);
       setPostDraft({ title: '', body: '' });
-    } catch {
-      setPostError('Could not publish post.');
+    } catch (error) {
+      setPostError(error.message || 'Could not publish post.');
     } finally {
       setPostSubmitting(false);
     }
@@ -160,6 +154,27 @@ export default function CommunityPage({ profiles, selectedProfile, onSelectProfi
     onSelectProfile?.(profile.id);
     setOverlayProfile(profile);
   }, [onSelectProfile]);
+
+  const reportPost = useCallback(async (postId) => {
+    setReportingPostId(postId);
+    setPostError('');
+    try {
+      const data = await apiFetch(`/api/community/posts/${postId}/report`, {
+        method: 'POST',
+      });
+      if (data.success) {
+        setCommunityPosts((current) => current.map((post) => (
+          post.id === postId
+            ? { ...post, reportedCount: data.reportedCount }
+            : post
+        )));
+      }
+    } catch (error) {
+      setPostError(error.message || 'Could not report post.');
+    } finally {
+      setReportingPostId(null);
+    }
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -275,8 +290,18 @@ export default function CommunityPage({ profiles, selectedProfile, onSelectProfi
                   </div>
                   <div className="mt-3 text-lg font-bold text-white">{item.title}</div>
                   <div className="mt-2 text-sm leading-7 text-slate-300">{item.body}</div>
-                  <div className="mt-3 inline-flex rounded-full border border-white/10 bg-white/[0.05] px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-slate-300">
-                    {item.author?.role || 'Student'}
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                    <div className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] ${isAdminProfile(item.author) ? 'border-amber-300/30 bg-amber-300/10 text-amber-100' : 'border-white/10 bg-white/[0.05] text-slate-300'}`}>
+                      {getDisplayRole(item.author)}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => reportPost(item.id)}
+                      disabled={reportingPostId === item.id}
+                      className="inline-flex rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-slate-300 transition hover:bg-white/[0.08] disabled:opacity-60"
+                    >
+                      {reportingPostId === item.id ? 'Reporting...' : `Report${item.reportedCount ? ` (${item.reportedCount})` : ''}`}
+                    </button>
                   </div>
                 </div>
               ))}
@@ -322,7 +347,14 @@ export default function CommunityPage({ profiles, selectedProfile, onSelectProfi
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                   <div className="min-w-0">
                     <div className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">Search result</div>
-                    <div className="mt-2 text-xl font-bold text-white">{previewProfile.name}</div>
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      <div className="text-xl font-bold text-white">{previewProfile.name}</div>
+                      {isAdminProfile(previewProfile) && (
+                        <span className="rounded-full border border-amber-300/30 bg-amber-300/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-amber-100">
+                          admin
+                        </span>
+                      )}
+                    </div>
                     <div className="mt-1 text-sm text-sky-300">@{previewProfile.username}</div>
                   </div>
                   <button

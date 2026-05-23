@@ -1,16 +1,30 @@
 import React from 'react';
-import { AlertCircle, Home, Loader, Menu, Settings, User, UserPlus, Users, X } from 'lucide-react';
-import { SHOW_NOTIFICATION_BANNER } from '../appShared';
+import { AlertCircle, Download, Home, Loader, Menu, Settings, User, UserPlus, Users, X } from 'lucide-react';
+import { getDisplayRole, isAdminProfile } from '../appShared';
 
 export function AppHeader({
   currentPage,
   navTo,
   currentUser,
+  guestMode,
+  adminAuthenticated,
   openAuth,
   openAdminPanel,
   mobileMenuOpen,
   setMobileMenuOpen,
+  installPrompt,
+  handleInstallApp,
+  announcement,
 }) {
+  const currentUserIsAdmin = isAdminProfile(currentUser);
+  const currentUserRole = getDisplayRole(currentUser);
+  const accountLabel = currentUser ? currentUser.username : 'Log in';
+  const accountSubtitle = currentUser
+    ? `${currentUserRole} profile`
+    : guestMode
+      ? 'Guest session active'
+      : 'Sign in to save progress';
+
   return (
     <>
       <header className="sticky top-0 z-50 border-b border-white/10 bg-[#06101d]/85 backdrop-blur-xl">
@@ -29,9 +43,18 @@ export function AppHeader({
                 <button onClick={() => navTo('samples')} className={`px-4 py-2 rounded-full font-medium transition ${currentPage === 'samples' ? 'bg-sky-500 text-white shadow-[0_0_30px_rgba(56,189,248,0.25)]' : 'text-slate-300 hover:bg-white/10'}`}>Samples</button>
                 <button onClick={() => navTo('simulation')} className={`px-4 py-2 rounded-full font-medium transition ${currentPage === 'simulation' ? 'bg-sky-500 text-white shadow-[0_0_30px_rgba(56,189,248,0.25)]' : 'text-slate-300 hover:bg-white/10'}`}>Simulation</button>
                 <button onClick={() => navTo('community')} className={`px-4 py-2 rounded-full font-medium transition inline-flex items-center gap-2 ${currentPage === 'community' ? 'bg-sky-500 text-white shadow-[0_0_30px_rgba(56,189,248,0.25)]' : 'text-slate-300 hover:bg-white/10'}`}><Users size={16} /> Community</button>
-                <button onClick={openAdminPanel} className="p-2.5 rounded-full text-slate-300 transition hover:bg-white/10 hover:text-white" title="Admin Panel">
+                <button
+                  onClick={openAdminPanel}
+                  className={`p-2.5 rounded-full transition ${adminAuthenticated ? 'bg-amber-300/10 text-amber-100 hover:bg-amber-300/15' : 'text-slate-300 hover:bg-white/10 hover:text-white'}`}
+                  title={adminAuthenticated ? 'Admin Panel (authenticated)' : 'Admin Panel'}
+                >
                   <Settings size={18} />
                 </button>
+                {installPrompt && (
+                  <button onClick={handleInstallApp} className="px-4 py-2 rounded-full font-medium transition bg-sky-500 hover:bg-sky-400 text-white flex items-center gap-1.5 shadow-[0_0_30px_rgba(56,189,248,0.25)] text-sm animate-pulse" title="Install Web App">
+                    <Download size={15} /> Install
+                  </button>
+                )}
               </nav>
 
               <button onClick={() => setMobileMenuOpen((value) => !value)} className="md:hidden p-2.5 rounded-full text-slate-300 transition hover:bg-white/10">
@@ -53,8 +76,20 @@ export function AppHeader({
                   }}
                 />
                 <div className="hidden sm:block pr-2">
-                  <div className="text-sm font-semibold text-white">{currentUser ? currentUser.username : 'Log in'}</div>
-                  <div className="text-xs text-slate-400">{currentUser ? `${currentUser.role} profile` : 'Saved progress & profile'}</div>
+                  <div className="flex items-center gap-2">
+                    <div className="text-sm font-semibold text-white">{accountLabel}</div>
+                    {currentUserIsAdmin && (
+                      <span className="rounded-full border border-amber-300/30 bg-amber-300/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-amber-100">
+                        admin
+                      </span>
+                    )}
+                    {!currentUser && guestMode && (
+                      <span className="rounded-full border border-sky-300/25 bg-sky-300/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-sky-100">
+                        guest
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-xs text-slate-400">{accountSubtitle}</div>
                 </div>
               </button>
             </div>
@@ -62,11 +97,11 @@ export function AppHeader({
         </div>
       </header>
 
-      {SHOW_NOTIFICATION_BANNER && (
+      {announcement?.enabled && announcement?.message && (
         <div className="w-full border-b border-sky-400/20 bg-sky-400/10 text-center py-2 px-4">
           <p className="text-sm font-medium text-sky-300 inline-flex items-center justify-center gap-2">
             <AlertCircle size={16} className="shrink-0" />
-            <span>IMPORTANT NOTICE: Authentication system is still under development, please continue as guest.</span>
+            <span>{announcement.message}</span>
             <AlertCircle size={16} className="shrink-0" />
           </p>
         </div>
@@ -84,6 +119,11 @@ export function AppHeader({
               <User size={16} />
               {currentUser ? 'Profile' : 'Log In'}
             </button>
+            {installPrompt && (
+              <button onClick={handleInstallApp} className="px-4 py-3 rounded-2xl font-medium text-left text-sky-300 hover:bg-sky-400/10 transition inline-flex items-center gap-2">
+                <Download size={16} /> Install Web App
+              </button>
+            )}
           </nav>
         </div>
       )}
@@ -100,9 +140,16 @@ export function AppStatusStack({
   authError,
   currentPage,
   isWarmingBackend,
+  isOffline,
 }) {
   return (
     <>
+      {isOffline && (
+        <div className="mb-4 flex items-center justify-center gap-3 rounded-2xl border border-rose-400/25 bg-rose-500/10 px-4 py-3 text-center text-sm text-rose-100 animate-pulse">
+          <AlertCircle size={16} className="shrink-0" />
+          <span>Working Offline. Speech analysis and profile sync are unavailable until connection is restored.</span>
+        </div>
+      )}
       {guestMode && !currentUser && guestModeBannerVisible && (
         <div className="mb-4 flex flex-col gap-3 rounded-[24px] border border-sky-400/20 bg-[linear-gradient(135deg,rgba(14,165,233,0.12),rgba(15,23,42,0.92))] px-4 py-4 text-slate-100 shadow-[0_16px_40px_rgba(2,6,23,0.25)] sm:flex-row sm:items-center sm:justify-between sm:px-5">
           <div className="flex items-start gap-3">
@@ -163,7 +210,7 @@ export function Footer({ setCurrentPage }) {
             <h3 className="text-xl font-bold text-white mb-4">Support necs.</h3>
             <img src="/donation.png" alt="Donation QR Code" className="w-40 h-40 mb-3 rounded-lg border-2 border-gray-700" onError={(e) => { e.target.style.display = 'none'; }} />
             <div className="text-sm text-gray-400 text-center md:text-left">
-              <p className="font-semibold text-white mb-1">Buy me a coffee ☕</p>
+              <p className="font-semibold text-white mb-1">Buy me a coffee</p>
               <p>NGUYEN HOANG MINH TRI</p>
               <p>1041802514</p>
               <p>Vietcombank</p>
@@ -207,3 +254,4 @@ export function Footer({ setCurrentPage }) {
     </footer>
   );
 }
+
