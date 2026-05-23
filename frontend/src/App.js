@@ -182,6 +182,7 @@ export default function SpeakUpApp() {
         await Promise.all([
           apiFetch('/api/health', { method: 'GET', signal: controller.signal }),
           loadAnnouncement({ signal: controller.signal }),
+          loadCommunityProfiles({ signal: controller.signal }),
         ]);
       } catch (error) {
         if (isAbortError(error)) return;
@@ -245,12 +246,12 @@ export default function SpeakUpApp() {
   }, []);
 
   useEffect(() => {
-    if (currentPage === 'community' && !communityLoading && publicProfiles.length === 0) {
+    if (!communityLoading && publicProfiles.length === 0) {
       const controller = new AbortController();
       loadCommunityProfiles({ signal: controller.signal });
       return () => controller.abort();
     }
-  }, [communityLoading, currentPage, loadCommunityProfiles, publicProfiles.length]);
+  }, [communityLoading, loadCommunityProfiles, publicProfiles.length]);
 
   useEffect(() => {
     if (currentUser && currentPage === 'profile' && practiceHistory.length === 0) {
