@@ -173,7 +173,7 @@ CORS(app, resources={
         "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],  # Added OPTIONS
         "allow_headers": ["Content-Type", "X-CSRF-Token", "X-Request-ID"],
         "supports_credentials": True,
-        "expose_headers": ["Content-Type", "X-Request-ID"]  # Added this
+        "expose_headers": ["Content-Type", "X-Request-ID", "X-CSRF-Token"]  # Added this
     }
 })
 
@@ -241,6 +241,7 @@ def finalize_response(response):
     if wants_json_response():
         csrf_token = session.get('csrf_token')
         if csrf_token:
+            response.headers['X-CSRF-Token'] = csrf_token
             response.set_cookie(
                 'csrf_token',
                 csrf_token,

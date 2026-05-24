@@ -108,6 +108,7 @@ python -m py_compile backend\worker.py backend\analysis_service.py backend\job_w
 - Use a managed PostgreSQL `DATABASE_URL` for persistent data.
 - Set `REDIS_URL` so rate limiting is shared across web instances.
 - Run the analysis worker separately with `ENABLE_EMBEDDED_WORKER=false` on the web process.
+- If you deploy only one backend web service and no separate worker, set `ENABLE_EMBEDDED_WORKER=true`; otherwise analysis jobs will stay queued.
 - Move off `CREATE_TABLES_ON_START` and use `flask db upgrade` for schema changes.
 - Check `/api/health` or `/api/admin/runtime` to confirm whether Redis-backed limiting and embedded workers are active.
 - After pulling backend changes that affect schema, run `flask db upgrade`.

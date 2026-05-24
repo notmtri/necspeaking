@@ -50,11 +50,14 @@ export function AppHeader({
                 >
                   <Settings size={18} />
                 </button>
-                {installPrompt && (
-                  <button onClick={handleInstallApp} className="px-4 py-2 rounded-full font-medium transition bg-sky-500 hover:bg-sky-400 text-white flex items-center gap-1.5 shadow-[0_0_30px_rgba(56,189,248,0.25)] text-sm animate-pulse" title="Install Web App">
-                    <Download size={15} /> Install
-                  </button>
-                )}
+                <button
+                  onClick={handleInstallApp}
+                  className={`p-2.5 rounded-full transition ${installPrompt ? 'bg-sky-500 text-white hover:bg-sky-400 shadow-[0_0_30px_rgba(56,189,248,0.25)]' : 'text-slate-300 hover:bg-white/10 hover:text-white'}`}
+                  title="Install Web App"
+                  aria-label="Install Web App"
+                >
+                  <Download size={18} />
+                </button>
               </nav>
 
               <button onClick={() => setMobileMenuOpen((value) => !value)} className="md:hidden p-2.5 rounded-full text-slate-300 transition hover:bg-white/10">
@@ -119,11 +122,9 @@ export function AppHeader({
               <User size={16} />
               {currentUser ? 'Profile' : 'Log In'}
             </button>
-            {installPrompt && (
-              <button onClick={handleInstallApp} className="px-4 py-3 rounded-2xl font-medium text-left text-sky-300 hover:bg-sky-400/10 transition inline-flex items-center gap-2">
-                <Download size={16} /> Install Web App
-              </button>
-            )}
+            <button onClick={handleInstallApp} className="px-4 py-3 rounded-2xl font-medium text-left text-sky-300 hover:bg-sky-400/10 transition inline-flex items-center gap-2">
+              <Download size={16} /> Install Web App
+            </button>
           </nav>
         </div>
       )}

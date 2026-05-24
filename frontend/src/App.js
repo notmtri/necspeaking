@@ -53,6 +53,14 @@ export default function SpeakUpApp() {
   const [installPrompt, setInstallPrompt] = useState(null);
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
 
+  const pushToast = useCallback((message, tone = 'info') => {
+    const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    setToasts((current) => [...current, { id, message, tone }]);
+    window.setTimeout(() => {
+      setToasts((current) => current.filter((toast) => toast.id !== id));
+    }, tone === 'error' ? 6000 : 4000);
+  }, []);
+
   useEffect(() => {
     const handlePopState = () => {
       setCurrentPage(pageFromLocation(window.location));
@@ -72,13 +80,17 @@ export default function SpeakUpApp() {
   }, []);
 
   const handleInstallApp = useCallback(async () => {
-    if (!installPrompt) return;
+    if (!installPrompt) {
+      pushToast('The app is already installed or your browser is not offering an install prompt right now.');
+      return;
+    }
     installPrompt.prompt();
-    const { outcome } = await installPrompt.userChoice;
-    if (outcome === 'accepted') {
+    try {
+      await installPrompt.userChoice;
+    } finally {
       setInstallPrompt(null);
     }
-  }, [installPrompt]);
+  }, [installPrompt, pushToast]);
 
   useEffect(() => {
     const goOnline = () => setIsOffline(false);
@@ -120,14 +132,6 @@ export default function SpeakUpApp() {
 
   const dismissToast = useCallback((id) => {
     setToasts((current) => current.filter((toast) => toast.id !== id));
-  }, []);
-
-  const pushToast = useCallback((message, tone = 'info') => {
-    const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-    setToasts((current) => [...current, { id, message, tone }]);
-    window.setTimeout(() => {
-      setToasts((current) => current.filter((toast) => toast.id !== id));
-    }, tone === 'error' ? 6000 : 4000);
   }, []);
 
   const loadCommunityProfiles = useCallback(async (options = {}) => {
