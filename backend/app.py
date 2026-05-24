@@ -300,6 +300,8 @@ groq_api_key = require_env("GROQ_API_KEY")
 groq_client = Groq(api_key=groq_api_key) if groq_api_key else None
 if not groq_client:
     print("[WARN] GROQ_API_KEY is not set. Speech analysis endpoints will fail until it is configured.")
+if not os.getenv('GEMINI_API_KEY', '').strip():
+    print("[WARN] GEMINI_API_KEY is not set. Speech grading will use the Groq fallback model.")
 
 rate_limiter.init_app(app)
 analysis_worker = AnalysisWorker(app, lambda: get_groq_client(), app.config['UPLOAD_FOLDER']) if should_start_embedded_worker() else None

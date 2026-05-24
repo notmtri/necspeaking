@@ -5,7 +5,7 @@ React + Flask app for NEC speaking practice, speech analysis, sample speeches, s
 ## Project Layout
 
 - `frontend/` - React app built with `react-scripts`
-- `backend/` - Flask API, SQLAlchemy models, Groq transcription/grading, Cloudinary sample uploads
+- `backend/` - Flask API, SQLAlchemy models, Groq transcription, Gemini/Groq grading, Cloudinary sample uploads
 - `.env.example` - required local and production environment variables
 
 ## Local Setup
@@ -75,6 +75,7 @@ From the repo root, `npm run start` forwards to the frontend dev server.
 
 - State-changing API routes now require a CSRF token header. The React app sends it automatically from the `csrf_token` cookie.
 - Analysis reports are uploaded to Cloudinary when Cloudinary credentials are configured. Without Cloudinary, reports fall back to local disk.
+- Speech analysis transcribes with Groq `GROQ_TRANSCRIPTION_MODEL` and grades with Gemini `GEMINI_GRADING_MODEL`, falling back to Groq `GROQ_GRADING_FALLBACK_MODEL` when Gemini is unavailable.
 - Completed and failed analysis jobs are cleaned up automatically after `ANALYSIS_JOB_RETENTION_HOURS` hours.
 - Community posts can be reported publicly and moderated from the admin panel.
 - Runtime visibility is available at:

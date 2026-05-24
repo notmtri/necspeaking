@@ -365,9 +365,6 @@ export default function CommunityPage({ profiles, selectedProfile, onSelectProfi
                     Open full profile
                   </button>
                 </div>
-                <div className="mt-4 text-sm leading-7 text-slate-300">
-                  Full profile details now open in a large overlay so the layout stays readable on both desktop and mobile.
-                </div>
               </div>
             ) : (
               <div className="mt-5 rounded-[24px] border border-dashed border-white/10 bg-white/[0.03] p-5 text-sm leading-7 text-slate-400">

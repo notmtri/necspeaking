@@ -1,14 +1,49 @@
+import base64
 import io
 import json
+import mimetypes
 import os
 import re
 from datetime import datetime
 
+import httpx
 from pydub import AudioSegment
 from werkzeug.utils import secure_filename
 
 
 ALLOWED_EXTENSIONS = {'wav', 'mp3', 'm4a', 'webm', 'ogg'}
+TRANSCRIPTION_MODEL = os.getenv('GROQ_TRANSCRIPTION_MODEL', 'whisper-large-v3')
+GEMINI_GRADING_MODEL = os.getenv('GEMINI_GRADING_MODEL', 'gemini-3.5-flash')
+GROQ_GRADING_FALLBACK_MODEL = os.getenv('GROQ_GRADING_FALLBACK_MODEL', 'openai/gpt-oss-120b')
+GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent'
+
+
+GRADING_RESPONSE_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "scores": {
+            "type": "object",
+            "properties": {
+                "content": {"type": "number"},
+                "accuracy": {"type": "number"},
+                "delivery": {"type": "number"},
+                "total": {"type": "number"},
+            },
+            "required": ["content", "accuracy", "delivery", "total"],
+        },
+        "feedback": {
+            "type": "object",
+            "properties": {
+                "content": {"type": "string"},
+                "accuracy": {"type": "string"},
+                "delivery": {"type": "string"},
+            },
+            "required": ["content", "accuracy", "delivery"],
+        },
+        "sample_response": {"type": "string"},
+    },
+    "required": ["scores", "feedback", "sample_response"],
+}
 
 
 def allowed_file(filename):
@@ -46,7 +81,7 @@ def transcribe_audio(groq_client, file_path):
     with open(file_path, 'rb') as audio_file:
         transcription = groq_client.audio.transcriptions.create(
             file=("audio.wav", audio_file.read()),
-            model="whisper-large-v3-turbo",
+            model=TRANSCRIPTION_MODEL,
             response_format="json",
         )
 
@@ -60,13 +95,20 @@ def transcribe_audio(groq_client, file_path):
     }
 
 
-def grade_speech(groq_client, topic, transcript_data):
+def build_grading_prompt(topic, transcript_data, audio_attached=False):
     transcript_text = transcript_data["text"]
     total_words = len(transcript_text.split())
     duration = transcript_data["duration"]
     words_per_minute = (total_words / duration * 60) if duration > 0 else 0
+    audio_instruction = (
+        "The original speech audio is attached. Use it to evaluate pronunciation, intonation, "
+        "pauses, fluency, confidence, and delivery. Use the transcript for content, vocabulary, "
+        "grammar, and examples."
+        if audio_attached
+        else "Only the transcript and timing metrics are available. Do not claim to hear pronunciation directly."
+    )
 
-    prompt = f"""You are an expert English speaking examiner. Grade the following speech response based on this rubric:
+    return f"""You are an expert English speaking examiner. Grade the following speech response based on this rubric:
 
 **Rubric (Total: 2.0 points)**
 1. Content (0.9/2.0 points)
@@ -92,9 +134,11 @@ def grade_speech(groq_client, topic, transcript_data):
 - Duration: {duration:.1f} seconds
 - Speaking pace: {words_per_minute:.0f} words/minute
 
+**Audio Availability:** {audio_instruction}
+
 **Instructions:**
 1. Provide scores for each criterion (rounded to 2 decimal places)
-2. Give detailed feedback for each criterion with specific examples from the transcript
+2. Give detailed feedback for each criterion with specific examples from the transcript and audio when available
 3. Point out both strengths and areas for improvement
 4. Generate a comprehensive sample 2.0/2.0 response to the same topic that would take approximately 5 minutes to speak (around 600-750 words). The sample should:
    - Start with "My question is... (if question number is provided), and the prompt is... Here is my response." and then answer the question fully
@@ -108,7 +152,7 @@ def grade_speech(groq_client, topic, transcript_data):
    - Grade at C2 level of the CEFR framework
    - Be very strict
 
-**Return your response in this EXACT JSON format:**
+Return only valid JSON matching this shape:
 {{
     "scores": {{
         "content": 0.00,
@@ -124,14 +168,8 @@ def grade_speech(groq_client, topic, transcript_data):
     "sample_response": "A complete 2.0/2.0 sample response to the topic..."
 }}"""
 
-    response = groq_client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
-        messages=[{"role": "user", "content": prompt}],
-        temperature=0.3
-    )
 
-    result_text = response.choices[0].message.content
-
+def parse_grading_json(result_text):
     if "```json" in result_text:
         result_text = result_text.split("```json")[1].split("```")[0].strip()
     elif "```" in result_text:
@@ -139,7 +177,6 @@ def grade_speech(groq_client, topic, transcript_data):
 
     result_text = result_text.replace('"', '"').replace('"', '"')
     result_text = result_text.replace("''", "'").replace("''", "'")
-    result_text = result_text.replace('â€”', '-').replace('â€“', '-')
     result_text = result_text.replace('\u2018', "'").replace('\u2019', "'")
     result_text = result_text.replace('\u201c', '"').replace('\u201d', '"')
     result_text = result_text.replace('\u2013', '-').replace('\u2014', '-')
@@ -151,6 +188,82 @@ def grade_speech(groq_client, topic, transcript_data):
     result_text = re.sub(r'[\x00-\x1F\x7F]', '', result_text)
 
     return json.loads(result_text)
+
+
+def grade_speech_with_gemini(topic, transcript_data, audio_path):
+    gemini_api_key = os.getenv('GEMINI_API_KEY', '').strip()
+    if not gemini_api_key:
+        raise RuntimeError("GEMINI_API_KEY is not configured.")
+
+    parts = [{"text": build_grading_prompt(topic, transcript_data, audio_attached=bool(audio_path))}]
+    if audio_path:
+        if audio_path.lower().endswith('.wav'):
+            mime_type = 'audio/wav'
+        else:
+            mime_type = mimetypes.guess_type(audio_path)[0] or 'audio/wav'
+        with open(audio_path, 'rb') as audio_file:
+            parts.append({
+                "inline_data": {
+                    "mime_type": mime_type,
+                    "data": base64.b64encode(audio_file.read()).decode('ascii'),
+                }
+            })
+
+    payload = {
+        "contents": [{"parts": parts}],
+        "generationConfig": {
+            "temperature": 0.2,
+            "responseFormat": {
+                "text": {
+                    "mimeType": "application/json",
+                    "schema": GRADING_RESPONSE_SCHEMA,
+                }
+            },
+        },
+    }
+
+    url = GEMINI_API_URL.format(model=GEMINI_GRADING_MODEL)
+    with httpx.Client(timeout=120) as client:
+        response = client.post(
+            url,
+            headers={
+                "Content-Type": "application/json",
+                "x-goog-api-key": gemini_api_key,
+            },
+            json=payload,
+        )
+        response.raise_for_status()
+        data = response.json()
+
+    candidates = data.get("candidates") or []
+    if not candidates:
+        raise RuntimeError("Gemini returned no grading candidate.")
+
+    response_parts = (candidates[0].get("content") or {}).get("parts") or []
+    result_text = ''.join(part.get("text", "") for part in response_parts).strip()
+    if not result_text:
+        raise RuntimeError("Gemini returned an empty grading response.")
+
+    return parse_grading_json(result_text)
+
+
+def grade_speech_with_groq(groq_client, topic, transcript_data):
+    prompt = build_grading_prompt(topic, transcript_data, audio_attached=False)
+    response = groq_client.chat.completions.create(
+        model=GROQ_GRADING_FALLBACK_MODEL,
+        messages=[{"role": "user", "content": prompt}],
+        temperature=0.3
+    )
+
+    return parse_grading_json(response.choices[0].message.content)
+
+
+def grade_speech(groq_client, topic, transcript_data, audio_path=''):
+    try:
+        return grade_speech_with_gemini(topic, transcript_data, audio_path)
+    except Exception as error:
+        print(f"[ANALYSIS] Gemini grading unavailable, falling back to Groq: {error}")
+        return grade_speech_with_groq(groq_client, topic, transcript_data)
 
 
 def generate_docx(topic, transcript, grading_result):

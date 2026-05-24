@@ -94,7 +94,7 @@ class AnalysisWorker:
 
                 job.progress_message = 'Grading speech.'
                 db.session.commit()
-                grading_result = grade_speech(client, job.topic, transcript_data)
+                grading_result = grade_speech(client, job.topic, transcript_data, filepath)
 
                 job.progress_message = 'Generating report.'
                 db.session.commit()
