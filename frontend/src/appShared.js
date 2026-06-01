@@ -3,8 +3,8 @@ import { BarChart3, BookOpen, CheckCircle, Mic, Sparkles, Users } from 'lucide-r
 export const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://127.0.0.1:5000';
 export const ADMIN_USERNAME = 'notmtri';
 export const DEFAULT_ANNOUNCEMENT = {
-  enabled: true,
-  message: 'IMPORTANT NOTICE: Authentication system is still under development, please continue as guest.',
+  enabled: false,
+  message: '',
 };
 
 export const PAGE_PATHS = {
@@ -70,23 +70,23 @@ export const SITE_OWNER_NAME = 'Nguyen Hoang Minh Tri';
 export const HOME_STATS = [
   { value: '1,100+', label: 'active users in peak period', note: 'Data received from Google Analytics since 11/2025', icon: BarChart3 },
   { value: '> 50%', label: 'users won the National English Competition', note: 'Data gathered from NEC 25-26', icon: Users },
-  { value: '3 core tools', label: 'in one focused workflow', note: 'Analyze, Samples, and Simulation.', icon: Sparkles },
+  { value: '4 main features', label: 'in one focused workflow', note: 'Analyze, Samples, Simulation, and Community.', icon: Sparkles },
 ];
 
 export const HOME_FEATURES = [
   {
     title: 'Analyze',
-    description: 'Insert a topic question of your choice, submit your response, and watch NECSpeaking do its magic!',
+    description: 'Submit a prompt and recording to receive feedback according to NEC criteria.',
     icon: Mic,
   },
   {
     title: 'Samples',
-    description: 'Browse strong sample responses to see what a high-performing NEC speaking answer actually sounds and reads like.',
+    description: 'Study strong responses from former competitors and compare structure, language, and delivery.',
     icon: BookOpen,
   },
   {
     title: 'Simulation',
-    description: 'Experience the real test interface and protocols, build your confidence and familiarity with the test environment.',
+    description: 'Practice with the real test workflow to boost confidence.',
     icon: CheckCircle,
   },
 ];
@@ -101,16 +101,16 @@ export const HOME_FEEDBACK = [
 ];
 
 export const HOME_BENEFITS = [
-  'Have your speech graded automatically according to MOET-approved criteria in a matter of minutes.',
-  'Level up your speaking style by learning from sample speeches of ex-competitors who scored high in their tests.',
-  'Familiarize yourself with the real NEC speaking test interface and protocols, making sure you are not caught off-guard. ',
-  'Reduced cost compared to hiring NEC mentors, as NECSpeaking is completely non-profit.'
+  'Get speaking feedback against the official NEC speaking grading rubric.',
+  'Learn from sample responses featuring high-scoring performance.',
+  'Practice the rhythm of the real test before competition day.',
+  'Use a non-profit tool built for students who need focused preparation.'
 ];
 
 export const HOME_FAQ = [
-  { question: 'Who is necs. for?', answer: 'necs. is specifically made for NEC competitors, or those aiming for this competition to improve their speaking.' },
-  { question: 'What is the best way to self-study with necs.?', answer: 'Use the Analyze tab to save time. When the results are out, see the criterion scores to identify your weak spots and train yourself from there. Remember to track your progress as well.' },
-  { question: 'Can teachers add their own materials?', answer: 'Not yet. But you can contribute sample speeches and questions to me via email so I can add them into the web.' },
+  { question: 'Who is necs. for?', answer: 'Students preparing for NEC speaking or similar English speaking assessments.' },
+  { question: 'How should I self-study with necs.?', answer: 'Start with Analyze, review the weakest criterion, then repeat with a sample or simulation task.' },
+  { question: 'Can teachers add materials?', answer: 'Not yet. Teachers can send sample speeches or questions by email for review.' },
 ];
 
 export const GUEST_STORAGE_KEY = 'necs.guestMode';
@@ -169,6 +169,67 @@ export const createDefaultProfile = () => ({
   progress: [],
   commitWeeks: [],
 });
+
+const IMPROVEMENT_CRITERIA = [
+  {
+    key: 'content',
+    label: 'Content',
+    max: 0.9,
+    focus: 'Sharpen the answer structure and support each idea with a clear example.',
+    drill: 'Plan a 3-part answer in 60 seconds: position, two reasons, and one concrete example.',
+    checklist: 'Make every main point answer the exact question.',
+  },
+  {
+    key: 'accuracy',
+    label: 'Accuracy',
+    max: 0.6,
+    focus: 'Reduce grammar slips and choose safer sentence patterns under time pressure.',
+    drill: 'Rewrite three sentences from your response with simpler grammar and more precise vocabulary.',
+    checklist: 'Check tense, subject-verb agreement, word form, and article use.',
+  },
+  {
+    key: 'delivery',
+    label: 'Delivery',
+    max: 0.5,
+    focus: 'Improve pace, clarity, confidence, and smoother transitions between ideas.',
+    drill: 'Repeat the same answer twice: once slowly for clarity, once at test pace with pauses.',
+    checklist: 'Use signposting, controlled pauses, and audible final consonants.',
+  },
+];
+
+export const buildImprovementPlan = (results = {}) => {
+  const scores = results.scores || {};
+  const feedback = results.feedback || {};
+  const totalScore = Number(scores.total || 0);
+
+  const criteria = IMPROVEMENT_CRITERIA.map((criterion) => {
+    const score = Number(scores[criterion.key] || 0);
+    const ratio = criterion.max > 0 ? score / criterion.max : 0;
+    return {
+      ...criterion,
+      score,
+      ratio,
+      comment: feedback[criterion.key] || '',
+    };
+  }).sort((a, b) => a.ratio - b.ratio);
+
+  const priority = criteria[0] || IMPROVEMENT_CRITERIA[0];
+  const secondary = criteria[1] || IMPROVEMENT_CRITERIA[1];
+  const strongest = [...criteria].sort((a, b) => b.ratio - a.ratio)[0] || IMPROVEMENT_CRITERIA[0];
+  const targetScore = Math.min(2, Math.round((totalScore + 0.1) * 100) / 100);
+
+  return {
+    priority,
+    secondary,
+    strongest,
+    targetScore,
+    focusItems: [priority, secondary],
+    checklist: IMPROVEMENT_CRITERIA.map((criterion) => ({
+      label: criterion.label,
+      text: criterion.checklist,
+    })),
+  };
+};
 
 export const downloadDocumentFromBase64 = (base64String, filename, options = {}) => {
   const { onError } = options;

@@ -12,6 +12,8 @@
   "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build",
+    "check:mobile-overflow": "node scripts/check-mobile-overflow.cjs",
+    "validate:mobile": "npm run build && npm run check:mobile-overflow",
     "test": "react-scripts test"
   },
   "browserslist": {

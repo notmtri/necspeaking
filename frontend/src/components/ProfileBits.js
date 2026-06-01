@@ -16,21 +16,21 @@ export function LabeledInput({ label, value, onChange, placeholder, variant = 'd
 
 export function ProfileSectionCard({ title, eyebrow, children, className = '' }) {
   return (
-    <section className={`overflow-hidden rounded-[32px] border border-white/10 bg-[linear-gradient(180deg,rgba(7,17,31,0.98),rgba(10,23,44,0.96))] shadow-[0_20px_80px_rgba(2,6,23,0.25)] ${className}`}>
-      <div className="border-b border-white/10 bg-white/[0.03] px-5 py-4">
-        <div className="text-xs font-semibold uppercase tracking-[0.2em] text-sky-200">{eyebrow}</div>
+    <section className={`min-w-0 overflow-hidden rounded-[24px] border border-white/10 bg-[linear-gradient(180deg,rgba(7,17,31,0.98),rgba(10,23,44,0.96))] shadow-[0_20px_80px_rgba(2,6,23,0.25)] sm:rounded-[32px] ${className}`}>
+      <div className="border-b border-white/10 bg-white/[0.03] px-4 py-4 sm:px-5">
+        <div className="text-xs font-semibold uppercase tracking-[0.14em] text-sky-200 sm:tracking-[0.2em]">{eyebrow}</div>
         <div className="mt-2 text-lg font-bold text-white">{title}</div>
       </div>
-      <div className="p-5">{children}</div>
+      <div className="p-4 sm:p-5">{children}</div>
     </section>
   );
 }
 
 export function ProfileDetailRow({ label, value }) {
   return (
-    <div className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3">
+    <div className="flex min-w-0 flex-col gap-1 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
       <div className="text-sm font-medium text-slate-400">{label}</div>
-      <div className="text-sm font-semibold text-white">{value}</div>
+      <div className="min-w-0 break-words text-sm font-semibold text-white sm:text-right">{value}</div>
     </div>
   );
 }
@@ -44,8 +44,8 @@ export function ProfileMetricCard({ label, value, tone = 'sky' }) {
   };
 
   return (
-    <div className={`rounded-2xl border px-4 py-4 ${toneClasses[tone] || toneClasses.sky}`}>
-      <div className="text-xs font-semibold uppercase tracking-[0.2em] opacity-80">{label}</div>
+    <div className={`min-w-0 rounded-2xl border px-4 py-4 ${toneClasses[tone] || toneClasses.sky}`}>
+      <div className="text-[11px] font-semibold uppercase tracking-[0.14em] opacity-80 sm:text-xs sm:tracking-[0.2em]">{label}</div>
       <div className="mt-2 text-3xl font-bold">{value}</div>
     </div>
   );

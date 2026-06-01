@@ -53,14 +53,14 @@ export default function AuthPage({ authMode, setAuthMode, onSubmit, currentUser,
   };
 
   return (
-    <section className="mx-auto max-w-5xl rounded-[36px] border border-white/10 bg-slate-950/70 shadow-[0_24px_120px_rgba(2,6,23,0.45)]">
-      <div className="grid gap-0 lg:grid-cols-[0.92fr_1.08fr]">
-        <div className="rounded-t-[36px] border-b border-white/10 bg-[radial-gradient(circle_at_top_left,_rgba(14,165,233,0.25),_transparent_30%),linear-gradient(180deg,_rgba(8,17,32,0.98),_rgba(5,10,18,0.95))] p-8 lg:rounded-l-[36px] lg:rounded-tr-none lg:border-b-0 lg:border-r">
-          <div className="inline-flex items-center gap-2 rounded-full border border-sky-400/30 bg-sky-400/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em] text-sky-200">
+    <section className="mx-auto min-w-0 max-w-5xl rounded-[26px] border border-white/10 bg-slate-950/70 shadow-[0_24px_120px_rgba(2,6,23,0.45)] sm:rounded-[36px]">
+      <div className="grid min-w-0 gap-0 lg:grid-cols-[minmax(0,0.92fr)_minmax(0,1.08fr)]">
+        <div className="rounded-t-[26px] border-b border-white/10 bg-[radial-gradient(circle_at_top_left,_rgba(14,165,233,0.25),_transparent_30%),linear-gradient(180deg,_rgba(8,17,32,0.98),_rgba(5,10,18,0.95))] p-5 sm:rounded-t-[36px] sm:p-8 lg:rounded-l-[36px] lg:rounded-tr-none lg:border-b-0 lg:border-r">
+          <div className="inline-flex max-w-full items-center gap-2 rounded-full border border-sky-400/30 bg-sky-400/10 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-sky-200 sm:px-4 sm:text-xs sm:tracking-[0.22em]">
             {isSignup ? <UserPlus size={14} /> : <LogIn size={14} />}
             Account access
           </div>
-          <h2 className="mt-5 text-4xl font-black text-white">{isSignup ? 'Create your NECS profile' : 'Welcome back to necs.'}</h2>
+          <h2 className="mt-5 text-3xl font-black text-white sm:text-4xl">{isSignup ? 'Create your NECS profile' : 'Welcome back to necs.'}</h2>
           <p className="mt-4 text-sm leading-7 text-slate-300">
             {isSignup
               ? 'Create one account, keep one profile, and edit the details later from your settings page.'
@@ -78,7 +78,7 @@ export default function AuthPage({ authMode, setAuthMode, onSubmit, currentUser,
           </div>
         </div>
 
-        <div className="p-8">
+        <div className="min-w-0 p-5 sm:p-8">
           {authChecking && !currentUser && (
             <div className="mb-4 rounded-2xl border border-slate-300/15 bg-slate-900/75 px-4 py-3 text-sm text-slate-200">
               Checking account session...

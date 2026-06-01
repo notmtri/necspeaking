@@ -1,7 +1,136 @@
-import React, { useEffect, useState } from 'react';
-import { CheckCircle, Lock, LogOut, Trash2, Upload, User } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Award, BarChart3, CheckCircle, Flame, Lock, LogOut, Target, Trash2, TrendingUp, Trophy, Upload, User } from 'lucide-react';
 import { createDefaultProfile, getDisplayRole, isAdminProfile } from '../appShared';
 import { LabeledInput, ProfileDetailRow, ProfileMetricCard, ProfileSectionCard } from '../components/ProfileBits';
+
+const CRITERIA = [
+  { key: 'content', label: 'Content', max: 0.9, tone: 'sky' },
+  { key: 'accuracy', label: 'Accuracy', max: 0.6, tone: 'emerald' },
+  { key: 'delivery', label: 'Delivery', max: 0.5, tone: 'amber' },
+];
+
+function getPracticeAnalytics(history = [], stats = {}) {
+  const sessions = [...history].sort((a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0));
+  const totals = sessions.reduce((sum, session) => ({
+    total: sum.total + Number(session.scores?.total || 0),
+    content: sum.content + Number(session.scores?.content || 0),
+    accuracy: sum.accuracy + Number(session.scores?.accuracy || 0),
+    delivery: sum.delivery + Number(session.scores?.delivery || 0),
+  }), { total: 0, content: 0, accuracy: 0, delivery: 0 });
+  const count = sessions.length || 1;
+  const averages = {
+    total: sessions.length ? totals.total / count : Number(stats.avgScore || 0),
+    content: totals.content / count,
+    accuracy: totals.accuracy / count,
+    delivery: totals.delivery / count,
+  };
+  const bestSession = sessions.reduce((best, session) => (
+    Number(session.scores?.total || 0) > Number(best?.scores?.total || 0) ? session : best
+  ), null);
+  const weakest = CRITERIA
+    .map((criterion) => ({
+      ...criterion,
+      value: averages[criterion.key] || 0,
+      ratio: criterion.max ? (averages[criterion.key] || 0) / criterion.max : 0,
+    }))
+    .sort((a, b) => a.ratio - b.ratio)[0];
+
+  return {
+    sessions,
+    averages,
+    bestSession,
+    weakest,
+    trend: sessions.slice(-6),
+  };
+}
+
+function PracticeTrend({ sessions }) {
+  if (!sessions.length) {
+    return (
+      <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.03] p-4 text-sm text-slate-400">
+        Complete more logged-in practice sessions to unlock score trends.
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid min-h-[180px] grid-cols-6 items-end gap-2 rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+      {sessions.map((session, index) => {
+        const score = Number(session.scores?.total || 0);
+        const height = Math.max(10, Math.round((score / 2) * 100));
+        return (
+          <div key={session.id || index} className="flex min-w-0 flex-col items-center gap-2">
+            <div className="flex h-28 w-full items-end">
+              <div className="w-full rounded-t-xl bg-sky-400/80 shadow-[0_0_24px_rgba(56,189,248,0.18)]" style={{ height: `${height}%` }} />
+            </div>
+            <div className="text-xs font-semibold text-white">{score.toFixed(2)}</div>
+            <div className="max-w-full truncate text-[10px] text-slate-500">
+              {session.createdAt ? new Date(session.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : `#${index + 1}`}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function CriteriaBars({ averages }) {
+  return (
+    <div className="space-y-3">
+      {CRITERIA.map((criterion) => {
+        const value = Number(averages[criterion.key] || 0);
+        const percent = Math.min(100, Math.round((value / criterion.max) * 100));
+        return (
+          <div key={criterion.key} className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+            <div className="flex items-center justify-between gap-3">
+              <div className="text-sm font-semibold text-white">{criterion.label}</div>
+              <div className="text-sm font-semibold text-slate-300">{value.toFixed(2)} / {criterion.max.toFixed(1)}</div>
+            </div>
+            <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/[0.08]">
+              <div className="h-full rounded-full bg-emerald-400" style={{ width: `${percent}%` }} />
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function AchievementBadges({ stats, analytics }) {
+  const practiceCount = Number(stats.practices || analytics.sessions.length || 0);
+  const avgScore = Number(stats.avgScore || analytics.averages.total || 0);
+  const bestScore = Number(stats.bestScore || analytics.bestSession?.scores?.total || 0);
+  const streak = Number(stats.streak || 0);
+  const badges = [
+    { label: 'First Step', icon: CheckCircle, unlocked: practiceCount >= 1, note: 'Complete one practice.' },
+    { label: 'Ten Attempts', icon: Target, unlocked: practiceCount >= 10, note: 'Reach 10 practices.' },
+    { label: 'Hot Streak', icon: Flame, unlocked: streak >= 3, note: 'Hold a 3-day streak.' },
+    { label: 'Rising Speaker', icon: TrendingUp, unlocked: avgScore >= 1.5, note: 'Average at least 1.50.' },
+    { label: 'Peak Score', icon: Trophy, unlocked: bestScore >= 1.9, note: 'Score 1.90 or higher.' },
+    { label: 'Balanced Skill', icon: Award, unlocked: CRITERIA.every((criterion) => (analytics.averages[criterion.key] || 0) / criterion.max >= 0.75), note: 'Reach 75% in all criteria.' },
+  ];
+
+  return (
+    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+      {badges.map((badge) => {
+        const Icon = badge.icon;
+        return (
+          <div key={badge.label} className={`rounded-2xl border p-4 ${badge.unlocked ? 'border-amber-300/25 bg-amber-300/10 text-amber-100' : 'border-white/10 bg-white/[0.03] text-slate-500'}`}>
+            <div className="flex items-center gap-3">
+              <div className={`inline-flex h-10 w-10 items-center justify-center rounded-2xl ${badge.unlocked ? 'bg-amber-300/15' : 'bg-white/[0.04]'}`}>
+                <Icon size={18} />
+              </div>
+              <div className="min-w-0">
+                <div className="font-semibold">{badge.label}</div>
+                <div className="mt-1 text-xs">{badge.unlocked ? 'Unlocked' : badge.note}</div>
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 function ProfileTabButton({ active, onClick, children }) {
   return (
@@ -40,9 +169,11 @@ export default function ProfilePage({ currentUser, practiceHistory, onSave, onLo
     setPasswordMessage('');
   }, [currentUser]);
 
+  const analytics = useMemo(() => getPracticeAnalytics(practiceHistory || [], draft.stats || {}), [practiceHistory, draft.stats]);
+
   if (!currentUser) {
     return (
-      <section className="rounded-[32px] border border-white/10 bg-[radial-gradient(circle_at_top_left,_rgba(56,189,248,0.18),_transparent_35%),linear-gradient(135deg,_rgba(7,17,31,0.98),_rgba(8,20,38,0.96))] p-8 text-center shadow-[0_24px_120px_rgba(2,6,23,0.45)]">
+      <section className="rounded-[26px] border border-white/10 bg-[radial-gradient(circle_at_top_left,_rgba(56,189,248,0.18),_transparent_35%),linear-gradient(135deg,_rgba(7,17,31,0.98),_rgba(8,20,38,0.96))] p-5 text-center shadow-[0_24px_120px_rgba(2,6,23,0.45)] sm:rounded-[32px] sm:p-8">
         <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-sky-300">
           <User size={28} />
         </div>
@@ -99,15 +230,11 @@ export default function ProfilePage({ currentUser, practiceHistory, onSave, onLo
   };
 
   return (
-    <div className="w-full space-y-6 text-slate-100">
-      <section className="rounded-[40px] border border-white/10 bg-[radial-gradient(circle_at_top_left,_rgba(56,189,248,0.22),_transparent_38%),linear-gradient(135deg,_rgba(7,17,31,0.98),_rgba(8,20,38,0.96))] p-5 shadow-[0_24px_120px_rgba(2,6,23,0.45)] sm:p-6">
+    <div className="w-full min-w-0 space-y-6 text-slate-100">
+      <section className="rounded-[26px] border border-white/10 bg-[radial-gradient(circle_at_top_left,_rgba(56,189,248,0.22),_transparent_38%),linear-gradient(135deg,_rgba(7,17,31,0.98),_rgba(8,20,38,0.96))] p-4 shadow-[0_24px_120px_rgba(2,6,23,0.45)] sm:rounded-[40px] sm:p-6">
         <div className="flex flex-col gap-4 border-b border-white/10 pb-5 lg:flex-row lg:items-end lg:justify-between">
-          <div className="max-w-3xl">
-            <div className="inline-flex items-center gap-2 rounded-full border border-sky-400/20 bg-sky-400/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em] text-sky-200">
-              <User size={14} />
-              Profile
-            </div>
-            <h2 className="mt-4 text-4xl font-black tracking-tight text-white sm:text-5xl">Your account, your settings, your stats.</h2>
+          <div className="min-w-0 max-w-3xl">
+            <h2 className="mt-4 text-3xl font-black tracking-tight text-white sm:text-5xl">Your account, your settings, your stats.</h2>
             <p className="mt-3 text-sm leading-7 text-slate-300 sm:text-base">
               Everything you need is here: identity, at-a-glance info, saved practice history, and personal settings.
             </p>
@@ -131,7 +258,7 @@ export default function ProfilePage({ currentUser, practiceHistory, onSave, onLo
                   <div className="flex h-full flex-col items-center justify-center text-center">
                     <div className="relative">
                       <div className="absolute inset-0 -z-10 rounded-full bg-sky-400/20 blur-2xl" />
-                      <img src={draft.avatar} alt={`${draft.name} avatar`} className="h-[18rem] w-[18rem] rounded-[34px] border border-white/10 object-cover p-1 shadow-[0_18px_40px_rgba(2,6,23,0.35)] sm:h-[20rem] sm:w-[20rem]" />
+                      <img src={draft.avatar} alt={`${draft.name} avatar`} className="h-52 w-52 rounded-[28px] border border-white/10 object-cover p-1 shadow-[0_18px_40px_rgba(2,6,23,0.35)] sm:h-[20rem] sm:w-[20rem] sm:rounded-[34px]" />
                     </div>
                     <h3 className="mt-5 text-2xl font-bold text-white">{draft.name}</h3>
                     <div className="mt-1 text-lg font-semibold text-sky-300">@{draft.username}</div>
@@ -168,7 +295,33 @@ export default function ProfilePage({ currentUser, practiceHistory, onSave, onLo
                   </div>
                 </ProfileSectionCard>
 
-                <ProfileSectionCard title="Recent practice" eyebrow="Saved activity">
+                <ProfileSectionCard title="Practice dashboard" eyebrow="Analytics" className="xl:col-span-2">
+                  <div className="grid gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(260px,0.8fr)]">
+                    <div className="min-w-0">
+                      <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-white">
+                        <BarChart3 size={17} />
+                        Recent score trend
+                      </div>
+                      <PracticeTrend sessions={analytics.trend} />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-white">
+                        <Target size={17} />
+                        Criterion averages
+                      </div>
+                      <CriteriaBars averages={analytics.averages} />
+                    </div>
+                  </div>
+                  <div className="mt-4 rounded-2xl border border-sky-400/20 bg-sky-400/10 p-4 text-sm leading-7 text-sky-100">
+                    Current focus: <span className="font-semibold">{analytics.weakest?.label || 'Content'}</span>. This is the lowest average criterion across saved sessions.
+                  </div>
+                </ProfileSectionCard>
+
+                <ProfileSectionCard title="Achievements" eyebrow="Badges" className="xl:col-span-2">
+                  <AchievementBadges stats={draft.stats || {}} analytics={analytics} />
+                </ProfileSectionCard>
+
+                <ProfileSectionCard title="Recent practice" eyebrow="Saved activity" className="xl:col-span-2">
                   <div className="space-y-3">
                     {practiceHistory?.length ? practiceHistory.map((session) => (
                       <div key={session.id} className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-4">
@@ -276,11 +429,11 @@ export default function ProfilePage({ currentUser, practiceHistory, onSave, onLo
                     </label>
                     {deleteError && <div className="text-sm font-medium text-rose-200">{deleteError}</div>}
                     <div className="flex flex-col gap-3 sm:flex-row">
-                      <button type="button" onClick={() => onLogout()} className="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.04] px-5 py-3 font-semibold text-slate-200 transition hover:bg-white/[0.08]">
+                      <button type="button" onClick={() => onLogout()} className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.04] px-5 py-3 font-semibold text-slate-200 transition hover:bg-white/[0.08] sm:w-auto">
                         <LogOut size={16} />
                         Log out
                       </button>
-                      <button type="button" onClick={handleDelete} className="inline-flex items-center justify-center gap-2 rounded-2xl border border-rose-400/20 bg-rose-500 px-5 py-3 font-semibold text-white transition hover:bg-rose-400">
+                      <button type="button" onClick={handleDelete} className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-rose-400/20 bg-rose-500 px-5 py-3 font-semibold text-white transition hover:bg-rose-400 sm:w-auto">
                         <Trash2 size={16} />
                         Delete account
                       </button>

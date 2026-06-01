@@ -1,9 +1,17 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Activity, Bell, Edit3, EyeOff, Loader, Lock, LogOut, Trash2 } from 'lucide-react';
+import { Activity, Bell, Database, Edit3, EyeOff, FileAudio, HelpCircle, Loader, Lock, LogOut, MessageSquare, Trash2, X } from 'lucide-react';
 import { ConfirmModal } from '../components/AppOverlays';
 import { apiFetch, isAbortError } from '../apiClient';
 
 const EMPTY_ANNOUNCEMENT = { enabled: false, message: '' };
+const ADMIN_TABS = [
+  { id: 'upload', label: 'Upload Sample', icon: FileAudio },
+  { id: 'manage', label: 'Samples', icon: Database },
+  { id: 'questions', label: 'Questions', icon: HelpCircle },
+  { id: 'announcement', label: 'Announcement', icon: Bell },
+  { id: 'moderation', label: 'Moderation', icon: MessageSquare },
+  { id: 'runtime', label: 'Runtime', icon: Activity },
+];
 
 function AdminPanel({ onClose, onLogout, notify, announcement, onAnnouncementChange }) {
   const [activeTab, setActiveTab] = useState('upload');
@@ -33,7 +41,6 @@ function AdminPanel({ onClose, onLogout, notify, announcement, onAnnouncementCha
   const [runtimeStatus, setRuntimeStatus] = useState(null);
   const [loadingRuntime, setLoadingRuntime] = useState(false);
   const [confirmState, setConfirmState] = useState(null);
-
   useEffect(() => {
     setAnnouncementDraft(announcement || EMPTY_ANNOUNCEMENT);
   }, [announcement]);
@@ -371,28 +378,49 @@ function AdminPanel({ onClose, onLogout, notify, announcement, onAnnouncementCha
   }, [notify, setScopedStatus]);
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-      <div className="rounded-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto p-6 bg-gray-800 border border-gray-700">
-        <div className="flex justify-between items-center mb-4">
-          <div className="flex items-center gap-3"><Lock size={18} /><h2 className="text-2xl font-bold">Admin Panel</h2></div>
-          <div className="flex items-center gap-2">
-            <button onClick={onLogout} className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-200 transition hover:bg-white/10">
-              <LogOut size={16} />
-              Log out
-            </button>
-            <button onClick={onClose} className="text-xl font-bold">Close</button>
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-950/80 p-3 backdrop-blur-sm sm:p-5">
+      <div className="my-4 w-full max-w-7xl overflow-hidden rounded-[28px] border border-white/10 bg-[linear-gradient(180deg,rgba(7,17,31,0.98),rgba(10,23,44,0.97))] shadow-[0_30px_120px_rgba(2,6,23,0.55)]">
+        <div className="border-b border-white/10 px-4 py-3 sm:px-6">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="inline-flex w-fit items-center gap-2 rounded-full border border-sky-400/20 bg-sky-400/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-sky-100">
+              <Lock size={14} />
+              Admin CMS
+            </div>
+            <div className="flex items-center gap-2">
+              <button onClick={onLogout} className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-semibold text-slate-200 transition hover:bg-white/[0.08]">
+                <LogOut size={16} />
+                Log out
+              </button>
+              <button onClick={onClose} className="inline-flex h-12 w-12 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] text-slate-200 transition hover:bg-white/[0.08]" aria-label="Close admin panel" title="Close admin panel">
+                <X size={18} />
+              </button>
+            </div>
           </div>
         </div>
 
-        <div className="mb-4 flex gap-2 flex-wrap">
-          <button onClick={() => setActiveTab('upload')} className={`px-3 py-2 rounded ${activeTab === 'upload' ? 'bg-[#1e90ff] text-white' : 'bg-gray-700'}`}>Upload Sample</button>
-          <button onClick={() => setActiveTab('manage')} className={`px-3 py-2 rounded ${activeTab === 'manage' ? 'bg-[#1e90ff] text-white' : 'bg-gray-700'}`}>Manage Samples</button>
-          <button onClick={() => setActiveTab('questions')} className={`px-3 py-2 rounded ${activeTab === 'questions' ? 'bg-[#1e90ff] text-white' : 'bg-gray-700'}`}>Question Bank</button>
-          <button onClick={() => setActiveTab('announcement')} className={`px-3 py-2 rounded ${activeTab === 'announcement' ? 'bg-[#1e90ff] text-white' : 'bg-gray-700'}`}>Announcement</button>
-          <button onClick={() => setActiveTab('moderation')} className={`px-3 py-2 rounded ${activeTab === 'moderation' ? 'bg-[#1e90ff] text-white' : 'bg-gray-700'}`}>Moderation</button>
-          <button onClick={() => setActiveTab('runtime')} className={`px-3 py-2 rounded ${activeTab === 'runtime' ? 'bg-[#1e90ff] text-white' : 'bg-gray-700'}`}>Runtime</button>
+        <div className="border-b border-white/10 px-4 py-3 sm:px-6">
+          <div className="flex gap-2 overflow-x-auto pb-1">
+            {ADMIN_TABS.map((tab) => {
+              const Icon = tab.icon;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`inline-flex shrink-0 items-center gap-2 rounded-2xl px-4 py-3 text-sm font-semibold transition ${
+                    activeTab === tab.id
+                      ? 'bg-white text-slate-950'
+                      : 'border border-white/10 bg-white/[0.04] text-slate-300 hover:bg-white/[0.08] hover:text-white'
+                  }`}
+                >
+                  <Icon size={16} />
+                  {tab.label}
+                </button>
+              );
+            })}
+          </div>
         </div>
 
+        <div className="max-h-[78vh] overflow-y-auto p-5 sm:p-6">
         {activeTab === 'upload' ? (
           <div className="space-y-4">
             {renderStatus('upload')}
@@ -595,6 +623,7 @@ function AdminPanel({ onClose, onLogout, notify, announcement, onAnnouncementCha
             </div>
           </div>
         )}
+      </div>
       </div>
       <ConfirmModal
         open={Boolean(confirmState)}

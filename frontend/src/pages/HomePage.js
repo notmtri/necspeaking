@@ -1,244 +1,242 @@
-import React, { memo, useMemo, useState } from 'react';
-import { ArrowRight, CheckCircle, ChevronLeft, ChevronRight, HelpCircle, Image, LogIn, Sparkles, Star, Users } from 'lucide-react';
-import { FEEDBACK_AVATAR, FOUNDER_IMAGE, HOME_BENEFITS, HOME_FAQ, HOME_FEATURES, HOME_FEEDBACK, HOME_HERO_IMAGE, HOME_STATS } from '../appShared';
+import React, { memo } from 'react';
+import { Award, BookOpen, CheckCircle, Mail, MessageSquare, Mic, Trophy, Users } from 'lucide-react';
+import { FOUNDER_IMAGE, HOME_BENEFITS, HOME_FEEDBACK, HOME_STATS, SITE_OWNER_NAME } from '../appShared';
 
-const HomePage = memo(function HomePage({ navTo, openAuth, continueAsGuest, currentUser }) {
-  const feedbacksPerPage = 3;
-  const totalFeedbackPages = Math.ceil(HOME_FEEDBACK.length / feedbacksPerPage);
-  const [feedbackPage, setFeedbackPage] = useState(0);
-  const visibleFeedback = useMemo(() => {
-    const start = feedbackPage * feedbacksPerPage;
-    return HOME_FEEDBACK.slice(start, start + feedbacksPerPage);
-  }, [feedbackPage]);
+const achievements = [
+  { label: 'IELTS', value: '8.5 overall, with 9.0 Reading and 9.0 Listening.' },
+  { label: 'SAT', value: '1550 total: 760 EBRW and 790 Math.' },
+  { label: 'Olympic 30/4 XXIX', value: 'Silver medal.' },
+  { label: 'NEC', value: 'Member of Khanh Hoa NEC Team 24-25.' },
+];
+
+const founderNotes = [
+  'Competed in NEC and studied academic English from the same student position this app serves.',
+  'Built necs. to turn self-study into a repeatable process students can run without relying on a mentor.',
+  'Keeps the tool narrow: speaking analysis, high-scoring samples, mock simulation, and community context.',
+];
+
+const HomePage = memo(function HomePage({ navTo }) {
+  const featuredFeedback = HOME_FEEDBACK.slice(0, 3);
 
   return (
-    <div className="space-y-8">
-      <section className="overflow-hidden rounded-[36px] border border-white/10 bg-[radial-gradient(circle_at_top_left,_rgba(14,165,233,0.25),_transparent_30%),linear-gradient(135deg,_rgba(8,17,32,0.98),_rgba(5,10,18,0.95))] shadow-[0_24px_120px_rgba(2,6,23,0.45)]">
-        <div className="grid gap-8 px-6 py-8 lg:grid-cols-[1.1fr_0.9fr] lg:px-10 lg:py-10">
-          <div className="space-y-6">
-            <div className="inline-flex items-center gap-2 rounded-full border border-sky-400/30 bg-sky-400/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em] text-sky-200">
-              <Sparkles size={15} />
-              BRAND NEW HOMEPAGE
+    <div className="min-w-0 space-y-5 sm:space-y-6">
+      <section className="overflow-hidden rounded-2xl border border-white/10 bg-[#091421]">
+        <div className="px-5 py-6 sm:px-7 sm:py-8 lg:px-8">
+          <div className="min-w-0">
+            <h1 className="max-w-3xl text-balance text-3xl font-black leading-tight text-white sm:text-4xl lg:text-5xl">
+              Your free NEC speaking practice assistant, made with love. 
+            </h1>
+            <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-300 sm:text-base">
+              necs. combines speech analysis, sample responses, mock simulations, profiles, and community context in one minimal study workspace for NEC candidates and candidates-wanna-be's.
+            </p>
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+              <button
+                type="button"
+                onClick={() => navTo('analyze')}
+                className="inline-flex min-h-[48px] w-full items-center justify-center gap-2 rounded-xl bg-sky-500 px-5 py-3 font-semibold text-white transition hover:bg-sky-400 active:translate-y-px sm:w-auto"
+              >
+                <Mic size={18} />
+                Start practice
+              </button>
+              <button
+                type="button"
+                onClick={() => navTo('samples')}
+                className="inline-flex min-h-[48px] w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-5 py-3 font-semibold text-slate-100 transition hover:bg-white/[0.08] active:translate-y-px sm:w-auto"
+              >
+                <BookOpen size={18} />
+                View samples
+              </button>
             </div>
-            <div className="space-y-4">
-              <h1 className="text-5xl font-black tracking-tight text-white sm:text-6xl">
-                Master NEC Speaking
-              </h1>
-              <p className="max-w-2xl text-base leading-8 text-slate-300">
-                NECSpeaking (necs.) is an online learning platform that helps students to train English speaking ability, especially that of those aiming for the NEC. NECSpeaking offers a precise training experience, a simulation of the real test environment and an archive for creative, high-scoring sample speeches from ex-competitors.
+          </div>
+        </div>
+      </section>
+
+      <section className="rounded-2xl border border-white/10 bg-slate-950/45 p-5 sm:p-6">
+        <div className="grid gap-5 lg:grid-cols-[0.72fr_1.28fr] lg:items-start">
+          <div>
+            <div className="flex min-w-0 items-center gap-3">
+              <div className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-400/12 text-emerald-200">
+                <CheckCircle size={20} />
+              </div>
+              <h2 className="min-w-0 text-xl font-black text-white sm:text-2xl">What students get</h2>
+            </div>
+          </div>
+          <div className="grid gap-x-5 gap-y-3 md:grid-cols-2">
+            {HOME_BENEFITS.map((benefit, index) => (
+              <div
+                key={benefit}
+                className={`flex min-w-0 items-start gap-3 border-t border-white/10 pt-3 ${
+                  index === 0 ? 'border-t-0 pt-0' : ''
+                } ${index === 1 ? 'md:border-t-0 md:pt-0' : ''}`}
+              >
+                <CheckCircle size={17} className="mt-0.5 shrink-0 text-emerald-300" />
+                <p className="text-sm leading-6 text-slate-300">{benefit}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="grid gap-4 lg:grid-cols-[1.05fr_0.95fr]" aria-label="Proof and feedback">
+        <article className="rounded-2xl border border-white/10 bg-slate-950/45 p-5 sm:p-6">
+          <div className="flex items-start gap-3">
+            <div className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-sky-400/12 text-sky-200">
+              <Users size={20} />
+            </div>
+            <div className="min-w-0">
+              <h2 className="text-xl font-black text-white sm:text-2xl">Current signal</h2>
+              <p className="mt-2 max-w-xl text-sm leading-6 text-slate-400">
+                Statistics and outcomes that necs. is so proud of.
               </p>
             </div>
-            {currentUser ? (
-              <div className="rounded-[28px] border border-emerald-400/25 bg-emerald-400/10 p-4 text-sm text-emerald-100">
-                Logged in as <span className="font-semibold">{currentUser.username}</span>. Your profile and saved account details are ready.
-              </div>
-            ) : (
-              <div className="rounded-[28px] border border-white/10 bg-white/[0.04] p-4 text-sm text-slate-300">
-                Create an account to keep your profile consistent across sessions. Guest mode is still available.
-              </div>
-            )}
-            <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-              <button onClick={() => openAuth('login')} className="inline-flex items-center justify-center gap-2 rounded-2xl bg-sky-500 px-8 py-3 font-semibold text-white transition hover:bg-sky-400">
-                <LogIn size={17} />
-                Log In
-              </button>
-              <button onClick={continueAsGuest} className="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.05] px-8 py-3 font-semibold text-slate-200 transition hover:bg-white/[0.1]">
-                <ArrowRight size={17} />
-                Continue as Guest
-              </button>
-              <button onClick={() => navTo('community')} className="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.05] px-8 py-3 font-semibold text-slate-200 transition hover:bg-white/[0.1]">
-                <Users size={17} />
-                Browse Community
-              </button>
-            </div>
-            <div className="grid gap-3 sm:grid-cols-3">
-              {HOME_STATS.map((stat) => {
-                const Icon = stat.icon;
-                return (
-                  <div key={stat.label} className="rounded-2xl border border-white/10 bg-slate-950/55 p-4">
-                    <div className="mb-3 inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-sky-400/15 text-sky-300">
-                      <Icon size={20} />
-                    </div>
-                    <div className="text-2xl font-black text-white">{stat.value}</div>
-                    <div className="mt-1 text-sm font-semibold text-slate-200">{stat.label}</div>
-                    <div className="mt-2 text-xs leading-6 text-slate-400">{stat.note}</div>
+          </div>
+          <dl className="mt-5 divide-y divide-white/10">
+            {HOME_STATS.map((stat) => {
+              const Icon = stat.icon;
+              return (
+                <div key={stat.label} className="grid gap-3 py-4 first:pt-0 last:pb-0 sm:grid-cols-[44px_112px_1fr] sm:items-start">
+                  <div className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-white/[0.06] text-slate-200">
+                    <Icon size={20} />
                   </div>
-                );
-              })}
+                  <dt className="text-2xl font-black leading-tight text-white">{stat.value}</dt>
+                  <dd>
+                    <div className="text-sm font-semibold text-slate-100">{stat.label}</div>
+                    <p className="mt-1 text-sm leading-6 text-slate-400">{stat.note}</p>
+                  </dd>
+                </div>
+              );
+            })}
+          </dl>
+        </article>
+
+        <article className="rounded-2xl border border-white/10 bg-slate-950/45 p-5 sm:p-6">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <div className="flex min-w-0 items-center gap-3">
+                <div className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-sky-400/12 text-sky-200">
+                  <MessageSquare size={20} />
+                </div>
+                <h2 className="min-w-0 text-xl font-black text-white sm:text-2xl">Student feedback</h2>
+              </div>
             </div>
+            <button
+              type="button"
+              onClick={() => navTo('community')}
+              className="inline-flex min-h-[42px] items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2 text-sm font-semibold text-slate-100 transition hover:bg-white/[0.08]"
+            >
+              <Users size={16} />
+              Browse community
+            </button>
           </div>
 
-          <div className="grid gap-4">
-            <div className="overflow-hidden rounded-[32px] border border-white/10 bg-white/[0.04]">
-              <img
-                src={HOME_HERO_IMAGE}
-                alt="Placeholder for home hero visual"
-                loading="eager"
-                className="h-full min-h-[280px] w-full object-cover"
-              />
-            </div>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="rounded-[28px] border border-white/10 bg-white/[0.04] p-5">
-                <div className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-400/15 text-emerald-300">
-                  <CheckCircle size={18} />
+          <div className="mt-5 divide-y divide-white/10">
+            {featuredFeedback.map((item) => (
+              <article key={`${item.name}-${item.role}`} className="py-4 first:pt-0 last:pb-0">
+                <div className="flex items-center gap-3">
+                  <img
+                    src={item.image || '/logo.png'}
+                    alt={`${item.name}`}
+                    loading="lazy"
+                    className="h-12 w-12 shrink-0 rounded-xl object-cover ring-1 ring-white/10"
+                  />
+                  <div className="min-w-0">
+                    <h3 className="truncate text-sm font-bold text-white">{item.name}</h3>
+                    <p className="mt-1 text-xs leading-5 text-slate-400">{item.role}</p>
+                  </div>
                 </div>
-                <div className="mt-4 text-lg font-bold text-white">Built for focused practice</div>
-                <div className="mt-2 text-sm leading-7 text-slate-300">With no advertisement, a streamlined, direct workflow, and a clean user interface, concentration is easier than ever.</div>
-              </div>
-              <div className="rounded-[28px] border border-white/10 bg-white/[0.04] p-5">
-                <div className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-amber-400/15 text-amber-300">
-                  <Star size={18} />
-                </div>
-                <div className="mt-4 text-lg font-bold text-white">Easy to use</div>
-                <div className="mt-2 text-sm leading-7 text-slate-300">The interface stays direct and predictable, so you can focus on speaking instead of setup.</div>
-              </div>
-            </div>
+                <p className="mt-3 text-sm leading-6 text-slate-300">{item.quote}</p>
+              </article>
+            ))}
           </div>
-        </div>
+        </article>
       </section>
 
-      <section className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
-        <div className="rounded-[32px] border border-white/10 bg-slate-950/65 p-6 shadow-[0_20px_80px_rgba(2,6,23,0.4)] sm:p-8">
-          <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-slate-300">
-            <Image size={14} />
-            About the Founder & developer
+      <section className="overflow-hidden rounded-2xl border border-white/10 bg-slate-950/45">
+        <div className="grid gap-0 lg:grid-cols-[390px_1fr]">
+          <div className="min-h-[360px] bg-[#081120]">
+            <img
+              src={FOUNDER_IMAGE}
+              alt={SITE_OWNER_NAME}
+              loading="lazy"
+              className="h-full min-h-[360px] w-full object-cover object-[50%_34%]"
+            />
           </div>
-          <div className="mt-5">
-            <h2 className="text-3xl font-black text-white">Nguyen Hoang Minh Tri</h2>
-            <div className="mt-5 grid gap-5 md:grid-cols-[240px_1fr] md:items-start">
-              <img
-                src={FOUNDER_IMAGE}
-                alt="Placeholder founder portrait"
-                loading="lazy"
-                className="h-70 w-full rounded-[28px] object-cover ring-1 ring-white/10"
-              />
+
+          <article className="p-5 sm:p-6 lg:p-7">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div>
-                <p className="text-sm leading-7 text-slate-300">
-                  I am a Grade 12 English-major student at Le Quy Don HSGS - Nam Nha Trang with national-level
-                  achievements in academic English and debate, currently transitioning into computer
-                  science and AI. I am deeply interested in integrating technology into education.
+                <div className="flex min-w-0 items-center gap-3">
+                  <div className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber-300/12 text-amber-100">
+                    <Award size={21} />
+                  </div>
+                  <h2 className="min-w-0 text-2xl font-black text-white sm:text-3xl">{SITE_OWNER_NAME}</h2>
+                </div>
+                <p className="mt-2 max-w-3xl text-sm leading-7 text-slate-300 sm:text-base">
+                  I built necs. after competing in NEC and studying academic English at Le Quy Don High School for the Gifted. The project uses software and AI to make specialized speaking self-study easier for students who do not always have a mentor beside them.
                 </p>
               </div>
+              <div className="shrink-0 rounded-full border border-amber-300/25 bg-amber-300/10 px-3 py-1 text-sm font-semibold text-amber-100">
+                About the founder
+              </div>
             </div>
-            <div className="mt-5 rounded-[24px] border border-white/10 bg-white/[0.04] p-5">
-              <p className="text-sm leading-7 text-slate-400">Things I'm so proud of in my high school years:</p>
-              <p className="mt-3 text-sm leading-7 text-slate-400">- 8.5 IELTS (9.0R - 9.0L - 7.5W - 7.5S)</p>
-              <p className="mt-3 text-sm leading-7 text-slate-400">- 1550 SAT (760 EBR&W - 790 MATH)</p>
-              <p className="mt-3 text-sm leading-7 text-slate-400">- SILVER medal - Olympic 30/4 XXIX (24-25)</p>
-              <p className="mt-3 text-sm leading-7 text-slate-400">- Proud member of Khanh Hoa NEC Team 24-25</p>
-            </div>
-          </div>
-        </div>
 
-        <div className="rounded-[32px] border border-white/10 bg-slate-950/65 p-6 shadow-[0_20px_80px_rgba(2,6,23,0.4)] sm:p-8">
-          <div className="flex items-center justify-between gap-4">
-            <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-slate-300">
-              <Users size={14} />
-              User feedback
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setFeedbackPage((page) => Math.max(page - 1, 0))}
-                disabled={feedbackPage === 0}
-                className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-slate-200 transition hover:bg-white/[0.08] disabled:cursor-not-allowed disabled:opacity-40"
-                aria-label="Show previous feedbacks"
-              >
-                <ChevronLeft size={18} />
-              </button>
-              <button
-                type="button"
-                onClick={() => setFeedbackPage((page) => Math.min(page + 1, totalFeedbackPages - 1))}
-                disabled={feedbackPage >= totalFeedbackPages - 1}
-                className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-slate-200 transition hover:bg-white/[0.08] disabled:cursor-not-allowed disabled:opacity-40"
-                aria-label="Show next feedbacks"
-              >
-                <ChevronRight size={18} />
-              </button>
-            </div>
-          </div>
-          <div className="mt-5 space-y-4">
-            {visibleFeedback.map((item) => (
-              <div key={`${item.name}-${item.role}`} className="rounded-[28px] border border-white/10 bg-white/[0.04] p-5">
-                <div className="flex items-start gap-4">
-                  <img
-                    src={item.image || FEEDBACK_AVATAR}
-                    alt={`Photo of ${item.name}`}
-                    loading="lazy"
-                    className="h-28 w-28 rounded-2xl object-cover ring-1 ring-white/10"
-                  />
-                  <div className="min-w-0 flex-1">
-                    <div>
-                      <div className="font-semibold text-white">{item.name}</div>
-                      <div className="mt-1 text-xs uppercase tracking-[0.2em] text-slate-500">{item.role}</div>
+            <div className="mt-6 grid gap-5 xl:grid-cols-[0.95fr_1.05fr]">
+              <div>
+                <h3 className="text-sm font-bold text-white">Notes</h3>
+                <ul className="mt-3 space-y-3">
+                  {founderNotes.map((note) => (
+                    <li key={note} className="flex min-w-0 items-start gap-3 text-sm leading-6 text-slate-300">
+                      <CheckCircle size={17} className="mt-0.5 shrink-0 text-emerald-300" />
+                      <span>{note}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              <div>
+                <h3 className="text-sm font-bold text-white">Record</h3>
+                <dl className="mt-3 divide-y divide-white/10">
+                  {achievements.map((achievement) => (
+                    <div key={achievement.label} className="grid gap-1 py-3 first:pt-0 last:pb-0 sm:grid-cols-[132px_1fr] sm:gap-4">
+                      <dt className="inline-flex items-center gap-2 text-sm font-semibold text-amber-100">
+                        <Trophy size={15} />
+                        {achievement.label}
+                      </dt>
+                      <dd className="text-sm leading-6 text-slate-300">{achievement.value}</dd>
                     </div>
-                    <p className="mt-3 text-sm leading-7 text-slate-300">{item.quote}</p>
-                  </div>
-                </div>
+                  ))}
+                </dl>
               </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section className="rounded-[32px] border border-white/10 bg-slate-950/65 p-6 shadow-[0_20px_80px_rgba(2,6,23,0.4)] sm:p-8">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-slate-300">
-              <Sparkles size={14} />
-              Core features
             </div>
-            <h2 className="mt-4 text-3xl font-black text-white">Three ways to practice with necs.</h2>
-          </div>
-        </div>
-        <div className="mt-6 grid gap-4 lg:grid-cols-3">
-          {HOME_FEATURES.map((feature) => {
-            const Icon = feature.icon;
-            return (
-              <div key={feature.title} className="rounded-[28px] border border-white/10 bg-white/[0.04] p-6">
-                <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-sky-400/15 text-sky-300">
-                  <Icon size={22} />
-                </div>
-                <h3 className="mt-5 text-xl font-bold text-white">{feature.title}</h3>
-                <p className="mt-3 text-sm leading-7 text-slate-300">{feature.description}</p>
-                <button onClick={() => navTo(feature.title.toLowerCase())} className="mt-6 inline-flex items-center gap-2 text-sm font-semibold text-sky-300 transition hover:text-sky-200">
-                  Open {feature.title}
-                  <ChevronRight size={16} />
-                </button>
-              </div>
-            );
-          })}
+          </article>
         </div>
       </section>
 
-      <section className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
-        <div className="rounded-[32px] border border-white/10 bg-slate-950/65 p-6 shadow-[0_20px_80px_rgba(2,6,23,0.4)] sm:p-8">
-          <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-slate-300">
-            <CheckCircle size={14} />
-            Benefits of using necs.
+      <section className="rounded-2xl border border-white/10 bg-[#091421] p-5 sm:p-6">
+        <div className="grid gap-5 lg:grid-cols-[1fr_auto] lg:items-center">
+          <div>
+            <h2 className="text-xl font-black text-white sm:text-2xl">Contribute or contact</h2>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300">
+              Students and teachers can send feedback, contribute sample speeches, or contact the founder directly.
+            </p>
           </div>
-          <div className="mt-5 space-y-4">
-            {HOME_BENEFITS.map((benefit) => (
-              <div key={benefit} className="flex items-start gap-3 rounded-2xl border border-white/10 bg-white/[0.04] p-4">
-                <CheckCircle size={18} className="mt-0.5 shrink-0 text-emerald-300" />
-                <p className="text-sm leading-7 text-slate-300">{benefit}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="rounded-[32px] border border-white/10 bg-slate-950/65 p-6 shadow-[0_20px_80px_rgba(2,6,23,0.4)] sm:p-8">
-          <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-slate-300">
-            <HelpCircle size={14} />
-            FAQ
-          </div>
-          <div className="mt-5 space-y-4">
-            {HOME_FAQ.map((item) => (
-              <div key={item.question} className="rounded-[24px] border border-white/10 bg-white/[0.04] p-5">
-                <div className="text-base font-semibold text-white">{item.question}</div>
-                <p className="mt-2 text-sm leading-7 text-slate-300">{item.answer}</p>
-              </div>
-            ))}
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <a
+              href="https://www.facebook.com/notmtri/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2 text-sm font-semibold text-slate-100 transition hover:bg-white/[0.08]"
+            >
+              <MessageSquare size={16} />
+              Chat with me!
+            </a>
+            <a
+              href="mailto:nguyenhoangminhtri.forwork@gmail.com"
+              className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-sky-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-sky-400"
+            >
+              <Mail size={16} />
+              Email me!
+            </a>
           </div>
         </div>
       </section>

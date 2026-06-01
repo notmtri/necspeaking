@@ -10,30 +10,20 @@ html, body {
   max-width: 100%;
   overflow-x: hidden;
   margin: 0;
-  background:
-    radial-gradient(circle at top, rgba(30, 144, 255, 0.18), transparent 32%),
-    radial-gradient(circle at 85% 12%, rgba(56, 189, 248, 0.14), transparent 26%),
-    linear-gradient(180deg, #07111f 0%, #0b1424 45%, #08101d 100%);
+  background: linear-gradient(180deg, #071019 0%, #08111d 48%, #050b12 100%);
   color: #d9e2f2;
-  font-family: 'Space Grotesk', ui-sans-serif, system-ui, sans-serif;
+  font-family: 'Nunito Sans', ui-sans-serif, system-ui, sans-serif;
+  font-variant-numeric: tabular-nums;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-body {
-  position: relative;
+#root {
+  overflow-x: clip;
 }
 
-body::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  background-image:
-    linear-gradient(rgba(148, 163, 184, 0.06) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(148, 163, 184, 0.06) 1px, transparent 1px);
-  background-size: 32px 32px;
-  mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.32), transparent 85%);
+body {
+  position: relative;
 }
 
 *, *::before, *::after {
@@ -42,8 +32,24 @@ body::before {
 
 button,
 input,
-textarea {
+textarea,
+select {
   font: inherit;
+}
+
+button {
+  min-width: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+button:not(:disabled) {
+  cursor: pointer;
+}
+
+img,
+video,
+canvas {
+  max-width: 100%;
 }
 
 button:focus-visible,
@@ -67,4 +73,20 @@ svg.lucide {
 
 input[type="range"] {
   accent-color: #38bdf8;
+}
+
+::selection {
+  background: rgba(56, 189, 248, 0.28);
+  color: #ffffff;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
 }

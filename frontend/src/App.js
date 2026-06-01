@@ -1,9 +1,9 @@
-// Complete App.js - Full Application with All Components and Mobile Hamburger Menu
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { Analytics } from "@vercel/analytics/react"
-import { Upload, Play, Pause, Download, CheckCircle, AlertCircle, Loader, FileAudio } from 'lucide-react';
+import { Upload, Pause, Download, CheckCircle, AlertCircle, Loader, FileAudio, ClipboardList, RotateCcw, Volume2, Mic, Square } from 'lucide-react';
 import { AdminLoginModal, ToastViewport } from './components/AppOverlays';
 import { AppHeader, AppStatusStack, Footer } from './components/AppChrome';
+import ResultsInsights from './components/ResultsInsights';
 import { API_BASE_URL, DEFAULT_ANNOUNCEMENT, downloadDocumentFromBase64, pageFromLocation, pathForPage, readGuestModePreference, writeGuestModePreference } from './appShared';
 import { apiFetch, isAbortError, waitForAnalysisJob } from './apiClient';
 import AdminPanel from './pages/AdminPanel';
@@ -14,6 +14,16 @@ import ProfilePage from './pages/ProfilePage';
 import SampleLibrary from './pages/SampleLibrary';
 import SimulationMode from './pages/SimulationMode';
 
+const ANALYZE_MAX_RECORDING_SECONDS = 300;
+const ANALYZE_MAX_AUDIO_BYTES = 50 * 1024 * 1024;
+const SAMPLE_ANALYZE_PROMPT = 'Many students join competitions to improve confidence. What have you learned from preparing for an English competition?';
+
+const formatDuration = (seconds = 0) => {
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+};
+
 export default function SpeakUpApp() {
   const [currentPage, setCurrentPage] = useState(() => {
     return pageFromLocation(window.location);
@@ -22,7 +32,10 @@ export default function SpeakUpApp() {
   const [topic, setTopic] = useState('');
   const [audioFile, setAudioFile] = useState(null);
   const [audioURL, setAudioURL] = useState(null);
+  const [audioSourceType, setAudioSourceType] = useState('upload');
   const [isPlaying, setIsPlaying] = useState(false);
+  const [isAnalyzeRecording, setIsAnalyzeRecording] = useState(false);
+  const [analyzeRecordingSeconds, setAnalyzeRecordingSeconds] = useState(0);
   const [results, setResults] = useState(null);
   const [error, setError] = useState(null);
   const [analysisProgressMessage, setAnalysisProgressMessage] = useState('Queued for processing.');
@@ -50,6 +63,12 @@ export default function SpeakUpApp() {
   const [adminAuthenticated, setAdminAuthenticated] = useState(false);
 
   const audioRef = useRef(null);
+  const uploadInputRef = useRef(null);
+  const replaceInputRef = useRef(null);
+  const analyzeRecorderRef = useRef(null);
+  const analyzeAudioChunksRef = useRef([]);
+  const analyzeRecordingTimerRef = useRef(null);
+  const analyzeStreamRef = useRef(null);
   const [installPrompt, setInstallPrompt] = useState(null);
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
 
@@ -173,11 +192,42 @@ export default function SpeakUpApp() {
     }
   }, []);
 
+  const releaseAnalyzeRecordingResources = useCallback(() => {
+    if (analyzeRecordingTimerRef.current) {
+      clearInterval(analyzeRecordingTimerRef.current);
+      analyzeRecordingTimerRef.current = null;
+    }
+    if (analyzeStreamRef.current) {
+      analyzeStreamRef.current.getTracks().forEach((track) => track.stop());
+      analyzeStreamRef.current = null;
+    }
+  }, []);
+
+  const cancelAnalyzeRecording = useCallback(() => {
+    const recorder = analyzeRecorderRef.current;
+    if (recorder && recorder.state !== 'inactive') {
+      recorder.ondataavailable = null;
+      recorder.onstop = null;
+      recorder.stop();
+    }
+    analyzeRecorderRef.current = null;
+    analyzeAudioChunksRef.current = [];
+    releaseAnalyzeRecordingResources();
+    setIsAnalyzeRecording(false);
+    setAnalyzeRecordingSeconds(0);
+  }, [releaseAnalyzeRecordingResources]);
+
   useEffect(() => {
     return () => {
       if (audioURL) URL.revokeObjectURL(audioURL);
     };
   }, [audioURL]);
+
+  useEffect(() => {
+    return () => {
+      cancelAnalyzeRecording();
+    };
+  }, [cancelAnalyzeRecording]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -272,19 +322,123 @@ export default function SpeakUpApp() {
     });
   }, [currentUser]);
 
+  const clearAnalyzeAudio = useCallback(() => {
+    if (audioURL) URL.revokeObjectURL(audioURL);
+    setAudioFile(null);
+    setAudioURL(null);
+    setAudioSourceType('upload');
+    setIsPlaying(false);
+  }, [audioURL]);
+
   const handleFileUpload = useCallback((e) => {
     const file = e.target.files[0];
     if (file) {
+      if (file.size > ANALYZE_MAX_AUDIO_BYTES) {
+        setError('Audio file is over 50 MB. Upload a shorter recording or compress the file before analysis.');
+        e.target.value = '';
+        return;
+      }
+      cancelAnalyzeRecording();
       if (audioURL) URL.revokeObjectURL(audioURL);
       setAudioFile(file);
       const url = URL.createObjectURL(file);
       setAudioURL(url);
+      setAudioSourceType('upload');
       setIsPlaying(false);
+      setAnalyzeRecordingSeconds(0);
       setResults(null);
       setError(null);
       setStep('preview');
+      e.target.value = '';
     }
-  }, [audioURL]);
+  }, [audioURL, cancelAnalyzeRecording]);
+
+  const startAnalyzeRecording = useCallback(async () => {
+    if (isAnalyzeRecording) return;
+    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') {
+      setError('Recording is not supported in this browser. Upload an audio file instead.');
+      return;
+    }
+
+    clearAnalyzeAudio();
+    setError(null);
+    setResults(null);
+    setStep('input');
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const preferredType = MediaRecorder.isTypeSupported?.('audio/webm') ? 'audio/webm' : '';
+      const recorder = preferredType ? new MediaRecorder(stream, { mimeType: preferredType }) : new MediaRecorder(stream);
+
+      analyzeStreamRef.current = stream;
+      analyzeRecorderRef.current = recorder;
+      analyzeAudioChunksRef.current = [];
+      setAudioSourceType('recording');
+      setAnalyzeRecordingSeconds(0);
+
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) analyzeAudioChunksRef.current.push(event.data);
+      };
+
+      recorder.onstop = () => {
+        const type = preferredType || 'audio/webm';
+        const audioBlob = new Blob(analyzeAudioChunksRef.current, { type });
+        analyzeAudioChunksRef.current = [];
+        releaseAnalyzeRecordingResources();
+        setIsAnalyzeRecording(false);
+
+        if (audioBlob.size === 0) {
+          setAudioSourceType('upload');
+          setError('No recording audio was captured. Try recording again or upload a file.');
+          return;
+        }
+
+        const recordedFile = new File([audioBlob], `necs-recording-${Date.now()}.webm`, { type });
+        setAudioFile(recordedFile);
+        setAudioURL(URL.createObjectURL(recordedFile));
+        setAudioSourceType('recording');
+        setIsPlaying(false);
+        setStep('preview');
+      };
+
+      recorder.start();
+      setIsAnalyzeRecording(true);
+      analyzeRecordingTimerRef.current = setInterval(() => {
+        setAnalyzeRecordingSeconds((current) => {
+          const next = current + 1;
+          if (next >= ANALYZE_MAX_RECORDING_SECONDS) {
+            if (analyzeRecordingTimerRef.current) {
+              clearInterval(analyzeRecordingTimerRef.current);
+              analyzeRecordingTimerRef.current = null;
+            }
+            if (analyzeRecorderRef.current && analyzeRecorderRef.current.state !== 'inactive') {
+              analyzeRecorderRef.current.stop();
+            }
+            return ANALYZE_MAX_RECORDING_SECONDS;
+          }
+          return next;
+        });
+      }, 1000);
+    } catch {
+      releaseAnalyzeRecordingResources();
+      setIsAnalyzeRecording(false);
+      setAudioSourceType('upload');
+      setError('Microphone access was blocked. Allow microphone permission or upload an audio file instead.');
+    }
+  }, [clearAnalyzeAudio, isAnalyzeRecording, releaseAnalyzeRecordingResources]);
+
+  const stopAnalyzeRecording = useCallback(() => {
+    if (analyzeRecordingTimerRef.current) {
+      clearInterval(analyzeRecordingTimerRef.current);
+      analyzeRecordingTimerRef.current = null;
+    }
+    if (analyzeRecorderRef.current && analyzeRecorderRef.current.state !== 'inactive') {
+      analyzeRecorderRef.current.stop();
+    } else {
+      releaseAnalyzeRecordingResources();
+      setIsAnalyzeRecording(false);
+    }
+  }, [releaseAnalyzeRecordingResources]);
 
   const togglePlayback = useCallback(() => {
     if (audioRef.current) {
@@ -299,8 +453,8 @@ export default function SpeakUpApp() {
       setError('You are offline. Cannot perform analysis.');
       return;
     }
-    if (!topic.trim()) { setError('Please enter a topic'); return; }
-    if (!audioFile) { setError('Please upload audio'); return; }
+    if (!topic.trim()) { setError('Enter a speaking prompt before analyzing.'); return; }
+    if (!audioFile) { setError('Upload or record an audio response before analyzing.'); return; }
 
     setStep('uploading');
     setError(null);
@@ -353,16 +507,14 @@ export default function SpeakUpApp() {
   }, [results, pushToast]);
 
   const reset = useCallback(() => {
+    cancelAnalyzeRecording();
     setStep('input');
     setTopic('');
-    if (audioURL) URL.revokeObjectURL(audioURL);
-    setAudioFile(null);
-    setAudioURL(null);
+    clearAnalyzeAudio();
     setResults(null);
     setError(null);
-    setIsPlaying(false);
     setAnalysisProgressMessage('Queued for processing.');
-  }, [audioURL]);
+  }, [cancelAnalyzeRecording, clearAnalyzeAudio]);
 
   const openAdminPanel = useCallback(async () => {
     if (adminAuthenticated) {
@@ -568,9 +720,29 @@ export default function SpeakUpApp() {
     () => publicProfiles.find((profile) => profile.id === selectedProfileId) || null,
     [publicProfiles, selectedProfileId],
   );
+  const analyzeWorkflow = [
+    {
+      label: 'Record',
+      icon: Mic,
+      active: step === 'input' || step === 'preview',
+      complete: step === 'uploading' || step === 'results',
+    },
+    {
+      label: 'Analyze',
+      icon: Loader,
+      active: step === 'uploading',
+      complete: step === 'results',
+    },
+    {
+      label: 'Review',
+      icon: CheckCircle,
+      active: step === 'results',
+      complete: false,
+    },
+  ];
 
   return (
-    <div style={{ fontFamily: 'Space Grotesk, ui-sans-serif, system-ui' }} className="min-h-screen text-slate-100 bg-[radial-gradient(circle_at_top,_rgba(56,189,248,0.18),_transparent_30%),linear-gradient(180deg,#04111f_0%,#06101d_40%,#081220_100%)]">
+    <div className="min-h-screen bg-[linear-gradient(180deg,#071019_0%,#08111d_48%,#050b12_100%)] text-slate-100">
       <AppHeader
         currentPage={currentPage}
         navTo={navTo}
@@ -599,7 +771,7 @@ export default function SpeakUpApp() {
           isOffline={isOffline}
         />
         {currentPage === 'home' ? (
-          <HomePage navTo={navTo} openAuth={openAuth} continueAsGuest={continueAsGuest} currentUser={currentUser} />
+          <HomePage navTo={navTo} />
         ) : currentPage === 'auth' ? (
           <AuthPage authMode={authMode} setAuthMode={setAuthMode} onSubmit={handleAuthSubmit} currentUser={currentUser} authError={authError} authSubmitting={authSubmitting} authChecking={authChecking} />
         ) : currentPage === 'profile' ? (
@@ -607,88 +779,188 @@ export default function SpeakUpApp() {
         ) : currentPage === 'community' ? (
           <CommunityPage profiles={publicProfiles} selectedProfile={selectedProfile} onSelectProfile={handleProfileSelect} currentUser={currentUser} loading={communityLoading} />
         ) : currentPage === 'analyze' ? (
-          <div className="space-y-6">
+          <div className="space-y-4 sm:space-y-6">
+            <section className="mx-auto max-w-3xl text-center" aria-labelledby="analyze-page-title">
+              <h1 id="analyze-page-title" className="text-2xl font-black tracking-tight text-white sm:text-3xl">
+                Analyze
+              </h1>
+              <p className="mx-auto mt-2 max-w-2xl text-sm leading-6 text-slate-400 sm:text-base">
+                Record or upload a response, run analysis, and receive feedback.
+              </p>
+            </section>
+
+            <div className="mx-auto max-w-xl rounded-2xl border border-white/10 bg-white/[0.025] p-1.5" aria-label="Analyze workflow">
+              <div className="grid grid-cols-3 gap-1.5">
+                {analyzeWorkflow.map((item) => {
+                  const Icon = item.complete ? CheckCircle : item.icon;
+                  return (
+                    <div
+                      key={item.label}
+                      className={`flex min-h-[44px] items-center justify-center gap-2 rounded-xl px-2 py-2 text-xs font-semibold transition sm:text-sm ${
+                        item.complete
+                          ? 'bg-emerald-400/10 text-emerald-100'
+                          : item.active
+                            ? 'bg-sky-400/10 text-sky-100'
+                            : 'text-slate-500'
+                      }`}
+                    >
+                      <Icon size={16} className={item.active && item.label === 'Analyze' ? 'animate-spin' : ''} />
+                      <span>{item.label}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
             {error && (
-              <div className="rounded-2xl border border-red-400/25 bg-red-500/10 p-4 flex items-center gap-3 text-red-100">
-                <AlertCircle size={18} />
-                <span className="font-medium">{error}</span>
+              <div className="flex items-start gap-3 rounded-xl border border-rose-400/25 bg-rose-500/10 p-3 text-sm text-rose-100 sm:p-4" role="alert">
+                <AlertCircle size={18} className="mt-0.5" />
+                <span className="min-w-0 font-medium">{error}</span>
               </div>
             )}
 
-            <div className="text-center mb-6">
-              <h2 className="text-2xl sm:text-3xl font-bold mb-2 text-white">NEC Speech Analysis</h2>
-              <p className="text-sm text-slate-300">Get your speech graded and reviewed in seconds!</p>
-            </div>
-
-            <div className="rounded-[32px] border border-white/10 bg-slate-950/65 p-6 shadow-[0_20px_80px_rgba(2,6,23,0.4)] sm:p-8">
+            <div className="rounded-2xl border border-white/10 bg-slate-950/55 p-4 sm:p-5 lg:p-6">
               {step === 'input' && (
-                <div className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
-                  <div className="space-y-5">
-                    <div>
-                      <div className="mb-2 text-sm font-semibold text-slate-200">Speaking Question</div>
-                      <p className="mb-3 text-sm text-slate-400">Paste the exact prompt so the feedback stays aligned with the task.</p>
+                <div className="grid gap-4 lg:grid-cols-[minmax(0,1.08fr)_minmax(320px,0.92fr)]">
+                  <div className="min-w-0 rounded-2xl border border-white/10 bg-white/[0.04] p-4 sm:p-5">
+                    <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                      <div className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-sky-400/12 text-sky-200 sm:h-11 sm:w-11">
+                        <ClipboardList size={20} />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-sm font-semibold text-white">Speaking prompt</div>
+                        <div className="mt-1 text-sm leading-6 text-slate-400">Use the exact question when you have it.</div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setTopic(SAMPLE_ANALYZE_PROMPT)}
+                        className="inline-flex min-h-[40px] shrink-0 items-center justify-center gap-2 rounded-xl border border-sky-400/20 bg-sky-400/10 px-4 py-2 text-sm font-semibold text-sky-100 transition hover:bg-sky-400/15"
+                      >
+                        <ClipboardList size={15} />
+                        Use sample prompt
+                      </button>
                     </div>
                     <textarea
                       value={topic}
                       onChange={(e) => setTopic(e.target.value)}
-                      placeholder="Enter the topic or question you'll be speaking about..."
-                      className="min-h-[210px] w-full rounded-[24px] border border-white/10 bg-[#07111f] px-5 py-4 text-white placeholder:text-slate-500"
+                      placeholder="Enter the topic or question."
+                      className="min-h-[178px] w-full resize-y rounded-xl border border-white/10 bg-[#07111f] px-4 py-3 text-white outline-none transition placeholder:text-slate-300 focus:border-sky-400/40 focus:ring-2 focus:ring-sky-400/10 sm:min-h-[220px] sm:px-5 sm:py-4"
                       rows="6"
                     />
                   </div>
-                  <div className="space-y-4">
-                    <div className="rounded-[28px] border border-white/10 bg-white/[0.03] p-5">
-                      <div className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">Workflow</div>
-                      <div className="mt-3 space-y-3 text-sm text-slate-300">
-                        <div className="flex items-center gap-3"><span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-slate-800 text-sky-300">1</span><span>Paste the speaking prompt.</span></div>
-                        <div className="flex items-center gap-3"><span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-slate-800 text-sky-300">2</span><span>Upload and preview the recording.</span></div>
-                        <div className="flex items-center gap-3"><span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-slate-800 text-sky-300">3</span><span>Run analysis and download the report.</span></div>
-                      </div>
-                    </div>
-                    <div className="rounded-[28px] border border-dashed border-sky-400/35 bg-sky-400/8 p-5">
-                      <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-sky-400/15 text-sky-300">
+                  <div className="min-w-0 space-y-4">
+                    <div className="rounded-2xl border border-sky-400/25 bg-sky-400/10 p-4 sm:p-5">
+                      <div className="mb-4 inline-flex h-11 w-11 items-center justify-center rounded-xl bg-sky-400/15 text-sky-200 sm:h-12 sm:w-12">
                         <FileAudio size={22} />
                       </div>
-                      <div className="text-lg font-bold text-white">Upload your response</div>
-                      <div className="mt-2 text-sm leading-7 text-slate-300">Choose one recording file. You'll be able to preview it before analysis.</div>
-                      <label className="mt-5 inline-flex w-full items-center justify-center gap-3 rounded-2xl bg-sky-500 px-4 py-3 font-semibold text-white transition hover:bg-sky-400">
+                      <div className="text-lg font-bold text-white">Upload audio</div>
+                      <div id="recording-file-help" className="mt-2 text-sm leading-6 text-slate-300">MP3, WAV, M4A, WEBM, or OGG. Max 50 MB.</div>
+                      <button
+                        type="button"
+                        onClick={() => uploadInputRef.current?.click()}
+                        aria-describedby="recording-file-help"
+                        aria-controls="recording-file-input"
+                        className="mt-4 inline-flex w-full items-center justify-center gap-3 rounded-xl bg-sky-500 px-4 py-3 font-semibold text-white transition hover:bg-sky-400 active:translate-y-px"
+                      >
                         <Upload size={18} />
-                        <span>Upload Audio File</span>
-                        <input type="file" accept="audio/*" onChange={handleFileUpload} className="hidden" />
-                      </label>
-                      <p className="mt-3 text-xs text-slate-400">Supported: MP3, WAV, M4A, WEBM, OGG | Max 5 minutes</p>
+                        Upload audio
+                      </button>
+                      <input id="recording-file-input" ref={uploadInputRef} type="file" accept="audio/*" onChange={handleFileUpload} className="hidden" />
+                    </div>
+
+                    <div className={`rounded-2xl border p-4 transition sm:p-5 ${isAnalyzeRecording ? 'border-rose-400/30 bg-rose-500/10' : 'border-white/10 bg-white/[0.04]'}`}>
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-400/12 text-emerald-200 sm:h-11 sm:w-11">
+                            <Mic size={20} />
+                          </div>
+                          <div className="mt-4 text-lg font-bold text-white">Record audio</div>
+                          <div className="mt-2 text-sm leading-6 text-slate-300">Use your microphone, then preview before analysis.</div>
+                        </div>
+                        <div className={`rounded-full border px-3 py-1 text-sm font-semibold ${isAnalyzeRecording ? 'border-rose-300/30 bg-rose-300/10 text-rose-100' : 'border-white/10 bg-white/[0.05] text-slate-300'}`}>
+                          {formatDuration(analyzeRecordingSeconds)}
+                        </div>
+                      </div>
+                      <div className="mt-5 h-2 overflow-hidden rounded-full bg-white/[0.08]">
+                        <div
+                          className={`h-full rounded-full transition-all ${isAnalyzeRecording ? 'bg-rose-400' : 'bg-emerald-400'}`}
+                          style={{ width: `${Math.min(100, (analyzeRecordingSeconds / ANALYZE_MAX_RECORDING_SECONDS) * 100)}%` }}
+                        />
+                      </div>
+                      {isAnalyzeRecording ? (
+                        <div className="mt-5 grid grid-cols-[1fr_auto] gap-2">
+                          <button onClick={stopAnalyzeRecording} className="inline-flex items-center justify-center gap-2 rounded-xl bg-rose-500 px-4 py-3 font-semibold text-white transition hover:bg-rose-400">
+                            <Square size={16} fill="currentColor" />
+                            Stop recording
+                          </button>
+                          <button onClick={cancelAnalyzeRecording} className="inline-flex h-12 w-12 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-slate-200 transition hover:bg-white/[0.08]" aria-label="Cancel recording" title="Cancel recording">
+                            <RotateCcw size={16} />
+                          </button>
+                        </div>
+                      ) : (
+                        <button onClick={startAnalyzeRecording} className="mt-5 inline-flex w-full items-center justify-center gap-3 rounded-xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-3 font-semibold text-emerald-100 transition hover:bg-emerald-400/15 active:translate-y-px">
+                          <Mic size={18} />
+                          Start recording
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
               )}
 
               {step === 'preview' && (
-                <div className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
-                  <div className="rounded-[28px] border border-white/10 bg-white/[0.03] p-6 text-center">
-                    <div className="inline-flex items-center justify-center w-20 h-20 mb-4 rounded-3xl bg-sky-400/12 text-sky-300">
+                <div className="grid gap-5 lg:grid-cols-[minmax(280px,0.85fr)_minmax(0,1.15fr)]">
+                  <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-5 text-center sm:p-6">
+                    <div className="mb-4 inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-sky-400/12 text-sky-200 sm:h-20 sm:w-20">
                       <FileAudio size={36} />
                     </div>
-                    <div className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">Uploaded File</div>
-                    <div className="mt-3 text-lg font-semibold text-white break-all">{audioFile?.name}</div>
-                    <div className="mt-2 text-sm text-slate-400">Preview the recording, then continue when it sounds correct.</div>
+                    <div className="text-sm font-semibold text-slate-300">{audioSourceType === 'recording' ? 'Browser recording' : 'Uploaded file'}</div>
+                    <div className="mt-3 break-all text-lg font-semibold text-white">{audioFile?.name}</div>
+                    <div className="mt-2 text-sm text-slate-400">
+                      {audioSourceType === 'recording'
+                        ? `Recorded in the browser. Duration: ${formatDuration(analyzeRecordingSeconds)}.`
+                        : 'Preview the recording, then continue when it sounds correct.'}
+                    </div>
+                    <div className="mt-5 flex flex-col gap-2">
+                      <button
+                        type="button"
+                        onClick={() => replaceInputRef.current?.click()}
+                        className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2.5 text-sm font-semibold text-slate-200 transition hover:bg-white/[0.08]"
+                      >
+                        <Upload size={15} />
+                        Replace file
+                      </button>
+                      <input ref={replaceInputRef} type="file" accept="audio/*" onChange={handleFileUpload} className="hidden" />
+                      <button onClick={startAnalyzeRecording} className="inline-flex items-center justify-center gap-2 rounded-xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-2.5 text-sm font-semibold text-emerald-100 transition hover:bg-emerald-400/15">
+                        <Mic size={15} />
+                        Record again
+                      </button>
+                    </div>
                   </div>
-                  <div className="rounded-[28px] border border-white/10 bg-[#07111f] p-6">
-                    <div className="text-sm font-semibold text-slate-200">Ready for submission</div>
-                    <div className="mt-2 text-sm leading-7 text-slate-400">Once you submit, the app scores your speech and generates written feedback with a downloadable report.</div>
-                    <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-                      <button onClick={togglePlayback} className="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.05] px-6 py-3 text-white transition hover:bg-white/[0.09]">
-                        {isPlaying ? <><Pause size={16} /> Pause Preview</> : <><Play size={16} /> Play Preview</>}
+                  <div className="rounded-2xl border border-white/10 bg-[#07111f] p-5 sm:p-6">
+                    <div className="text-sm font-semibold text-white">Ready for submission</div>
+                    <div className="mt-3 rounded-xl border border-white/10 bg-white/[0.04] p-4">
+                      <div className="text-sm font-semibold text-slate-300">Prompt</div>
+                      <div className="mt-2 max-h-28 overflow-y-auto text-sm leading-7 text-slate-300">{topic || 'No prompt entered yet.'}</div>
+                    </div>
+                    <div className="mt-5 flex flex-col gap-3 sm:flex-row">
+                      <button onClick={togglePlayback} className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.05] px-6 py-3 font-semibold text-white transition hover:bg-white/[0.09]">
+                        {isPlaying ? <><Pause size={16} /> Pause preview</> : <><Volume2 size={16} /> Play preview</>}
                       </button>
                       <button
                         onClick={analyzeAudio}
                         disabled={isOffline}
-                        className={`inline-flex items-center justify-center gap-2 rounded-2xl px-6 py-3 font-semibold text-white transition ${isOffline ? 'bg-slate-700 cursor-not-allowed opacity-50' : 'bg-sky-500 hover:bg-sky-400'}`}
+                        className={`inline-flex items-center justify-center gap-2 rounded-xl px-6 py-3 font-semibold text-white transition ${isOffline ? 'bg-slate-700 cursor-not-allowed opacity-50' : 'bg-sky-500 hover:bg-sky-400'}`}
                       >
-                        <CheckCircle size={16} /> {isOffline ? 'Offline - Cannot Analyze' : 'Analyze Speech'}
+                        <CheckCircle size={16} /> {isOffline ? 'Offline, cannot analyze' : 'Analyze speech'}
                       </button>
                     </div>
-                    <div className="mt-6 rounded-2xl border border-sky-400/15 bg-sky-400/8 p-4 text-sm text-slate-300">
-                      The analysis works best when the topic matches the actual response and the audio is clear.
+                    <div className="mt-5 grid gap-3 sm:grid-cols-3">
+                      {['Content', 'Accuracy', 'Delivery'].map((label) => (
+                        <div key={label} className="rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-center text-sm font-semibold text-slate-200">
+                          {label}
+                        </div>
+                      ))}
                     </div>
                   </div>
                   <audio ref={audioRef} src={audioURL} onEnded={() => setIsPlaying(false)} />
@@ -696,21 +968,23 @@ export default function SpeakUpApp() {
               )}
 
               {step === 'uploading' && (
-                <div className="text-center py-14">
-                  <div className="mx-auto mb-5 inline-flex h-20 w-20 items-center justify-center rounded-full border border-sky-400/25 bg-sky-400/10 text-sky-300">
+                <div className="text-center py-14" role="status" aria-live="polite">
+                  <div className="mx-auto mb-5 inline-flex h-20 w-20 items-center justify-center rounded-full border border-sky-400/25 bg-sky-400/10 text-sky-200">
                     <Loader className="animate-spin" size={40} />
                   </div>
-                  <div className="text-xl font-semibold text-white">Analyzing your speech...</div>
+                  <div className="text-xl font-semibold text-white">Analyzing speech</div>
                   <div className="mt-2 text-sm text-slate-300">{analysisProgressMessage}</div>
-                  <div className="mt-1 text-sm text-slate-500">This can take a little longer while backend services are busy.</div>
+                  <div className="mx-auto mt-6 h-2 max-w-md overflow-hidden rounded-full bg-white/[0.06]">
+                    <div className="h-full w-1/2 animate-pulse rounded-full bg-sky-400" />
+                  </div>
                 </div>
               )}
 
               {step === 'results' && results && (
                 <div className="space-y-6">
                   <div className="grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
-                    <div className="rounded-[28px] border border-sky-400/20 bg-sky-400/10 p-6 text-center">
-                      <div className="text-xs font-semibold uppercase tracking-[0.22em] text-sky-300">Overall Score</div>
+                    <div className="rounded-2xl border border-sky-400/20 bg-sky-400/10 p-6 text-center">
+                      <div className="text-sm font-semibold text-sky-200">Overall score</div>
                       <div className="mt-4 text-6xl font-extrabold text-white">{results.scores.total.toFixed(2)}</div>
                       <div className="mt-2 text-sm text-slate-300">out of 2.0</div>
                     </div>
@@ -720,8 +994,8 @@ export default function SpeakUpApp() {
                         { label: 'Accuracy', score: results.scores.accuracy, max: 0.6 },
                         { label: 'Delivery', score: results.scores.delivery, max: 0.5 }
                       ].map((item, idx) => (
-                        <div key={idx} className="rounded-[24px] border border-white/10 bg-white/[0.04] p-5 text-center">
-                          <div className="text-xs font-bold uppercase tracking-[0.22em] text-slate-400">{item.label}</div>
+                        <div key={idx} className="rounded-2xl border border-white/10 bg-white/[0.04] p-5 text-center">
+                          <div className="text-sm font-bold text-slate-300">{item.label}</div>
                           <div className={`mt-3 text-3xl font-black ${getScoreColor(item.score, item.max)}`}>{item.score.toFixed(2)}</div>
                           <div className="mt-1 text-xs text-slate-500">/ {item.max.toFixed(1)}</div>
                         </div>
@@ -730,33 +1004,35 @@ export default function SpeakUpApp() {
                   </div>
 
                   <div>
-                    <h3 className="text-lg font-bold mb-3 text-white">Detailed Feedback</h3>
-                    <div className="space-y-3">
-                      <div className="rounded-[24px] border border-white/10 bg-white/[0.04] p-4">
+                    <h3 className="mb-3 text-lg font-bold text-white">Detailed feedback</h3>
+                    <div className="grid gap-3 lg:grid-cols-3">
+                      <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
                         <div className="font-semibold text-white">Content</div>
                         <div className="mt-2 text-sm leading-7 text-slate-300">{results.feedback.content}</div>
                       </div>
-                      <div className="rounded-[24px] border border-white/10 bg-white/[0.04] p-4">
+                      <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
                         <div className="font-semibold text-white">Accuracy</div>
                         <div className="mt-2 text-sm leading-7 text-slate-300">{results.feedback.accuracy}</div>
                       </div>
-                      <div className="rounded-[24px] border border-white/10 bg-white/[0.04] p-4">
+                      <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
                         <div className="font-semibold text-white">Delivery</div>
                         <div className="mt-2 text-sm leading-7 text-slate-300">{results.feedback.delivery}</div>
                       </div>
                     </div>
                   </div>
 
+                  <ResultsInsights results={results} />
+
                   {results.sample_response && (
-                    <div className="rounded-[24px] border border-amber-400/20 bg-amber-400/8 p-4">
-                      <h4 className="font-bold mb-2 text-white">Sample 2.0 Response</h4>
+                    <div className="rounded-2xl border border-amber-400/20 bg-amber-400/10 p-4">
+                      <h4 className="font-bold mb-2 text-white">Sample 2.0 response</h4>
                       <div className="text-sm whitespace-pre-line text-slate-200">{results.sample_response}</div>
                     </div>
                   )}
 
                   <div className="flex flex-col gap-3 sm:flex-row">
-                    <button onClick={downloadDocument} className="inline-flex items-center justify-center gap-2 flex-1 rounded-2xl bg-sky-500 py-3 text-white transition hover:bg-sky-400"><Download size={16} /> Download Report</button>
-                    <button onClick={reset} className="rounded-2xl border border-white/10 bg-white/[0.04] px-6 py-3 text-white transition hover:bg-white/[0.08]">New Analysis</button>
+                    <button onClick={downloadDocument} className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-sky-500 py-3 font-semibold text-white transition hover:bg-sky-400"><Download size={16} /> Download report</button>
+                    <button onClick={reset} className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-6 py-3 font-semibold text-white transition hover:bg-white/[0.08]"><RotateCcw size={16} /> New analysis</button>
                   </div>
                 </div>
               )}
@@ -801,6 +1077,4 @@ export default function SpeakUpApp() {
     </div>
   );
 }
-
-
 

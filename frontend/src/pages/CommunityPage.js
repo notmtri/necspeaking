@@ -1,5 +1,5 @@
 import React, { useCallback, useDeferredValue, useEffect, useMemo, useState } from 'react';
-import { ArrowRight, Bell, Search, Trophy, Users, X } from 'lucide-react';
+import { ArrowRight, Bell, Search, Trophy, X } from 'lucide-react';
 import { createAvatarDataUri, getDisplayRole, isAdminProfile } from '../appShared';
 import { apiFetch, isAbortError } from '../apiClient';
 import { ProfileDetailRow, ProfileMetricCard, ProfileSectionCard } from '../components/ProfileBits';
@@ -8,9 +8,23 @@ function ProfileOverlayModal({ profile, onClose }) {
   const displayRole = getDisplayRole(profile);
   const adminProfile = isAdminProfile(profile);
 
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') onClose();
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-950/80 p-4 backdrop-blur-sm sm:p-6">
-      <div className="relative my-4 w-full max-w-6xl rounded-[32px] border border-white/10 bg-[radial-gradient(circle_at_top_left,_rgba(56,189,248,0.16),_transparent_32%),linear-gradient(180deg,rgba(7,17,31,0.98),rgba(10,23,44,0.96))] shadow-[0_30px_120px_rgba(2,6,23,0.5)]">
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-950/80 p-3 backdrop-blur-sm sm:p-6">
+      <div
+        className="relative my-4 w-full max-w-6xl rounded-[24px] border border-white/10 bg-[radial-gradient(circle_at_top_left,_rgba(56,189,248,0.16),_transparent_32%),linear-gradient(180deg,rgba(7,17,31,0.98),rgba(10,23,44,0.96))] shadow-[0_30px_120px_rgba(2,6,23,0.5)] sm:rounded-[32px]"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="profile-overlay-title"
+      >
         <button
           type="button"
           onClick={onClose}
@@ -22,7 +36,7 @@ function ProfileOverlayModal({ profile, onClose }) {
 
         <div className="border-b border-white/10 px-5 py-5 sm:px-8 sm:py-6">
           <div className="pr-12 text-xs font-semibold uppercase tracking-[0.22em] text-sky-200">Public profile</div>
-          <h3 className="mt-3 pr-12 text-3xl font-black text-white sm:text-4xl">{profile.name}</h3>
+          <h3 id="profile-overlay-title" className="mt-3 pr-12 text-2xl font-black text-white sm:text-4xl">{profile.name}</h3>
           <div className="mt-2 text-base font-semibold text-sky-300">@{profile.username}</div>
         </div>
 
@@ -177,36 +191,28 @@ export default function CommunityPage({ profiles, selectedProfile, onSelectProfi
   }, []);
 
   return (
-    <div className="space-y-6">
-      <section className="overflow-hidden rounded-[36px] border border-white/10 bg-[radial-gradient(circle_at_top_left,_rgba(14,165,233,0.22),_transparent_30%),linear-gradient(135deg,_rgba(8,17,32,0.98),_rgba(5,10,18,0.95))] shadow-[0_24px_120px_rgba(2,6,23,0.45)]">
-        <div className="flex flex-col gap-8 px-6 py-8 sm:px-8 lg:px-10">
-          <div className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr] lg:items-end">
-            <div>
-              <div className="inline-flex items-center gap-2 rounded-full border border-sky-400/30 bg-sky-400/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em] text-sky-200">
-                <Users size={14} />
-                Community
-              </div>
-              <h2 className="mt-4 text-4xl font-black text-white">Browse updates, compare scores, and preview public profiles</h2>
-              <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-300">
-                The community hub now centers around live updates, quick notifications, and exact username lookups that reveal a profile-style preview.
-              </p>
-            </div>
-          </div>
-        </div>
+    <div className="min-w-0 space-y-5 sm:space-y-6">
+      <section className="mx-auto max-w-3xl text-center" aria-labelledby="community-page-title">
+        <h1 id="community-page-title" className="text-2xl font-black tracking-tight text-white sm:text-3xl">
+          Community
+        </h1>
+        <p className="mx-auto mt-2 max-w-2xl text-sm leading-6 text-slate-400 sm:text-base">
+          View community posts from all users and see your ranking.
+        </p>
       </section>
 
       <section className="grid gap-6 xl:grid-cols-[minmax(0,2.5fr)_minmax(0,1fr)]">
         <div className="space-y-6">
-          <div className="rounded-[32px] border border-white/10 bg-slate-950/65 p-6 shadow-[0_20px_80px_rgba(2,6,23,0.4)] sm:p-8">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-slate-300">
+          <div className="min-w-0 rounded-[26px] border border-white/10 bg-slate-950/65 p-5 shadow-[0_20px_80px_rgba(2,6,23,0.4)] sm:rounded-[32px] sm:p-8">
+            <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
+              <div className="min-w-0">
+                <div className="inline-flex max-w-full items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-300 sm:text-xs sm:tracking-[0.22em]">
                   <ArrowRight size={14} />
                   Community posts
                 </div>
                 <h3 className="mt-4 text-2xl font-black text-white">Post to the community</h3>
               </div>
-              <div className="text-xs uppercase tracking-[0.28em] text-slate-500">Live feed</div>
+              <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500 sm:text-xs sm:tracking-[0.28em]">Live feed</div>
             </div>
             <div className="mt-5 rounded-[28px] border border-white/10 bg-white/[0.04] p-4">
               {canCreatePost ? (
@@ -273,9 +279,9 @@ export default function CommunityPage({ profiles, selectedProfile, onSelectProfi
                   Loading posts...
                 </div>
               ) : communityPosts.map((item) => (
-                <div key={item.id} className="rounded-[24px] border border-white/10 bg-white/[0.04] p-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-3">
+                <div key={item.id} className="min-w-0 rounded-[24px] border border-white/10 bg-white/[0.04] p-4">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex min-w-0 items-center gap-3">
                       <div className="inline-flex h-9 w-9 items-center justify-center rounded-2xl bg-sky-400/15 text-sky-200">
                         <Bell size={16} />
                       </div>
@@ -284,7 +290,7 @@ export default function CommunityPage({ profiles, selectedProfile, onSelectProfi
                         <div className="truncate text-[11px] text-slate-500">@{item.author?.username || 'unknown'}</div>
                       </div>
                     </div>
-                    <div className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500 sm:text-xs sm:tracking-[0.22em]">
                       {item.createdAt ? new Date(item.createdAt).toLocaleDateString() : ''}
                     </div>
                   </div>
@@ -315,10 +321,10 @@ export default function CommunityPage({ profiles, selectedProfile, onSelectProfi
         </div>
 
         <div className="space-y-6">
-          <div className="rounded-[32px] border border-white/10 bg-slate-950/65 p-6 shadow-[0_20px_80px_rgba(2,6,23,0.4)] sm:p-8">
+          <div className="min-w-0 rounded-[26px] border border-white/10 bg-slate-950/65 p-5 shadow-[0_20px_80px_rgba(2,6,23,0.4)] sm:rounded-[32px] sm:p-8">
             <div className="flex items-center justify-between gap-3">
-              <div>
-                <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-slate-300">
+              <div className="min-w-0">
+                <div className="inline-flex max-w-full items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-300 sm:text-xs sm:tracking-[0.22em]">
                   <Search size={14} />
                   Search for user
                 </div>
@@ -373,10 +379,10 @@ export default function CommunityPage({ profiles, selectedProfile, onSelectProfi
             )}
           </div>
 
-          <div className="rounded-[32px] border border-white/10 bg-slate-950/65 p-6 shadow-[0_20px_80px_rgba(2,6,23,0.4)] sm:p-8">
+          <div className="min-w-0 rounded-[26px] border border-white/10 bg-slate-950/65 p-5 shadow-[0_20px_80px_rgba(2,6,23,0.4)] sm:rounded-[32px] sm:p-8">
             <div className="flex items-center justify-between gap-3">
-              <div>
-                <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-slate-300">
+              <div className="min-w-0">
+                <div className="inline-flex max-w-full items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-300 sm:text-xs sm:tracking-[0.22em]">
                   <Trophy size={14} />
                   Leaderboards
                 </div>

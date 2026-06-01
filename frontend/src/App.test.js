@@ -69,6 +69,8 @@ describe('App', () => {
 
     await act(async () => {
       await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
     });
   };
 
@@ -109,14 +111,48 @@ describe('App', () => {
   it('renders the analyze route directly from the browser path', async () => {
     await renderApp('/analyze');
 
-    expect(container.textContent).toContain('NEC Speech Analysis');
-    expect(container.textContent).toContain('Upload your response');
+    expect(container.textContent).toContain('Analyze one speaking response');
+    expect(container.textContent).toContain('Upload audio');
+  });
+
+  it.each([
+    ['/', 'Practice NEC speaking with less setup.'],
+    ['/auth', 'Welcome back to necs.'],
+    ['/profile', 'Log in to view your profile'],
+    ['/community', 'Browse updates, compare scores, and preview public profiles'],
+    ['/samples', 'Sample Library'],
+    ['/simulation', 'NEC Speaking Simulation'],
+    ['/about', 'About necs.'],
+  ])('renders %s without crashing', async (path, expectedText) => {
+    await renderApp(path, {
+      samples: [
+        {
+          id: 'sample-1',
+          topic: 'Education and Technology',
+          speaker: 'NECS Alumni',
+          score: 2,
+          question: 'How can technology improve education?',
+          tags: ['education'],
+          audioUrl: '/sample.mp3',
+          filename: 'sample.mp3',
+        },
+      ],
+      questions: [
+        {
+          id: 1,
+          topic: 'Education',
+          question: 'How can technology improve education?',
+        },
+      ],
+    });
+
+    expect(container.textContent).toContain(expectedText);
   });
 
   it('shows guest session state when guest mode was previously enabled', async () => {
     window.localStorage.setItem('necs.guestMode', 'true');
 
-    await renderApp('/');
+    await renderApp('/analyze');
 
     expect(container.textContent).toContain('Guest session active');
     expect(container.textContent).toContain('Guest mode is active');
