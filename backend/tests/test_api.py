@@ -233,6 +233,26 @@ class ApiSmokeTests(unittest.TestCase):
         self.assertEqual(missing.status_code, 404)
         self.assertIn('error', missing.get_json())
 
+    def test_cors_allows_configured_origin(self):
+        response = self.client.get('/api/health', headers={'Origin': 'http://localhost:3001'})
+        self.assertEqual(response.headers.get('Access-Control-Allow-Origin'), 'http://localhost:3001')
+        self.assertEqual(response.headers.get('Access-Control-Allow-Credentials'), 'true')
+
+    def test_cors_rejects_unknown_origin(self):
+        # Guards the Flask-Cors configuration: a permissive default here would
+        # let any site read authenticated responses.
+        response = self.client.get('/api/health', headers={'Origin': 'https://evil.example.com'})
+        self.assertIsNone(response.headers.get('Access-Control-Allow-Origin'))
+
+    def test_cors_preflight_permits_csrf_header(self):
+        response = self.client.options('/api/auth/profile', headers={
+            'Origin': 'http://localhost:3001',
+            'Access-Control-Request-Method': 'PUT',
+            'Access-Control-Request-Headers': 'X-CSRF-Token',
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('X-CSRF-Token', response.headers.get('Access-Control-Allow-Headers', ''))
+
     def test_questions_and_samples_public_endpoints(self):
         with app_module.app.app_context():
             db.session.add(Question(topic='Environment', question='How should cities reduce air pollution?'))
