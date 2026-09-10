@@ -1,8 +1,8 @@
 /** @type {import('tailwindcss').Config} */
 // Tokens live in src/index.css on :root. This file only maps them onto
 // utilities so components never hardcode a hex value or an arbitrary radius.
-module.exports = {
-  content: ['./src/**/*.{js,jsx,ts,tsx}', './public/index.html'],
+export default {
+  content: ['./index.html', './src/**/*.{js,jsx}'],
   theme: {
     extend: {
       colors: {

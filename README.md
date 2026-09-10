@@ -4,7 +4,7 @@ React + Flask app for NEC speaking practice, speech analysis, sample speeches, s
 
 ## Project Layout
 
-- `frontend/` - React app built with `react-scripts`
+- `frontend/` - React app built with Vite
 - `backend/` - Flask API, SQLAlchemy models, Groq transcription, Gemini/Groq grading, Cloudinary sample uploads
 - `.env.example` - required local and production environment variables
 
@@ -16,11 +16,6 @@ React + Flask app for NEC speaking practice, speech analysis, sample speeches, s
 cd frontend
 npm install
 ```
-
-Run this from inside `frontend/`, not with `npm --prefix`, so that
-`frontend/.npmrc` is picked up. It sets `legacy-peer-deps`, which react-scripts 5
-needs because a transitive optional peer asks for a TypeScript version it pins
-away from. Nothing in the app uses TypeScript.
 
 2. Install backend dependencies:
 
@@ -40,7 +35,7 @@ put it on `PATH` before running an analysis locally.
 4. Create `frontend/.env` when you want the React dev server to point at a non-default backend:
 
 ```powershell
-REACT_APP_API_URL=http://127.0.0.1:5000
+VITE_API_URL=http://127.0.0.1:5000
 ```
 
 5. Start Redis if you want production-style rate limiting locally.
@@ -109,7 +104,7 @@ From the repo root, `npm run start` forwards to the frontend dev server.
 Frontend (from `frontend/`):
 
 ```powershell
-npm test -- --watchAll=false
+npm test          # vitest run
 npm run build
 npm run check:mobile-overflow
 ```

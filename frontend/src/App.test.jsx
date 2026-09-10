@@ -1,10 +1,12 @@
 import React, { act } from 'react';
 import { createRoot } from 'react-dom/client';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import App from './App';
 
-jest.mock('@vercel/analytics/react', () => ({
+// The real module pulls in browser analytics we do not want firing in tests.
+vi.mock('@vercel/analytics/react', () => ({
   Analytics: () => null,
-}), { virtual: true });
+}));
 
 const defaultAnnouncement = {
   enabled: true,
@@ -18,7 +20,7 @@ const createFetchResponse = (payload) => ({
   json: async () => payload,
 });
 
-const createFetchMock = (overrides = {}) => jest.fn(async (url) => {
+const createFetchMock = (overrides = {}) => vi.fn(async (url) => {
   const target = String(url);
 
   if (target.includes('/api/health')) return createFetchResponse({ status: 'healthy' });

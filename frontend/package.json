@@ -6,31 +6,26 @@
     "@vercel/analytics": "^1.5.0",
     "lucide-react": "^0.268.0",
     "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "react-scripts": "^5.0.1"
+    "react-dom": "^18.2.0"
   },
   "scripts": {
-    "start": "react-scripts start",
-    "build": "react-scripts build",
+    "start": "vite",
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "check:mobile-overflow": "node scripts/check-mobile-overflow.cjs",
-    "validate:mobile": "npm run build && npm run check:mobile-overflow",
-    "test": "react-scripts test"
-  },
-  "browserslist": {
-    "production": [
-      ">0.2%",
-      "not dead",
-      "not op_mini all"
-    ],
-    "development": [
-      "last 1 chrome version",
-      "last 1 firefox version",
-      "last 1 safari version"
-    ]
+    "validate:mobile": "npm run build && npm run check:mobile-overflow"
   },
   "devDependencies": {
+    "@vitejs/plugin-react": "^6.1.1",
     "autoprefixer": "^10.4.22",
+    "jsdom": "^30.0.1",
     "postcss": "^8.5.6",
-    "tailwindcss": "^3.4.18"
-  }
+    "tailwindcss": "^3.4.18",
+    "vite": "^8.2.2",
+    "vitest": "^5.0.0"
+  },
+  "type": "module"
 }

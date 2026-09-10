@@ -10,9 +10,9 @@ root.render(
   </React.StrictMode>
 );
 
-if ('serviceWorker' in navigator && process.env.NODE_ENV === 'production') {
+if ('serviceWorker' in navigator && import.meta.env.PROD) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register(`${process.env.PUBLIC_URL}/service-worker.js`)
+    navigator.serviceWorker.register('/service-worker.js')
       .then((registration) => {
         registration.addEventListener('updatefound', () => {
           const newWorker = registration.installing;
