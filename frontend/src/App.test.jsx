@@ -66,11 +66,18 @@ describe('App', () => {
       root.render(<App />);
     });
 
-    await act(async () => {
-      await Promise.resolve();
-      await Promise.resolve();
-      await Promise.resolve();
-    });
+    // Routes are code-split, so the page only appears once its dynamic import
+    // resolves. Pump the event loop until the Suspense fallback clears.
+    for (let attempt = 0; attempt < 30; attempt += 1) {
+      // eslint-disable-next-line no-await-in-loop
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      });
+      if (!container.querySelector('[role="status"] .lucide-loader')
+          && !container.textContent.includes('Loading page')) {
+        break;
+      }
+    }
   };
 
   beforeEach(() => {

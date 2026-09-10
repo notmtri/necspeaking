@@ -1,0 +1,86 @@
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  frontend:
+    name: Frontend
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - run: npm ci
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Production build
+        run: npm run build
+
+      # check-mobile-overflow drives a real browser over CDP. Install one
+      # explicitly rather than relying on whatever the runner image ships.
+      - uses: browser-actions/setup-chrome@v1
+        id: chrome
+        with:
+          chrome-version: stable
+
+      # Renders every route at 390px and fails on horizontal overflow. Without
+      # this in CI the guarantee silently rots.
+      - name: Mobile overflow check
+        env:
+          MOBILE_CHECK_BROWSER: ${{ steps.chrome.outputs.chrome-path }}
+        run: npm run check:mobile-overflow
+
+      - name: Audit production dependencies
+        run: npm audit --omit=dev
+
+  backend:
+    name: Backend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      # pydub shells out to ffmpeg for audio conversion.
+      - name: Install ffmpeg
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+
+      - name: Install dependencies
+        run: pip install -r backend/requirements.txt
+
+      - name: Unit tests
+        run: python -m unittest discover -s backend/tests
+
+      - name: Byte-compile
+        run: python -m py_compile backend/*.py manage.py migrations/versions/*.py
+
+      # The migration history must be able to build a database from nothing.
+      - name: Migrate a fresh database
+        env:
+          SECRET_KEY: ci-secret-key
+          PRODUCTION: 'false'
+          ENABLE_EMBEDDED_WORKER: 'false'
+          ADMIN_PASSWORD_HASH: ci-placeholder
+          DATABASE_URL: sqlite:///ci-verify.db
+        run: python -m flask --app manage.py db upgrade

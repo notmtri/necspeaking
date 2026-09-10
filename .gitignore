@@ -10,6 +10,9 @@ ENV/
 
 # Node
 node_modules/
+# Windows can hold a lock on native .node binaries, so a reinstall may leave
+# a renamed copy behind. Never commit one.
+node_modules.*/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*

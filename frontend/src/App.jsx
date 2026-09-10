@@ -1,18 +1,33 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, lazy, Suspense } from 'react';
 import { Analytics } from '@vercel/analytics/react';
+import { Loader } from 'lucide-react';
 import { AdminLoginModal, ToastViewport } from './components/AppOverlays';
 import { AppHeader, AppStatusStack, Footer } from './components/AppChrome';
 import ErrorBoundary from './components/ErrorBoundary';
 import { API_BASE_URL, DEFAULT_ANNOUNCEMENT, downloadDocumentFromBase64, pageFromLocation, pathForPage, readGuestModePreference, writeGuestModePreference } from './appShared';
 import { apiFetch, isAbortError } from './apiClient';
-import AdminPanel from './pages/AdminPanel';
-import AnalyzePage from './pages/AnalyzePage';
-import AuthPage from './pages/AuthPage';
-import CommunityPage from './pages/CommunityPage';
 import HomePage from './pages/HomePage';
-import ProfilePage from './pages/ProfilePage';
-import SampleLibrary from './pages/SampleLibrary';
-import SimulationMode from './pages/SimulationMode';
+
+// HomePage stays eager: it is the landing route and the router's fallback, so
+// deferring it would only add a flash. Everything else is split out -- most
+// visitors never open Simulation, and AdminPanel (the largest page in the app)
+// is useless to anyone who is not an admin.
+const AdminPanel = lazy(() => import('./pages/AdminPanel'));
+const AnalyzePage = lazy(() => import('./pages/AnalyzePage'));
+const AuthPage = lazy(() => import('./pages/AuthPage'));
+const CommunityPage = lazy(() => import('./pages/CommunityPage'));
+const ProfilePage = lazy(() => import('./pages/ProfilePage'));
+const SampleLibrary = lazy(() => import('./pages/SampleLibrary'));
+const SimulationMode = lazy(() => import('./pages/SimulationMode'));
+
+function PageFallback() {
+  return (
+    <div className="flex min-h-[40vh] items-center justify-center" role="status" aria-live="polite">
+      <Loader size={28} className="animate-spin text-sky-300" />
+      <span className="sr-only">Loading page</span>
+    </div>
+  );
+}
 
 export default function SpeakUpApp() {
   const [currentPage, setCurrentPage] = useState(() => pageFromLocation(window.location));
@@ -485,7 +500,7 @@ export default function SpeakUpApp() {
           <SimulationMode
             onAnalysisUserUpdate={handleAnalysisUserUpdate}
             onDownloadReport={downloadReport}
-            notify={pushToast}
+              notify={pushToast}
             isOffline={isOffline}
           />
         );
@@ -497,6 +512,12 @@ export default function SpeakUpApp() {
 
   return (
     <div className="min-h-screen bg-surface-base text-slate-100">
+      <a
+        href="#main-content"
+        className="sr-only rounded-control bg-sky-500 px-4 py-2 font-semibold text-white focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[100]"
+      >
+        Skip to main content
+      </a>
       <AppHeader
         currentPage={currentPage}
         navTo={navTo}
@@ -512,7 +533,7 @@ export default function SpeakUpApp() {
         announcement={announcement}
       />
 
-      <main className={currentPage === 'auth' ? 'mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8' : 'mx-auto w-full max-w-7xl px-4 py-4 sm:px-6 sm:py-6 lg:px-8'}>
+      <main id="main-content" tabIndex={-1} className={currentPage === 'auth' ? 'mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8' : 'mx-auto w-full max-w-7xl px-4 py-4 sm:px-6 sm:py-6 lg:px-8'}>
         <AppStatusStack
           guestMode={guestMode}
           currentUser={currentUser}
@@ -525,7 +546,9 @@ export default function SpeakUpApp() {
           isOffline={isOffline}
         />
         <ErrorBoundary resetKey={currentPage}>
-          {renderPage()}
+          <Suspense fallback={<PageFallback />}>
+            {renderPage()}
+          </Suspense>
         </ErrorBoundary>
       </main>
 
@@ -533,13 +556,15 @@ export default function SpeakUpApp() {
       <Analytics />
 
       {showAdminPanel && adminAuthenticated && (
-        <AdminPanel
-          onClose={() => setShowAdminPanel(false)}
-          onLogout={handleAdminLogout}
-          notify={pushToast}
-          announcement={announcement}
-          onAnnouncementChange={setAnnouncement}
-        />
+        <Suspense fallback={<PageFallback />}>
+          <AdminPanel
+            onClose={() => setShowAdminPanel(false)}
+            onLogout={handleAdminLogout}
+            notify={pushToast}
+            announcement={announcement}
+            onAnnouncementChange={setAnnouncement}
+          />
+        </Suspense>
       )}
       <AdminLoginModal
         open={adminLoginOpen}

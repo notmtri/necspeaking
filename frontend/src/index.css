@@ -18,7 +18,10 @@
 
   --ink: #f1f5f9;
   --ink-muted: #94a3b8;
-  --ink-subtle: #64748b;
+  /* slate-500 (#64748b) measured 3.81:1 on surface-raised, under the 4.5:1
+     WCAG AA floor for normal text. This is 5.27:1 and still reads dimmer
+     than --ink-muted, so the hierarchy survives. */
+  --ink-subtle: #7d8ba3;
 }
 
 html, body, #root {
