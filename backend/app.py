@@ -1,9 +1,10 @@
-from flask import Flask, g, jsonify, redirect, request, send_file, send_from_directory, session
+from flask import Flask, g, jsonify, redirect, request, send_file, session
 from flask_cors import CORS
 from dotenv import load_dotenv
 import json
 import logging
 import os
+import sys
 import warnings
 import secrets
 from functools import wraps
@@ -21,16 +22,16 @@ from urllib.parse import quote
 from sqlalchemy import inspect
 
 from analysis_service import allowed_file, build_job_storage_path, cleanup_old_files, get_audio_duration
-from database import AnalysisJob, AppAnnouncement, CommunityPost, RateLimitEntry, db, Question, Sample, User, UserPracticeSession, is_special_admin
+from database import AnalysisJob, AppAnnouncement, CommunityPost, Question, RateLimitEntry, Sample, User, UserPracticeSession, db
 from job_worker import AnalysisWorker, should_start_embedded_worker
 from rate_limiter import rate_limit, rate_limiter
-from user_progress import create_practice_session
 import cloudinary
 import cloudinary.uploader
 
 load_dotenv()
 
-app = Flask(__name__, static_folder='build', static_url_path='')
+# The React app is deployed separately (see vercel.json); this process is API-only.
+app = Flask(__name__)
 
 # REMOVED REDIS LIMITER - Use custom rate limiting instead
 # If you need Redis later, add it back with proper configuration
@@ -111,7 +112,28 @@ print(f"[DB] Connecting to: {database_url[:50]}...")
 db.init_app(app)
 
 
+ALEMBIC_CLI_COMMANDS = {
+    'upgrade', 'downgrade', 'migrate', 'revision', 'stamp',
+    'current', 'history', 'heads', 'branches', 'show', 'merge', 'init', 'edit',
+}
+
+
+def running_migration_command():
+    """True when this process is a `flask db ...` invocation.
+
+    Importing this module normally creates any missing tables, which is handy
+    for a plain app boot but wrong during migrations: Alembic would then run
+    against tables that already exist in their newest shape, and its
+    ALTER steps would fail. Migrations own the schema, so stand aside.
+    """
+    argv = set(sys.argv[1:])
+    return 'db' in argv and bool(argv & ALEMBIC_CLI_COMMANDS)
+
+
 def ensure_runtime_tables():
+    if running_migration_command():
+        print("[DB] Migration command detected; leaving schema to Alembic.")
+        return
     with app.app_context():
         try:
             inspector = inspect(db.engine)
@@ -123,6 +145,8 @@ def ensure_runtime_tables():
                 ('app_announcements', AppAnnouncement.__table__),
                 ('analysis_jobs', AnalysisJob.__table__),
                 ('rate_limit_entries', RateLimitEntry.__table__),
+                ('questions', Question.__table__),
+                ('samples', Sample.__table__),
             ]
             for table_name, table in managed_tables:
                 if table_name not in table_names:
@@ -141,7 +165,7 @@ def should_run_startup_db_sync():
     # Default behavior: run on local SQLite only.
     return database_url.startswith('sqlite')
 
-if should_run_startup_db_sync():
+if should_run_startup_db_sync() and not running_migration_command():
     with app.app_context():
         try:
             db.create_all()
@@ -613,13 +637,19 @@ def update_profile():
         if username_owner:
             return jsonify({"error": "That username is already taken."}), 409
 
+        def optional_field(key, current):
+            # An absent key keeps the stored value; an explicit empty string clears it.
+            if key not in data:
+                return current or ''
+            return (data.get(key) or '').strip()
+
         user.name = name
         user.username = username
-        user.class_name = (data.get('className') or '').strip()
-        user.school = (data.get('school') or '').strip()
-        user.cohort = (data.get('cohort') or '').strip()
+        user.class_name = optional_field('className', user.class_name)
+        user.school = optional_field('school', user.school)
+        user.cohort = optional_field('cohort', user.cohort)
         user.role = role
-        user.bio = (data.get('bio') or '').strip()
+        user.bio = optional_field('bio', user.bio)
 
         avatar = (data.get('avatar') or '').strip()
         user.avatar = avatar or avatar_from_name(name)
@@ -768,22 +798,17 @@ if analysis_worker:
     analysis_worker.start()
 
 @app.route('/')
-def serve():
-    return send_from_directory(app.static_folder, 'index.html')
-
-@app.errorhandler(404)
-def not_found(e):
-    if request.path.startswith('/api/'):
-        return jsonify({"error": "API endpoint not found"}), 404
-    return send_from_directory(app.static_folder, 'index.html')
-
 @app.route('/api', methods=['GET'])
 def api_home():
     return jsonify({
-        "message": "necs. API is running!",
+        "message": "necs. API is running.",
         "version": "2.0",
-        "security": "enabled"
     })
+
+
+@app.errorhandler(404)
+def not_found(e):
+    return jsonify({"error": "Not found."}), 404
 
 @app.route('/api/health', methods=['GET'])
 def health_check():
@@ -973,14 +998,21 @@ def upload_sample():
         
         if not all([topic, speaker, transcript, feedback]):
             return jsonify({"error": "Missing required fields"}), 400
-        
+
+        if not audio_file.filename or not allowed_file(audio_file.filename):
+            return jsonify({"error": "Invalid file format."}), 400
+
         filename = secure_filename(audio_file.filename)
+        if not filename:
+            return jsonify({"error": "Invalid file name."}), 400
+
         temp_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         audio_file.save(temp_path)
-        
+
         try:
             duration = int(get_audio_duration(temp_path))
-        except:
+        except Exception as error:
+            print(f"[SAMPLES] Could not read audio duration: {error}")
             duration = 0
         
         upload_result = cloudinary.uploader.upload(
@@ -1020,7 +1052,7 @@ def upload_sample():
 @require_admin()
 def update_sample(sample_id):
     try:
-        sample = Sample.query.get(sample_id)
+        sample = db.session.get(Sample, sample_id)
         if not sample:
             return jsonify({"error": "Not found"}), 404
 
@@ -1042,7 +1074,7 @@ def update_sample(sample_id):
 @require_admin()
 def delete_sample(sample_id):
     try:
-        sample = Sample.query.get(sample_id)
+        sample = db.session.get(Sample, sample_id)
         if not sample:
             return jsonify({"error": "Not found"}), 404
 
@@ -1084,7 +1116,7 @@ def add_question():
 def update_question(question_id):
     try:
         data = request.get_json()
-        question = Question.query.get(question_id)
+        question = db.session.get(Question, question_id)
         if not question:
             return jsonify({"error": "Not found"}), 404
         
@@ -1102,7 +1134,7 @@ def update_question(question_id):
 @require_admin()
 def delete_question(question_id):
     try:
-        question = Question.query.get(question_id)
+        question = db.session.get(Question, question_id)
         if not question:
             return jsonify({"error": "Not found"}), 404
         db.session.delete(question)

@@ -2,6 +2,25 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * Design tokens. These are the single source of truth for surfaces, lines and
+ * radii; tailwind.config.js maps them onto utilities (bg-surface-raised,
+ * border-line, rounded-card, ...). Prefer those utilities over raw hex values
+ * so the palette stays consistent across pages.
+ */
+:root {
+  --surface-base: #070f1a;
+  --surface-raised: #0b1626;
+  --surface-sunken: #050c15;
+  --overlay: rgba(255, 255, 255, 0.04);
+  --overlay-hover: rgba(255, 255, 255, 0.08);
+  --line: rgba(255, 255, 255, 0.09);
+
+  --ink: #f1f5f9;
+  --ink-muted: #94a3b8;
+  --ink-subtle: #64748b;
+}
+
 html, body, #root {
   min-height: 100%;
 }
@@ -10,8 +29,8 @@ html, body {
   max-width: 100%;
   overflow-x: hidden;
   margin: 0;
-  background: linear-gradient(180deg, #071019 0%, #08111d 48%, #050b12 100%);
-  color: #d9e2f2;
+  background: var(--surface-base);
+  color: var(--ink-muted);
   font-family: 'Nunito Sans', ui-sans-serif, system-ui, sans-serif;
   font-variant-numeric: tabular-nums;
   -webkit-font-smoothing: antialiased;
@@ -55,17 +74,21 @@ canvas {
 button:focus-visible,
 input:focus-visible,
 textarea:focus-visible,
+select:focus-visible,
 a:focus-visible {
   outline: 2px solid rgba(96, 165, 250, 0.9);
   outline-offset: 2px;
 }
 
+/*
+ * Do not set width/height here. lucide-react emits its `size` prop as
+ * width/height attributes, and CSS would override them, collapsing every icon
+ * to the inherited font size.
+ */
 .lucide,
 svg.lucide {
   display: inline-block;
   flex-shrink: 0;
-  width: 1em;
-  height: 1em;
   stroke: currentColor;
   stroke-width: 2;
   vector-effect: non-scaling-stroke;

@@ -46,6 +46,13 @@ class ApiSmokeTests(unittest.TestCase):
             db.engine.dispose()
         if TEST_DB_PATH.exists():
             TEST_DB_PATH.unlink()
+        # The queued-analysis test writes a stub upload; do not leave it behind.
+        jobs_dir = BACKEND_DIR / 'uploads' / 'jobs'
+        if jobs_dir.exists():
+            for stored in jobs_dir.glob('*_response.mp3'):
+                stored.unlink()
+            if not any(jobs_dir.iterdir()):
+                jobs_dir.rmdir()
 
     def test_health_endpoint(self):
         response = self.client.get('/api/health')
@@ -166,6 +173,65 @@ class ApiSmokeTests(unittest.TestCase):
         job_status = self.client.get(f"/api/analyze/jobs/{payload['job']['id']}")
         self.assertEqual(job_status.status_code, 200)
         self.assertEqual(job_status.get_json()['job']['status'], 'pending')
+
+    def test_profile_update_keeps_fields_that_were_not_submitted(self):
+        self.client.post('/api/auth/signup', json={
+            'email': 'partial@example.com',
+            'password': 'strongpass123',
+            'profile': {
+                'name': 'Partial User',
+                'username': 'partialuser',
+                'className': '12A1',
+                'school': 'LQD',
+                'cohort': '2026',
+                'bio': 'Original bio',
+            },
+        })
+
+        # Only name is submitted; the untouched fields must survive.
+        response = self.client.put('/api/auth/profile', json={'name': 'Renamed User'})
+        self.assertEqual(response.status_code, 200)
+        user = response.get_json()['user']
+        self.assertEqual(user['name'], 'Renamed User')
+        self.assertEqual(user['className'], '12A1')
+        self.assertEqual(user['school'], 'LQD')
+        self.assertEqual(user['cohort'], '2026')
+        self.assertEqual(user['bio'], 'Original bio')
+
+    def test_profile_update_can_still_clear_a_field_explicitly(self):
+        self.client.post('/api/auth/signup', json={
+            'email': 'clear@example.com',
+            'password': 'strongpass123',
+            'profile': {'name': 'Clear User', 'username': 'clearuser', 'school': 'LQD'},
+        })
+
+        response = self.client.put('/api/auth/profile', json={'name': 'Clear User', 'school': ''})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.get_json()['user']['school'], '')
+
+    def test_sample_upload_rejects_disallowed_extension(self):
+        with self.client.session_transaction() as session:
+            session['admin_authenticated'] = True
+
+        response = self.client.post('/api/samples/upload', data={
+            'topic': 'Environment',
+            'speaker': 'Test Speaker',
+            'transcript': 'Sample transcript',
+            'feedback': 'Strong structure.',
+            'audio': (BytesIO(b'not really audio'), 'malicious.exe'),
+        }, content_type='multipart/form-data')
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('Invalid file format', response.get_json()['error'])
+
+    def test_root_and_unknown_paths_return_json(self):
+        root = self.client.get('/')
+        self.assertEqual(root.status_code, 200)
+        self.assertIn('necs. API', root.get_json()['message'])
+
+        missing = self.client.get('/api/definitely-not-a-route')
+        self.assertEqual(missing.status_code, 404)
+        self.assertIn('error', missing.get_json())
 
     def test_questions_and_samples_public_endpoints(self):
         with app_module.app.app_context():

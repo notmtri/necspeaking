@@ -7,7 +7,7 @@ const path = require('path');
 const ROOT = path.resolve(__dirname, '..');
 const BUILD_DIR = path.join(ROOT, 'build');
 const INDEX_FILE = path.join(BUILD_DIR, 'index.html');
-const ROUTES = ['/', '/auth', '/analyze', '/samples', '/simulation', '/community', '/about', '/profile'];
+const ROUTES = ['/', '/auth', '/analyze', '/samples', '/simulation', '/community', '/profile'];
 const VIEWPORT = { width: 390, height: 844 };
 
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));

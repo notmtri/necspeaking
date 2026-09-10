@@ -19,6 +19,22 @@ const footerLinks = [
   { label: 'Profile', page: 'profile' },
 ];
 
+/** The one page-title pattern. Every top-level page uses this. */
+export function PageHeader({ id, title, description }) {
+  return (
+    <section className="mx-auto max-w-3xl text-center">
+      <h1 id={id} className="text-2xl font-bold tracking-tight text-white sm:text-3xl">
+        {title}
+      </h1>
+      {description && (
+        <p className="mx-auto mt-2 max-w-2xl text-sm leading-6 text-ink-muted sm:text-base">
+          {description}
+        </p>
+      )}
+    </section>
+  );
+}
+
 export function AppHeader({
   currentPage,
   navTo,
@@ -50,26 +66,26 @@ export function AppHeader({
 
   return (
     <>
-      <header className="sticky top-0 z-50 border-b border-white/10 bg-[#06101d]/94 backdrop-blur-xl">
+      <header className="sticky top-0 z-50 border-b border-line bg-surface-raised/95 backdrop-blur-xl">
         <div className="mx-auto max-w-7xl px-4 py-2.5 sm:px-6">
           <div className="flex min-w-0 items-center justify-between gap-3">
             <div className="flex shrink-0 items-center gap-3 select-none">
-              <button onClick={() => navTo('home')} className="cursor-pointer text-2xl font-extrabold tracking-tight text-white sm:text-[1.7rem]">
+              <button onClick={() => navTo('home')} className="text-2xl font-bold tracking-tight text-white sm:text-[1.7rem]">
                 necs.
               </button>
             </div>
 
             <div className="flex min-w-0 items-center justify-end gap-2 sm:gap-3">
-              <nav className="hidden items-center gap-1 rounded-2xl border border-white/10 bg-white/[0.04] p-1 xl:flex" aria-label="Primary navigation">
+              <nav className="hidden items-center gap-1 rounded-card border border-line bg-overlay p-1 xl:flex" aria-label="Primary navigation">
                 {NAV_ITEMS.map(({ id, label, icon: Icon }) => (
                   <button
                     key={id}
                     type="button"
                     onClick={() => navTo(id)}
-                    className={`inline-flex items-center gap-2 rounded-xl px-3.5 py-2 text-sm font-semibold transition ${
+                    className={`inline-flex items-center gap-2 rounded-control px-3.5 py-2 text-sm font-semibold transition ${
                       currentPage === id
                         ? 'bg-white text-slate-950'
-                        : 'text-slate-300 hover:bg-white/10 hover:text-white'
+                        : 'text-ink-muted hover:bg-overlay-hover hover:text-white'
                     }`}
                   >
                     <Icon size={16} />
@@ -78,39 +94,41 @@ export function AppHeader({
                 ))}
                 <button
                   onClick={openAdminPanel}
-                  className={`rounded-xl p-2.5 transition ${adminAuthenticated ? 'bg-amber-300/10 text-amber-100 hover:bg-amber-300/15' : 'text-slate-300 hover:bg-white/10 hover:text-white'}`}
-                  title={adminAuthenticated ? 'Admin Panel (authenticated)' : 'Admin Panel'}
+                  className={`rounded-control p-2.5 transition ${adminAuthenticated ? 'bg-amber-300/10 text-amber-100 hover:bg-amber-300/20' : 'text-ink-muted hover:bg-overlay-hover hover:text-white'}`}
+                  title={adminAuthenticated ? 'Admin panel (authenticated)' : 'Admin panel'}
                   aria-label={adminAuthenticated ? 'Open admin panel' : 'Open admin login'}
                 >
                   <Settings size={18} />
                 </button>
                 <button
                   onClick={handleInstallApp}
-                  className={`rounded-xl p-2.5 transition ${installPrompt ? 'bg-sky-500 text-white hover:bg-sky-400' : 'text-slate-300 hover:bg-white/10 hover:text-white'}`}
-                  title="Install Web App"
-                  aria-label="Install Web App"
+                  className={`rounded-control p-2.5 transition ${installPrompt ? 'bg-sky-500 text-white hover:bg-sky-400' : 'text-ink-muted hover:bg-overlay-hover hover:text-white'}`}
+                  title="Install web app"
+                  aria-label="Install web app"
                 >
                   <Download size={18} />
                 </button>
               </nav>
 
-              <button onClick={() => setMobileMenuOpen((value) => !value)} className="rounded-xl border border-white/10 bg-white/[0.04] p-2.5 text-slate-300 transition hover:bg-white/10 xl:hidden" aria-label={mobileMenuOpen ? 'Close menu' : 'Open menu'}>
+              <button
+                onClick={() => setMobileMenuOpen((value) => !value)}
+                className="rounded-control border border-line bg-overlay p-2.5 text-ink-muted transition hover:bg-overlay-hover xl:hidden"
+                aria-label={mobileMenuOpen ? 'Close menu' : 'Open menu'}
+                aria-expanded={mobileMenuOpen}
+              >
                 {mobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
               </button>
 
               <button
                 type="button"
                 onClick={() => (currentUser ? navTo('profile') : openAuth('login'))}
-                className="group flex shrink-0 items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.04] px-2 py-1.5 text-left transition hover:border-sky-300/20 hover:bg-white/[0.08] sm:gap-3 sm:py-2"
+                className="flex shrink-0 items-center gap-2 rounded-card border border-line bg-overlay px-2 py-1.5 text-left transition hover:border-sky-300/20 hover:bg-overlay-hover sm:gap-3 sm:py-2"
                 title={currentUser ? 'Open profile' : 'Log in'}
               >
                 <img
                   src={currentUser?.avatar || '/logo.png'}
-                  alt={currentUser ? `${currentUser.name} profile` : 'School Logo'}
-                  className="h-9 w-9 shrink-0 rounded-xl object-cover ring-1 ring-white/10 sm:h-10 sm:w-10"
-                  onError={(e) => {
-                    e.target.src = currentUser?.avatar || 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="40" fill="%234F46E5"/><text x="50" y="60" text-anchor="middle" fill="white" font-size="35" font-family="Arial" font-weight="bold">HS</text></svg>';
-                  }}
+                  alt=""
+                  className="h-9 w-9 shrink-0 rounded-control object-cover ring-1 ring-white/10 sm:h-10 sm:w-10"
                 />
                 <div className="hidden max-w-[180px] pr-2 sm:block">
                   <div className="flex items-center gap-2">
@@ -126,7 +144,7 @@ export function AppHeader({
                       </span>
                     )}
                   </div>
-                  <div className="truncate text-xs text-slate-400">{accountSubtitle}</div>
+                  <div className="truncate text-xs text-ink-subtle">{accountSubtitle}</div>
                 </div>
               </button>
             </div>
@@ -144,7 +162,6 @@ export function AppHeader({
               onClick={() => setAnnouncementDismissed(true)}
               className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sky-100 transition hover:bg-sky-300/10"
               aria-label="Dismiss announcement"
-              title="Dismiss announcement"
             >
               <X size={15} />
             </button>
@@ -153,23 +170,23 @@ export function AppHeader({
       )}
 
       {mobileMenuOpen && (
-        <div className="border-b border-white/10 bg-[#081120]/97 backdrop-blur-xl xl:hidden">
+        <div className="border-b border-line bg-surface-raised/95 backdrop-blur-xl xl:hidden">
           <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6">
             <button
               type="button"
               onClick={() => (currentUser ? navTo('profile') : openAuth('login'))}
-              className="mb-3 flex w-full items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] p-3 text-left transition hover:bg-white/[0.08]"
+              className="mb-3 flex w-full items-center gap-3 rounded-card border border-line bg-overlay p-3 text-left transition hover:bg-overlay-hover"
             >
               <img
                 src={currentUser?.avatar || '/logo.png'}
-                alt={currentUser ? `${currentUser.name} profile` : 'School Logo'}
-                className="h-11 w-11 rounded-xl object-cover ring-1 ring-white/10"
+                alt=""
+                className="h-11 w-11 rounded-control object-cover ring-1 ring-white/10"
               />
               <div className="min-w-0 flex-1">
                 <div className="truncate text-sm font-semibold text-white">{accountLabel}</div>
-                <div className="truncate text-xs text-slate-400">{accountSubtitle}</div>
+                <div className="truncate text-xs text-ink-subtle">{accountSubtitle}</div>
               </div>
-              <User size={17} className="text-slate-400" />
+              <User size={17} className="text-ink-subtle" />
             </button>
 
             <nav className="grid grid-cols-2 gap-2" aria-label="Mobile navigation">
@@ -178,10 +195,10 @@ export function AppHeader({
                   key={id}
                   type="button"
                   onClick={() => navTo(id)}
-                  className={`inline-flex min-h-[52px] items-center gap-2 rounded-2xl px-4 py-3 text-left text-sm font-semibold transition ${
+                  className={`inline-flex min-h-[52px] items-center gap-2 rounded-card px-4 py-3 text-left text-sm font-semibold transition ${
                     currentPage === id
                       ? 'bg-white text-slate-950'
-                      : 'border border-white/10 bg-white/[0.04] text-slate-300 hover:bg-white/[0.08] hover:text-white'
+                      : 'border border-line bg-overlay text-ink-muted hover:bg-overlay-hover hover:text-white'
                   }`}
                 >
                   <Icon size={17} />
@@ -191,11 +208,11 @@ export function AppHeader({
             </nav>
 
             <div className="mt-3 grid grid-cols-2 gap-2">
-              <button type="button" onClick={openAdminPanel} className="inline-flex min-h-[48px] items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-semibold text-slate-300 transition hover:bg-white/[0.08]">
+              <button type="button" onClick={openAdminPanel} className="inline-flex min-h-[48px] items-center justify-center gap-2 rounded-card border border-line bg-overlay px-4 py-3 text-sm font-semibold text-ink-muted transition hover:bg-overlay-hover">
                 <Settings size={16} />
                 Admin
               </button>
-              <button type="button" onClick={handleInstallApp} className="inline-flex min-h-[48px] items-center justify-center gap-2 rounded-2xl border border-sky-400/20 bg-sky-400/10 px-4 py-3 text-sm font-semibold text-sky-200 transition hover:bg-sky-400/15">
+              <button type="button" onClick={handleInstallApp} className="inline-flex min-h-[48px] items-center justify-center gap-2 rounded-card border border-sky-400/20 bg-sky-400/10 px-4 py-3 text-sm font-semibold text-sky-200 transition hover:bg-sky-400/20">
                 <Download size={16} />
                 Install
               </button>
@@ -221,20 +238,20 @@ export function AppStatusStack({
   return (
     <>
       {isOffline && (
-        <div className="mb-4 flex items-start justify-center gap-3 rounded-2xl border border-rose-400/25 bg-rose-500/10 px-4 py-3 text-center text-sm text-rose-100 sm:items-center" role="status" aria-live="polite">
+        <div className="mb-4 flex items-start justify-center gap-3 rounded-card border border-rose-400/25 bg-rose-500/10 px-4 py-3 text-center text-sm text-rose-100 sm:items-center" role="status" aria-live="polite">
           <AlertCircle size={16} className="shrink-0" />
           <span className="min-w-0 break-words">Offline. Analysis and profile sync resume when connection returns.</span>
         </div>
       )}
       {guestMode && !currentUser && guestModeBannerVisible && currentPage !== 'home' && (
-        <div className="mb-4 flex flex-col gap-3 rounded-2xl border border-sky-400/20 bg-sky-400/10 px-4 py-3 text-slate-100 sm:flex-row sm:items-center sm:justify-between sm:px-5" role="status" aria-live="polite">
+        <div className="mb-4 flex flex-col gap-3 rounded-card border border-sky-400/20 bg-sky-400/10 px-4 py-3 text-slate-100 sm:flex-row sm:items-center sm:justify-between sm:px-5" role="status" aria-live="polite">
           <div className="flex min-w-0 items-start gap-3">
-            <div className="mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-sky-400/20 bg-sky-400/12 text-sky-200">
+            <div className="mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-control border border-sky-400/20 bg-sky-400/10 text-sky-200">
               <AlertCircle size={18} />
             </div>
             <div className="min-w-0">
               <div className="text-sm font-semibold text-white">Guest mode is active</div>
-              <div className="mt-1 text-sm leading-6 text-slate-300">Practice now. Sign in to save sessions.</div>
+              <div className="mt-1 text-sm leading-6 text-ink-muted">Practice now. Sign in to save sessions.</div>
             </div>
           </div>
           <div className="flex flex-wrap items-center justify-end gap-2 self-end sm:self-auto">
@@ -249,9 +266,8 @@ export function AppStatusStack({
             <button
               type="button"
               onClick={dismissGuestModeBanner}
-              className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-slate-300 transition hover:bg-white/[0.08] hover:text-white"
+              className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-line bg-overlay text-ink-muted transition hover:bg-overlay-hover hover:text-white"
               aria-label="Dismiss guest mode notice"
-              title="Dismiss guest mode notice"
             >
               <X size={16} />
             </button>
@@ -260,13 +276,13 @@ export function AppStatusStack({
       )}
 
       {authError && currentPage !== 'auth' && currentPage !== 'profile' && (
-        <div className="mb-4 rounded-2xl border border-rose-400/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-100" role="alert">
+        <div className="mb-4 rounded-card border border-rose-400/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-100" role="alert">
           {authError}
         </div>
       )}
 
       {isWarmingBackend && currentPage !== 'home' && (
-        <div className="mb-4 flex items-start justify-center gap-3 rounded-2xl border border-amber-400/25 bg-amber-400/10 px-4 py-3 text-center text-sm text-amber-100 sm:items-center" role="status" aria-live="polite">
+        <div className="mb-4 flex items-start justify-center gap-3 rounded-card border border-amber-400/25 bg-amber-400/10 px-4 py-3 text-center text-sm text-amber-100 sm:items-center" role="status" aria-live="polite">
           <Loader size={16} className="shrink-0 animate-spin" />
           <span className="min-w-0 break-words">Connecting analysis service...</span>
         </div>
@@ -275,32 +291,31 @@ export function AppStatusStack({
   );
 }
 
-export function Footer({ setCurrentPage }) {
-  const productLinks = [
+export function Footer({ navTo }) {
+  const contactLinks = [
     { label: 'Instagram', href: 'https://www.instagram.com/notmtri' },
     { label: 'Facebook', href: 'https://www.facebook.com/notmtri' },
     { label: 'LinkedIn', href: 'https://www.linkedin.com/in/nguyen-hoang-minh-tri-vinuni' },
     { label: 'Zalo', href: 'https://zalo.me/0932015209' },
-
   ];
 
   return (
-    <footer className="mt-10 border-t border-white/10 bg-[#050b13] sm:mt-14">
+    <footer className="mt-10 border-t border-line bg-surface-sunken sm:mt-14">
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         <div className="grid gap-7 md:grid-cols-2 xl:grid-cols-[minmax(0,1.15fr)_minmax(150px,0.7fr)_minmax(180px,0.8fr)_minmax(260px,0.95fr)] xl:items-start">
           <div className="max-w-xl">
-            <div className="text-2xl font-extrabold tracking-tight text-white">necs.</div>
-            <p className="mt-2 text-sm leading-6 text-slate-400">
+            <div className="text-2xl font-bold tracking-tight text-white">necs.</div>
+            <p className="mt-2 text-sm leading-6 text-ink-muted">
               NEC speaking practice for students who need fast feedback, sample responses, and mock-test flow.
             </p>
           </div>
 
           <nav aria-label="Footer navigation">
-            <h4 className="mb-3 text-sm font-semibold text-slate-200">Navigate</h4>
+            <h2 className="mb-3 text-sm font-semibold text-slate-200">Navigate</h2>
             <ul className="grid grid-cols-2 gap-x-5 gap-y-2 text-sm sm:grid-cols-3 xl:grid-cols-1">
               {footerLinks.map((link) => (
                 <li key={link.page}>
-                  <button onClick={() => setCurrentPage(link.page)} className="text-left text-slate-400 transition hover:text-sky-200">
+                  <button onClick={() => navTo(link.page)} className="text-left text-ink-muted transition hover:text-sky-200">
                     {link.label}
                   </button>
                 </li>
@@ -309,20 +324,20 @@ export function Footer({ setCurrentPage }) {
           </nav>
 
           <nav aria-label="Contact links">
-            <h4 className="mb-3 text-sm font-semibold text-slate-200">Contact</h4>
+            <h2 className="mb-3 text-sm font-semibold text-slate-200">Contact</h2>
             <ul className="space-y-2 text-sm">
-              {productLinks.map((link) => (
+              {contactLinks.map((link) => (
                 <li key={link.href}>
-                  <a href={link.href} target={link.href.startsWith('mailto:') ? undefined : '_blank'} rel="noopener noreferrer" className="inline-flex items-center gap-2 text-slate-400 transition hover:text-sky-200">
+                  <a href={link.href} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-ink-muted transition hover:text-sky-200">
                     {link.label}
-                    {!link.href.startsWith('mailto:') && <ExternalLink size={13} />}
+                    <ExternalLink size={13} />
                   </a>
                 </li>
               ))}
             </ul>
           </nav>
 
-          <aside className="w-full rounded-2xl border border-white/10 bg-white/[0.03] p-4" aria-label="Support necs.">
+          <aside className="w-full rounded-card border border-line bg-overlay p-4" aria-label="Support necs.">
             <div className="inline-flex items-center gap-2 text-sm font-semibold text-slate-100">
               <Coffee size={16} className="text-amber-100" />
               Support necs.
@@ -331,12 +346,12 @@ export function Footer({ setCurrentPage }) {
               <img
                 src="/donation.png"
                 alt="Donation QR code"
-                className="h-28 w-28 rounded-xl border border-white/10 object-cover"
+                className="h-28 w-28 rounded-control border border-line object-cover"
                 onError={(event) => {
                   event.currentTarget.style.display = 'none';
                 }}
               />
-              <div className="text-sm leading-6 text-slate-400">
+              <div className="text-sm leading-6 text-ink-muted">
                 <p className="font-semibold text-white">Buy me a coffee</p>
                 <p>NGUYEN HOANG MINH TRI</p>
                 <p>1041802514</p>
@@ -346,9 +361,9 @@ export function Footer({ setCurrentPage }) {
           </aside>
         </div>
 
-        <div className="mt-6 flex flex-col gap-3 border-t border-white/10 pt-5 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between">
+        <div className="mt-6 flex flex-col gap-3 border-t border-line pt-5 text-sm text-ink-subtle sm:flex-row sm:items-center sm:justify-between">
           <p>Developed by Nguyen Hoang Minh Tri.</p>
-          <p className="font-semibold text-slate-400">necs. speaking practice</p>
+          <p className="font-semibold text-ink-muted">necs. speaking practice</p>
         </div>
       </div>
     </footer>

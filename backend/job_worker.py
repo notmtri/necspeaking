@@ -143,6 +143,8 @@ class AnalysisWorker:
                     "document_filename": f"necs_feedback_{job.id}.docx",
                     "document_url": f"/api/analyze/jobs/{job.id}/document",
                     "document_external_url": document_external_url,
+                    "grader": grading_result.get("grader", "unknown"),
+                    "audio_reviewed": bool(grading_result.get("audio_reviewed")),
                     "user": refreshed_user,
                 }
                 job.status = 'completed'

@@ -175,19 +175,25 @@ def parse_grading_json(result_text):
     elif "```" in result_text:
         result_text = result_text.split("```")[1].split("```")[0].strip()
 
-    result_text = result_text.replace('"', '"').replace('"', '"')
-    result_text = result_text.replace("''", "'").replace("''", "'")
-    result_text = result_text.replace('\u2018', "'").replace('\u2019', "'")
-    result_text = result_text.replace('\u201c', '"').replace('\u201d', '"')
-    result_text = result_text.replace('\u2013', '-').replace('\u2014', '-')
-    result_text = re.sub(r'[\u200b-\u200f\u202a-\u202e\u2060\uFEFF]', '', result_text)
-    result_text = result_text.replace('\u202f', ' ')
-    result_text = result_text.replace('\ufeff', '')
-    result_text = result_text.replace('\u00A0', ' ')
-    result_text = re.sub(r'[^\x00-\x7F]+', '', result_text)
-    result_text = re.sub(r'[\x00-\x1F\x7F]', '', result_text)
+    # Normalise the punctuation models emit outside string literals, which
+    # would otherwise break json.loads.
+    result_text = result_text.replace(u'\u2018', "'").replace(u'\u2019', "'")
+    result_text = result_text.replace(u'\u201c', '"').replace(u'\u201d', '"')
+    result_text = result_text.replace(u'\u2013', '-').replace(u'\u2014', '-')
 
-    return json.loads(result_text)
+    # Strip zero-width, bidi and BOM characters; normalise exotic spaces.
+    result_text = re.sub(u'[\u200b-\u200f\u202a-\u202e\u2060\ufeff]', '', result_text)
+    result_text = re.sub(u'[\u00a0\u202f]', ' ', result_text)
+
+    # Raw control characters are illegal inside JSON strings. Everything else,
+    # including non-ASCII letters and accents, is real content and is kept --
+    # the previous blanket non-ASCII strip silently deleted feedback text.
+    result_text = re.sub(u'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]', '', result_text)
+
+    # strict=False permits raw tabs/newlines inside string values. Models often
+    # emit them in the multi-paragraph sample_response; the previous code
+    # stripped every control character, silently flattening those paragraphs.
+    return json.loads(result_text, strict=False)
 
 
 def grade_speech_with_gemini(topic, transcript_data, audio_path):
@@ -213,12 +219,11 @@ def grade_speech_with_gemini(topic, transcript_data, audio_path):
         "contents": [{"parts": parts}],
         "generationConfig": {
             "temperature": 0.2,
-            "responseFormat": {
-                "text": {
-                    "mimeType": "application/json",
-                    "schema": GRADING_RESPONSE_SCHEMA,
-                }
-            },
+            # These are the field names generateContent accepts. The API rejects
+            # unknown generationConfig keys outright, so a wrong shape here means
+            # every grading call fails and silently degrades to the Groq fallback.
+            "responseMimeType": "application/json",
+            "responseSchema": GRADING_RESPONSE_SCHEMA,
         },
     }
 
@@ -232,7 +237,11 @@ def grade_speech_with_gemini(topic, transcript_data, audio_path):
             },
             json=payload,
         )
-        response.raise_for_status()
+        if response.status_code >= 400:
+            raise RuntimeError(
+                f"Gemini grading request failed with HTTP {response.status_code} "
+                f"for model '{GEMINI_GRADING_MODEL}': {response.text[:600]}"
+            )
         data = response.json()
 
     candidates = data.get("candidates") or []
@@ -259,11 +268,26 @@ def grade_speech_with_groq(groq_client, topic, transcript_data):
 
 
 def grade_speech(groq_client, topic, transcript_data, audio_path=''):
+    """Grade a response, preferring Gemini because it can hear the audio.
+
+    The Groq fallback only ever sees the transcript, so Delivery is scored
+    blind there. The chosen grader is recorded on the result under `grader`
+    so a permanent fallback cannot go unnoticed.
+    """
     try:
-        return grade_speech_with_gemini(topic, transcript_data, audio_path)
+        result = grade_speech_with_gemini(topic, transcript_data, audio_path)
+        result['grader'] = 'gemini'
+        result['audio_reviewed'] = bool(audio_path)
+        return result
     except Exception as error:
-        print(f"[ANALYSIS] Gemini grading unavailable, falling back to Groq: {error}")
-        return grade_speech_with_groq(groq_client, topic, transcript_data)
+        print(
+            f"[ANALYSIS] Gemini grading unavailable, falling back to Groq "
+            f"(transcript only, delivery scored without audio): {error}"
+        )
+        result = grade_speech_with_groq(groq_client, topic, transcript_data)
+        result['grader'] = 'groq-fallback'
+        result['audio_reviewed'] = False
+        return result
 
 
 def generate_docx(topic, transcript, grading_result):

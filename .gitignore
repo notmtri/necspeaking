@@ -43,6 +43,8 @@ backend/uploads/*.webm
 backend/uploads/*.ogg
 backend/uploads/*.docx
 backend/uploads/*.tmp
+# Runtime analysis-job scratch space.
+backend/uploads/jobs/
 
 # Keep curated bundled sample fixtures if intentionally committed.
 !backend/uploads/

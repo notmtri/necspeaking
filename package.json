@@ -1,13 +1,11 @@
 {
+  "name": "necspeaking",
+  "private": true,
+  "description": "Root convenience scripts. All frontend dependencies live in frontend/package.json.",
   "scripts": {
+    "install:frontend": "cd frontend && npm install",
     "start": "npm --prefix frontend start",
     "build": "npm --prefix frontend run build",
     "test": "npm --prefix frontend test"
-  },
-  "devDependencies": {
-    "workbox-webpack-plugin": "^7.3.0"
-  },
-  "dependencies": {
-    "@vercel/analytics": "^1.5.0"
   }
 }

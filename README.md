@@ -17,12 +17,22 @@ cd frontend
 npm install
 ```
 
+Run this from inside `frontend/`, not with `npm --prefix`, so that
+`frontend/.npmrc` is picked up. It sets `legacy-peer-deps`, which react-scripts 5
+needs because a transitive optional peer asks for a TypeScript version it pins
+away from. Nothing in the app uses TypeScript.
+
 2. Install backend dependencies:
 
 ```powershell
 python -m venv venv
 .\venv\Scripts\pip install -r backend\requirements.txt
 ```
+
+On Python 3.13+, `pydub` needs `audioop-lts` because PEP 594 removed the stdlib
+`audioop` module; it is pinned in `requirements.txt` behind a version marker.
+`pydub` also shells out to **ffmpeg** for audio conversion, so install ffmpeg and
+put it on `PATH` before running an analysis locally.
 
 3. Copy `.env.example` to `backend/.env` and set the values you actually use.
    If your frontend runs on `http://localhost:3001` or `http://127.0.0.1:3001`, keep those origins in `ALLOWED_ORIGINS`.
@@ -39,12 +49,16 @@ REACT_APP_API_URL=http://127.0.0.1:5000
 6. Run database migrations after dependencies are installed:
 
 ```powershell
-.\venv\Scripts\python -m flask --app manage.py db init
-.\venv\Scripts\python -m flask --app manage.py db migrate -m "initial schema"
 .\venv\Scripts\python -m flask --app manage.py db upgrade
 ```
 
-If the repo already has a populated local SQLite file and you are not changing schema yet, you can continue with `CREATE_TABLES_ON_START=true` for local development until the first migration history is created.
+The migration history builds a database from nothing, so this works on a brand
+new database as well as on one previously created with `db.create_all()` and
+never stamped. Do not run `db init` — the `migrations/` directory is already
+committed.
+
+While a `flask db ...` command runs, the app deliberately skips its own startup
+table creation so that Alembic owns the schema.
 
 7. Run the backend API:
 
@@ -75,7 +89,15 @@ From the repo root, `npm run start` forwards to the frontend dev server.
 
 - State-changing API routes now require a CSRF token header. The React app sends it automatically from the `csrf_token` cookie.
 - Analysis reports are uploaded to Cloudinary when Cloudinary credentials are configured. Without Cloudinary, reports fall back to local disk.
+- The backend is API-only. The React app is built and served separately (see `vercel.json`).
 - Speech analysis transcribes with Groq `GROQ_TRANSCRIPTION_MODEL` and grades with Gemini `GEMINI_GRADING_MODEL`, falling back to Groq `GROQ_GRADING_FALLBACK_MODEL` when Gemini is unavailable.
+- **Only the Gemini path sends the audio.** The Groq fallback sees the transcript
+  alone, so Delivery is scored without ever hearing the recording. Each finished
+  job records which grader ran under `result.grader` (`gemini` or
+  `groq-fallback`) and whether audio was reviewed, and a fallback is logged with
+  the Gemini error. If you see `groq-fallback` on every job, the Gemini call is
+  failing -- check `GEMINI_API_KEY` and confirm `GEMINI_GRADING_MODEL` names a
+  model your key can actually reach.
 - Completed and failed analysis jobs are cleaned up automatically after `ANALYSIS_JOB_RETENTION_HOURS` hours.
 - Community posts can be reported publicly and moderated from the admin panel.
 - Runtime visibility is available at:
@@ -84,20 +106,34 @@ From the repo root, `npm run start` forwards to the frontend dev server.
 
 ## Verification
 
-Frontend:
+Frontend (from `frontend/`):
 
 ```powershell
 npm test -- --watchAll=false
 npm run build
+npm run check:mobile-overflow
 ```
+
+`check:mobile-overflow` loads every route at 390px wide and fails on any
+horizontal overflow. It needs a build present, so run `npm run build` first (or
+use `npm run validate:mobile`, which does both).
 
 Backend:
 
 ```powershell
-python -m unittest discover -s backend\tests
-python -m py_compile backend\app.py backend\database.py
-python -m py_compile backend\worker.py backend\analysis_service.py backend\job_worker.py backend\rate_limiter.py
+.\venv\Scripts\python -m unittest discover -s backend\tests
+.\venv\Scripts\python -m py_compile backend\app.py backend\database.py backend\worker.py backend\analysis_service.py backend\job_worker.py backend\rate_limiter.py backend\user_progress.py
 ```
+
+Migrations, against a scratch database rather than your real one:
+
+```powershell
+$env:DATABASE_URL="sqlite:///scratch-verify.db"
+.\venv\Scripts\python -m flask --app manage.py db upgrade
+```
+
+The file lands in `backend/instance/`, because Flask resolves relative SQLite
+paths against the instance folder. Delete it when you are done.
 
 ## Production Notes
 

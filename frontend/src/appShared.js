@@ -1,4 +1,4 @@
-import { BarChart3, BookOpen, CheckCircle, Mic, Sparkles, Users } from 'lucide-react';
+import { BarChart3, Sparkles, Users } from 'lucide-react';
 
 export const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://127.0.0.1:5000';
 export const ADMIN_USERNAME = 'notmtri';
@@ -42,53 +42,29 @@ export const isAdminProfile = (profile) => {
 
 export const getDisplayRole = (profile) => (isAdminProfile(profile) ? 'Admin' : (profile?.role || 'Student'));
 
-const createPlaceholderImage = (title, subtitle, accent = '#0ea5e9') => {
-  const svg = `
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800">
-      <defs>
-        <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
-          <stop offset="0%" stop-color="#081120" />
-          <stop offset="100%" stop-color="${accent}" />
-        </linearGradient>
-      </defs>
-      <rect width="1200" height="800" rx="48" fill="url(#bg)" />
-      <circle cx="960" cy="170" r="92" fill="rgba(255,255,255,0.14)" />
-      <circle cx="245" cy="615" r="140" fill="rgba(255,255,255,0.10)" />
-      <rect x="108" y="132" width="984" height="536" rx="40" fill="rgba(255,255,255,0.08)" stroke="rgba(255,255,255,0.16)" />
-      <text x="600" y="350" fill="#ffffff" font-size="72" font-weight="700" font-family="Arial, sans-serif" text-anchor="middle">${title}</text>
-      <text x="600" y="430" fill="#dbeafe" font-size="30" font-family="Arial, sans-serif" text-anchor="middle">${subtitle}</text>
-    </svg>
-  `;
-  return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
+export const FOUNDER_IMAGE = '/founder.jpg';
+export const SITE_OWNER_NAME = 'Nguyen Hoang Minh Tri';
+
+/** Formats a duration in seconds as m:ss. Fractional seconds are floored. */
+export const formatTime = (seconds = 0) => {
+  const safeSeconds = Number.isFinite(seconds) && seconds > 0 ? Math.floor(seconds) : 0;
+  const minutes = Math.floor(safeSeconds / 60);
+  const remainder = safeSeconds % 60;
+  return `${minutes}:${remainder < 10 ? '0' : ''}${remainder}`;
 };
 
-export const HOME_HERO_IMAGE = '/hero.png';
-export const FOUNDER_IMAGE = '/founder.jpg';
-export const FEEDBACK_AVATAR = createPlaceholderImage('Student Photo', 'Swap in real community images', '#7c3aed');
-export const SITE_OWNER_NAME = 'Nguyen Hoang Minh Tri';
+/** Maps a criterion score to the app's semantic accent ramp. */
+export const getScoreColor = (score, max) => {
+  const percentage = max > 0 ? (score / max) * 100 : 0;
+  if (percentage >= 80) return 'text-emerald-300';
+  if (percentage >= 60) return 'text-amber-300';
+  return 'text-rose-300';
+};
 
 export const HOME_STATS = [
   { value: '1,100+', label: 'active users in peak period', note: 'Data received from Google Analytics since 11/2025', icon: BarChart3 },
   { value: '> 50%', label: 'users won the National English Competition', note: 'Data gathered from NEC 25-26', icon: Users },
   { value: '4 main features', label: 'in one focused workflow', note: 'Analyze, Samples, Simulation, and Community.', icon: Sparkles },
-];
-
-export const HOME_FEATURES = [
-  {
-    title: 'Analyze',
-    description: 'Submit a prompt and recording to receive feedback according to NEC criteria.',
-    icon: Mic,
-  },
-  {
-    title: 'Samples',
-    description: 'Study strong responses from former competitors and compare structure, language, and delivery.',
-    icon: BookOpen,
-  },
-  {
-    title: 'Simulation',
-    description: 'Practice with the real test workflow to boost confidence.',
-    icon: CheckCircle,
-  },
 ];
 
 export const HOME_FEEDBACK = [
@@ -105,12 +81,6 @@ export const HOME_BENEFITS = [
   'Learn from sample responses featuring high-scoring performance.',
   'Practice the rhythm of the real test before competition day.',
   'Use a non-profit tool built for students who need focused preparation.'
-];
-
-export const HOME_FAQ = [
-  { question: 'Who is necs. for?', answer: 'Students preparing for NEC speaking or similar English speaking assessments.' },
-  { question: 'How should I self-study with necs.?', answer: 'Start with Analyze, review the weakest criterion, then repeat with a sample or simulation task.' },
-  { question: 'Can teachers add materials?', answer: 'Not yet. Teachers can send sample speeches or questions by email for review.' },
 ];
 
 export const GUEST_STORAGE_KEY = 'necs.guestMode';
@@ -153,22 +123,6 @@ export const createAvatarDataUri = (name = 'necs user', accent = '#0ea5e9') => {
   `;
   return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
 };
-
-export const createDefaultProfile = () => ({
-  id: 'local-user',
-  email: 'student@necs.app',
-  name: 'New NECS User',
-  username: 'newuser',
-  className: '',
-  school: '',
-  cohort: '',
-  role: 'Student',
-  bio: 'Practicing consistently and tracking progress on necs.',
-  avatar: createAvatarDataUri('New NECS User'),
-  stats: { practices: 0, avgScore: 0, streak: 0, bestScore: 0 },
-  progress: [],
-  commitWeeks: [],
-});
 
 const IMPROVEMENT_CRITERIA = [
   {
