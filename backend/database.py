@@ -1,8 +1,19 @@
 from flask_sqlalchemy import SQLAlchemy
-from datetime import datetime
+from datetime import datetime, timezone
 import uuid
 
 db = SQLAlchemy()
+
+
+def utcnow():
+    """Current UTC time as a naive datetime.
+
+    utcnow() is deprecated and slated for removal, but every DateTime
+    column here is naive. Returning an aware value instead would raise on any
+    comparison against stored rows, so the tzinfo is stripped after computing
+    the time correctly in UTC.
+    """
+    return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
 ADMIN_USERNAMES = {'notmtri'}
@@ -34,8 +45,8 @@ class User(db.Model):
     })
     progress = db.Column(db.JSON, nullable=False, default=lambda: [])
     commit_weeks = db.Column(db.JSON, nullable=False, default=lambda: [])
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
+    updated_at = db.Column(db.DateTime, default=utcnow, onupdate=utcnow)
 
     def _base_profile(self):
         is_admin = is_special_admin(self.username)
@@ -74,7 +85,7 @@ class UserPracticeSession(db.Model):
     transcript = db.Column(db.Text, nullable=False)
     duration = db.Column(db.Float, nullable=False, default=0)
     scores = db.Column(db.JSON, nullable=False, default=dict)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+    created_at = db.Column(db.DateTime, default=utcnow, index=True)
 
     user = db.relationship('User', backref=db.backref('practice_sessions', lazy=True, cascade='all, delete-orphan'))
 
@@ -101,8 +112,8 @@ class CommunityPost(db.Model):
     reported_count = db.Column(db.Integer, nullable=False, default=0)
     last_reported_at = db.Column(db.DateTime, nullable=True)
     moderated_at = db.Column(db.DateTime, nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow, index=True)
+    updated_at = db.Column(db.DateTime, default=utcnow, onupdate=utcnow)
 
     user = db.relationship('User', backref=db.backref('community_posts', lazy=True, cascade='all, delete-orphan'))
 
@@ -142,7 +153,7 @@ class AppAnnouncement(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     enabled = db.Column(db.Boolean, nullable=False, default=False)
     message = db.Column(db.Text, nullable=False, default='')
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=utcnow, onupdate=utcnow)
 
     def to_dict(self):
         return {
@@ -168,8 +179,8 @@ class AnalysisJob(db.Model):
     document_path = db.Column(db.String(1000), default='')
     started_at = db.Column(db.DateTime, nullable=True)
     completed_at = db.Column(db.DateTime, nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow, index=True)
+    updated_at = db.Column(db.DateTime, default=utcnow, onupdate=utcnow)
 
     user = db.relationship('User', backref=db.backref('analysis_jobs', lazy=True))
 
@@ -197,8 +208,8 @@ class RateLimitEntry(db.Model):
     window_key = db.Column(db.BigInteger, nullable=False, index=True)
     count = db.Column(db.Integer, nullable=False, default=0)
     expires_at = db.Column(db.DateTime, nullable=False, index=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
+    updated_at = db.Column(db.DateTime, default=utcnow, onupdate=utcnow)
 
     __table_args__ = (
         db.UniqueConstraint('scope', 'identifier', 'window_key', name='uq_rate_limit_scope_identifier_window'),
@@ -211,7 +222,7 @@ class Question(db.Model):
     topic = db.Column(db.String(500), nullable=False)
     question = db.Column(db.Text, nullable=False)
     category = db.Column(db.String(200), default='General')
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
     
     def to_dict(self):
         return {
@@ -235,7 +246,7 @@ class Sample(db.Model):
     transcript = db.Column(db.Text, nullable=False)
     feedback = db.Column(db.Text, nullable=False)
     audio_url = db.Column(db.String(1000))
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
     
     def to_dict(self):
         return {

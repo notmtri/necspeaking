@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta
 
-from database import UserPracticeSession, db
+from database import UserPracticeSession, db, utcnow
 
 
 def round_score(value):
@@ -41,7 +41,7 @@ def build_commit_weeks(sessions):
         day_key = practice.created_at.date()
         counts_by_day[day_key] = counts_by_day.get(day_key, 0) + 1
 
-    start_day = datetime.utcnow().date() - timedelta(days=41)
+    start_day = utcnow().date() - timedelta(days=41)
     weeks = []
     for week_index in range(6):
         week = []
@@ -62,7 +62,7 @@ def calculate_streak(sessions):
         return 0
 
     streak = 0
-    current_day = datetime.utcnow().date()
+    current_day = utcnow().date()
     if practice_days[0] not in {current_day, current_day - timedelta(days=1)}:
         return 0
 

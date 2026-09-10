@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 import cloudinary.uploader
 
 from analysis_service import convert_to_wav, generate_docx, get_audio_duration, grade_speech, transcribe_audio
-from database import AnalysisJob, User, db
+from database import AnalysisJob, User, db, utcnow
 from user_progress import create_practice_session
 
 
@@ -52,7 +52,7 @@ class AnalysisWorker:
             claimed = AnalysisJob.query.filter_by(id=candidate.id, status='pending').update({
                 AnalysisJob.status: 'processing',
                 AnalysisJob.progress_message: 'Processing audio.',
-                AnalysisJob.started_at: datetime.utcnow(),
+                AnalysisJob.started_at: utcnow(),
             }, synchronize_session=False)
             db.session.commit()
 
@@ -149,7 +149,7 @@ class AnalysisWorker:
                 }
                 job.status = 'completed'
                 job.progress_message = 'Completed.'
-                job.completed_at = datetime.utcnow()
+                job.completed_at = utcnow()
                 db.session.commit()
             except Exception as error:
                 db.session.rollback()
@@ -158,7 +158,7 @@ class AnalysisWorker:
                     job.status = 'failed'
                     job.error_message = str(error)
                     job.progress_message = 'Processing failed.'
-                    job.completed_at = datetime.utcnow()
+                    job.completed_at = utcnow()
                     db.session.commit()
                 print(f"[JOBS] Failed job {job_id}: {error}")
             finally:
@@ -177,7 +177,7 @@ class AnalysisWorker:
         ])
 
     def cleanup_expired_jobs(self):
-        now = datetime.utcnow()
+        now = utcnow()
         if self.last_cleanup_at and (now - self.last_cleanup_at) < timedelta(minutes=10):
             return
         self.last_cleanup_at = now

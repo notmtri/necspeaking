@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Award, BarChart3, CheckCircle, Flame, Lock, LogOut, Target, Trash2, TrendingUp, Trophy, Upload, User } from 'lucide-react';
-import { getDisplayRole, isAdminProfile } from '../appShared';
+import { getDisplayRole, isAdminProfile, readImageAsResizedDataUri } from '../appShared';
 import { PageHeader } from '../components/AppChrome';
 import { FIELD_CLASSNAME, LabeledInput, ProfileDetailRow, ProfileMetricCard, ProfileSectionCard } from '../components/ProfileBits';
 
@@ -153,6 +153,7 @@ export default function ProfilePage({ currentUser, practiceHistory, onSave, onLo
   const [deleteError, setDeleteError] = useState('');
   const [passwordForm, setPasswordForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
   const [passwordMessage, setPasswordMessage] = useState('');
+  const [photoError, setPhotoError] = useState('');
 
   useEffect(() => {
     setDraft(currentUser);
@@ -161,6 +162,7 @@ export default function ProfilePage({ currentUser, practiceHistory, onSave, onLo
     setDeleteError('');
     setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
     setPasswordMessage('');
+    setPhotoError('');
   }, [currentUser]);
 
   const analytics = useMemo(
@@ -184,13 +186,15 @@ export default function ProfilePage({ currentUser, practiceHistory, onSave, onLo
     setDraft((current) => ({ ...current, [field]: value }));
   };
 
-  const updatePhoto = (file) => {
+  const updatePhoto = async (file) => {
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      setDraft((current) => ({ ...current, avatar: String(reader.result || current.avatar) }));
-    };
-    reader.readAsDataURL(file);
+    setPhotoError('');
+    try {
+      const dataUri = await readImageAsResizedDataUri(file);
+      setDraft((current) => ({ ...current, avatar: dataUri }));
+    } catch (error) {
+      setPhotoError(error.message || 'Could not use that image.');
+    }
   };
 
   const displayRole = getDisplayRole(draft);
@@ -349,12 +353,17 @@ export default function ProfilePage({ currentUser, practiceHistory, onSave, onLo
           <ProfileSectionCard title="Settings" eyebrow="Personal info">
             <div className="mb-5 rounded-card border border-line bg-overlay p-4">
               <div className="text-sm font-semibold text-white">Profile photo</div>
-              <div className="mt-1 text-sm text-ink-muted">Upload a new avatar for your user card.</div>
+              <div className="mt-1 text-sm text-ink-muted">Upload a new avatar. Large photos are resized automatically.</div>
               <label className="mt-4 inline-flex cursor-pointer items-center gap-2 rounded-full border border-line bg-sky-400/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-sky-200 transition hover:bg-sky-400/20">
                 <Upload size={14} />
                 Upload photo
                 <input type="file" accept="image/*" onChange={(event) => updatePhoto(event.target.files?.[0])} className="hidden" />
               </label>
+              {photoError && (
+                <div className="mt-3 rounded-control border border-rose-400/20 bg-rose-500/10 px-3 py-2 text-sm text-rose-100" role="alert">
+                  {photoError}
+                </div>
+              )}
             </div>
             <div className="grid gap-4 md:grid-cols-2">
               <LabeledInput label="Name" value={draft.name} onChange={(value) => updateField('name', value)} placeholder="Your full name" />

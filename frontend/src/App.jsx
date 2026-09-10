@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Analytics } from '@vercel/analytics/react';
 import { AdminLoginModal, ToastViewport } from './components/AppOverlays';
 import { AppHeader, AppStatusStack, Footer } from './components/AppChrome';
+import ErrorBoundary from './components/ErrorBoundary';
 import { API_BASE_URL, DEFAULT_ANNOUNCEMENT, downloadDocumentFromBase64, pageFromLocation, pathForPage, readGuestModePreference, writeGuestModePreference } from './appShared';
 import { apiFetch, isAbortError } from './apiClient';
 import AdminPanel from './pages/AdminPanel';
@@ -523,7 +524,9 @@ export default function SpeakUpApp() {
           isWarmingBackend={isWarmingBackend}
           isOffline={isOffline}
         />
-        {renderPage()}
+        <ErrorBoundary resetKey={currentPage}>
+          {renderPage()}
+        </ErrorBoundary>
       </main>
 
       <Footer navTo={navTo} />

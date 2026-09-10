@@ -22,7 +22,7 @@ from urllib.parse import quote
 from sqlalchemy import inspect
 
 from analysis_service import allowed_file, build_job_storage_path, cleanup_old_files, get_audio_duration
-from database import AnalysisJob, AppAnnouncement, CommunityPost, Question, RateLimitEntry, Sample, User, UserPracticeSession, db
+from database import AnalysisJob, AppAnnouncement, CommunityPost, Question, RateLimitEntry, Sample, User, UserPracticeSession, db, utcnow
 from job_worker import AnalysisWorker, should_start_embedded_worker
 from rate_limiter import rate_limit, rate_limiter
 import cloudinary
@@ -236,7 +236,7 @@ def csrf_protection_enabled():
 @app.before_request
 def attach_request_context():
     g.request_id = request.headers.get('X-Request-ID') or secrets.token_hex(8)
-    g.request_started_at = datetime.utcnow()
+    g.request_started_at = utcnow()
     if wants_json_response():
         ensure_csrf_token()
 
@@ -276,7 +276,7 @@ def finalize_response(response):
             )
 
     started_at = getattr(g, 'request_started_at', None)
-    duration_ms = int((datetime.utcnow() - started_at).total_seconds() * 1000) if started_at else None
+    duration_ms = int((utcnow() - started_at).total_seconds() * 1000) if started_at else None
     log_payload = {
         'requestId': request_id,
         'method': request.method,
@@ -423,6 +423,16 @@ def require_login():
     return decorator
 
 
+# Avatars are stored inline and echoed in the community listing, so they need a
+# hard ceiling regardless of what the client sends. The frontend downscales to a
+# 256px JPEG (tens of KB); this is the independent backstop.
+MAX_AVATAR_CHARS = 200 * 1024
+
+# The community listing is a public, unauthenticated endpoint returning whole
+# profiles. Without a ceiling its payload grows with the user base.
+COMMUNITY_PAGE_SIZE = 60
+COMMUNITY_MAX_PAGE_SIZE = 200
+
 DEFAULT_ANNOUNCEMENT_MESSAGE = 'IMPORTANT NOTICE: Authentication system is still under development, please continue as guest.'
 
 
@@ -532,8 +542,29 @@ def auth_me():
 
 @app.route('/api/auth/community', methods=['GET'])
 def auth_community():
-    users = User.query.order_by(User.updated_at.desc(), User.created_at.desc()).all()
-    return jsonify({"profiles": [user.to_public_dict() for user in users]})
+    try:
+        limit = int(request.args.get('limit', COMMUNITY_PAGE_SIZE))
+    except (TypeError, ValueError):
+        limit = COMMUNITY_PAGE_SIZE
+    try:
+        offset = int(request.args.get('offset', 0))
+    except (TypeError, ValueError):
+        offset = 0
+
+    limit = max(1, min(limit, COMMUNITY_MAX_PAGE_SIZE))
+    offset = max(0, offset)
+
+    query = User.query.order_by(User.updated_at.desc(), User.created_at.desc())
+    total = query.order_by(None).count()
+    users = query.offset(offset).limit(limit).all()
+
+    return jsonify({
+        "profiles": [user.to_public_dict() for user in users],
+        "total": total,
+        "limit": limit,
+        "offset": offset,
+        "hasMore": offset + len(users) < total,
+    })
 
 
 @app.route('/api/site/announcement', methods=['GET'])
@@ -592,7 +623,7 @@ def report_community_post(post_id):
 
     try:
         post.reported_count = int(post.reported_count or 0) + 1
-        post.last_reported_at = datetime.utcnow()
+        post.last_reported_at = utcnow()
         db.session.commit()
         return jsonify({"success": True, "reportedCount": post.reported_count})
     except Exception as error:
@@ -652,6 +683,10 @@ def update_profile():
         user.bio = optional_field('bio', user.bio)
 
         avatar = (data.get('avatar') or '').strip()
+        if len(avatar) > MAX_AVATAR_CHARS:
+            return jsonify({
+                "error": "Profile photo is too large. Choose a smaller image."
+            }), 413
         user.avatar = avatar or avatar_from_name(name)
 
         db.session.commit()
@@ -857,7 +892,7 @@ def admin_update_community_post_visibility(post_id):
         reason = (data.get('reason') or '').strip()
         post.hidden = hidden
         post.hidden_reason = reason
-        post.moderated_at = datetime.utcnow()
+        post.moderated_at = utcnow()
         db.session.commit()
         return jsonify({"success": True, "post": post.to_dict(include_moderation=True)})
     except Exception as error:

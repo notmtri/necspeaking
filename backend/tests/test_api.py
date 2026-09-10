@@ -233,6 +233,49 @@ class ApiSmokeTests(unittest.TestCase):
         self.assertEqual(missing.status_code, 404)
         self.assertIn('error', missing.get_json())
 
+    def test_profile_rejects_oversized_avatar(self):
+        self.client.post('/api/auth/signup', json={
+            'email': 'avatar@example.com',
+            'password': 'strongpass123',
+            'profile': {'name': 'Avatar User', 'username': 'avataruser'},
+        })
+
+        oversized = 'data:image/png;base64,' + ('A' * (200 * 1024 + 10))
+        response = self.client.put('/api/auth/profile', json={
+            'name': 'Avatar User',
+            'avatar': oversized,
+        })
+        self.assertEqual(response.status_code, 413)
+
+    def test_community_listing_is_paginated(self):
+        with app_module.app.app_context():
+            for index in range(5):
+                db.session.add(User(
+                    email=f'member{index}@example.com',
+                    username=f'member{index}',
+                    password_hash=generate_password_hash('strongpass123'),
+                    name=f'Member {index}',
+                ))
+            db.session.commit()
+
+        response = self.client.get('/api/auth/community?limit=2')
+        payload = response.get_json()
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(payload['profiles']), 2)
+        self.assertEqual(payload['total'], 5)
+        self.assertTrue(payload['hasMore'])
+
+        last = self.client.get('/api/auth/community?limit=2&offset=4').get_json()
+        self.assertEqual(len(last['profiles']), 1)
+        self.assertFalse(last['hasMore'])
+
+    def test_community_listing_clamps_absurd_limits(self):
+        response = self.client.get('/api/auth/community?limit=100000')
+        self.assertLessEqual(response.get_json()['limit'], 200)
+
+        response = self.client.get('/api/auth/community?limit=not-a-number')
+        self.assertEqual(response.status_code, 200)
+
     def test_cors_allows_configured_origin(self):
         response = self.client.get('/api/health', headers={'Origin': 'http://localhost:3001'})
         self.assertEqual(response.headers.get('Access-Control-Allow-Origin'), 'http://localhost:3001')

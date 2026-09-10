@@ -212,3 +212,65 @@ export const downloadDocumentFromBase64 = (base64String, filename, options = {})
     return false;
   }
 };
+
+export const AVATAR_MAX_EDGE = 256;
+export const AVATAR_MAX_BYTES = 200 * 1024;
+
+/**
+ * Downscales a user-picked image to a small square-ish JPEG data URI.
+ *
+ * Avatars are stored inline in the database and echoed back in the community
+ * listing, so an untouched phone photo (several MB of base64) would bloat every
+ * profile response. Resizing here keeps a typical avatar in the tens of KB.
+ * The server enforces the same ceiling independently.
+ */
+export const readImageAsResizedDataUri = (file, { maxEdge = AVATAR_MAX_EDGE, quality = 0.8 } = {}) => (
+  new Promise((resolve, reject) => {
+    if (!file) {
+      reject(new Error('No image selected.'));
+      return;
+    }
+    if (!file.type?.startsWith('image/')) {
+      reject(new Error('That file is not an image.'));
+      return;
+    }
+
+    const objectUrl = URL.createObjectURL(file);
+    const image = new Image();
+
+    image.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      try {
+        const scale = Math.min(1, maxEdge / Math.max(image.width, image.height));
+        const width = Math.max(1, Math.round(image.width * scale));
+        const height = Math.max(1, Math.round(image.height * scale));
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const context = canvas.getContext('2d');
+        if (!context) {
+          reject(new Error('Could not process this image in your browser.'));
+          return;
+        }
+        context.drawImage(image, 0, 0, width, height);
+
+        const dataUri = canvas.toDataURL('image/jpeg', quality);
+        if (dataUri.length > AVATAR_MAX_BYTES) {
+          reject(new Error('That image is too large even after resizing. Try a smaller photo.'));
+          return;
+        }
+        resolve(dataUri);
+      } catch {
+        reject(new Error('Could not process this image.'));
+      }
+    };
+
+    image.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      reject(new Error('That image could not be read.'));
+    };
+
+    image.src = objectUrl;
+  })
+);

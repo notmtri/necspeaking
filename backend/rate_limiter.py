@@ -1,11 +1,14 @@
 import os
 import time
-from datetime import datetime, timedelta
+from datetime import timedelta
 from functools import wraps
 
 from flask import jsonify, request
+from sqlalchemy import func, select
+from sqlalchemy.dialects.postgresql import insert as postgresql_insert
+from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 
-from database import RateLimitEntry, db
+from database import RateLimitEntry, db, utcnow
 
 try:
     import redis
@@ -18,6 +21,7 @@ class PersistentRateLimiter:
         self.redis_client = None
         self.using_redis = False
         self._warned_fallback = False
+        self._last_cleanup_at = None
 
     def init_app(self, app):
         redis_url = os.getenv('REDIS_URL', '').strip()
@@ -48,32 +52,98 @@ class PersistentRateLimiter:
                 self.redis_client.expire(key, window_seconds)
             return count <= max_requests, retry_after
 
-        expires_at = datetime.utcnow() + timedelta(seconds=retry_after)
-        entry = RateLimitEntry.query.filter_by(
-            scope=scope,
-            identifier=identifier,
-            window_key=window_key,
-        ).first()
-
-        if entry is None:
-            entry = RateLimitEntry(
-                scope=scope,
-                identifier=identifier,
-                window_key=window_key,
-                count=1,
-                expires_at=expires_at,
-            )
-            db.session.add(entry)
-        else:
-            entry.count += 1
-            entry.expires_at = expires_at
-
+        count = self._increment_database_counter(scope, identifier, window_key, retry_after)
         self._cleanup_expired_entries()
-        db.session.commit()
-        return entry.count <= max_requests, retry_after
+        return count <= max_requests, retry_after
+
+    def _increment_database_counter(self, scope, identifier, window_key, retry_after):
+        """Atomically bump the counter for this window and return the new value.
+
+        A read-then-write would race: two concurrent requests in the same window
+        both see no row, both insert, and the loser hits the
+        (scope, identifier, window_key) unique constraint. That surfaced to the
+        caller as a 500 instead of a 429 -- the limiter failing open on exactly
+        the burst it exists to catch. A single INSERT .. ON CONFLICT DO UPDATE
+        collapses it into one statement the database serialises for us.
+        """
+        expires_at = utcnow() + timedelta(seconds=retry_after)
+        dialect = db.engine.dialect.name
+        values = {
+            'scope': scope,
+            'identifier': identifier,
+            'window_key': window_key,
+            'count': 1,
+            'expires_at': expires_at,
+        }
+
+        if dialect in ('postgresql', 'sqlite'):
+            build_insert = postgresql_insert if dialect == 'postgresql' else sqlite_insert
+            statement = build_insert(RateLimitEntry).values(**values)
+            statement = statement.on_conflict_do_update(
+                index_elements=['scope', 'identifier', 'window_key'],
+                set_={
+                    'count': RateLimitEntry.count + 1,
+                    'expires_at': expires_at,
+                },
+            ).returning(RateLimitEntry.count)
+            count = db.session.execute(statement).scalar_one()
+            db.session.commit()
+            return count
+
+        # Any other backend: retry once on the losing insert rather than 500.
+        return self._increment_with_retry(scope, identifier, window_key, expires_at)
+
+    def _increment_with_retry(self, scope, identifier, window_key, expires_at):
+        for attempt in range(2):
+            try:
+                entry = RateLimitEntry.query.filter_by(
+                    scope=scope, identifier=identifier, window_key=window_key,
+                ).with_for_update(nowait=False).first()
+
+                if entry is None:
+                    entry = RateLimitEntry(
+                        scope=scope,
+                        identifier=identifier,
+                        window_key=window_key,
+                        count=1,
+                        expires_at=expires_at,
+                    )
+                    db.session.add(entry)
+                else:
+                    entry.count += 1
+                    entry.expires_at = expires_at
+
+                db.session.commit()
+                return entry.count
+            except Exception:
+                db.session.rollback()
+                if attempt == 1:
+                    raise
+        raise RuntimeError('unreachable')
 
     def _cleanup_expired_entries(self):
-        RateLimitEntry.query.filter(RateLimitEntry.expires_at < datetime.utcnow()).delete(synchronize_session=False)
+        """Sweep stale rows, but not on every single request."""
+        now = utcnow()
+        if self._last_cleanup_at and (now - self._last_cleanup_at) < timedelta(minutes=5):
+            return
+        self._last_cleanup_at = now
+        try:
+            RateLimitEntry.query.filter(RateLimitEntry.expires_at < now).delete(synchronize_session=False)
+            db.session.commit()
+        except Exception as error:
+            db.session.rollback()
+            print(f"[RATE LIMIT] Cleanup skipped: {error}")
+
+    def current_count(self, scope, identifier, window_seconds):
+        """Counter for the active window. Used by tests."""
+        window_key = int(time.time()) // window_seconds
+        return db.session.execute(
+            select(func.coalesce(func.sum(RateLimitEntry.count), 0)).where(
+                RateLimitEntry.scope == scope,
+                RateLimitEntry.identifier == identifier,
+                RateLimitEntry.window_key == window_key,
+            )
+        ).scalar_one()
 
 
 rate_limiter = PersistentRateLimiter()
