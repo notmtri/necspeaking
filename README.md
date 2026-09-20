@@ -95,6 +95,13 @@ From the repo root, `npm run start` forwards to the frontend dev server.
   model your key can actually reach.
 - Completed and failed analysis jobs are cleaned up automatically after `ANALYSIS_JOB_RETENTION_HOURS` hours.
 - Community posts can be reported publicly and moderated from the admin panel.
+- Delivery metrics are derived from word-level transcription timings
+  (`backend/speech_metrics.py`): filler rate, pace per 15s window, long pauses
+  and articulation rate. They are shown to the student and handed to the grader
+  as evidence to cite. If the provider will not return timings the analysis
+  still succeeds, with `metrics.available` false.
+- `GET /api/auth/practice-attempts?topic=...` returns a logged-in student's
+  attempts at one prompt, oldest first, for the retry/compare loop.
 - Runtime visibility is available at:
   - `GET /api/health`
   - `GET /api/admin/runtime` (admin only)
@@ -129,6 +136,40 @@ $env:DATABASE_URL="sqlite:///scratch-verify.db"
 
 The file lands in `backend/instance/`, because Flask resolves relative SQLite
 paths against the instance folder. Delete it when you are done.
+
+## Deploying this upgrade
+
+Two changes in this branch break a running deployment if you only merge the code.
+
+**1. Vercel: rename the frontend environment variable.**
+
+Vite only exposes variables prefixed `VITE_`, so `REACT_APP_API_URL` is now
+ignored. If you deploy without renaming it, the build silently falls back to
+`http://127.0.0.1:5000` and every API call from production fails.
+
+| Before | After |
+|---|---|
+| `REACT_APP_API_URL=https://your-api.onrender.com` | `VITE_API_URL=https://your-api.onrender.com` |
+
+Set it in Vercel → Project → Settings → Environment Variables, then redeploy.
+`vercel.json` already points at `frontend/build`, which is unchanged.
+
+**2. Supabase: run the new migration.**
+
+`b2c3d4e5f6a7` adds `prompt_key` and `metrics` to `user_practice_sessions` and
+backfills `prompt_key` for existing rows. Take a backup first, then from a
+machine with `DATABASE_URL` pointing at Supabase:
+
+```powershell
+.\venv\Scripts\python -m flask --app manage.py db upgrade
+```
+
+The backfill rewrites one row at a time and is safe to re-run: rows that
+already have a key are skipped. Deploy the backend only after it completes,
+since the new code selects those columns.
+
+Nothing else needs changing. Render picks up `backend/requirements.txt`
+automatically; note it now pins `flask-cors` 6.x for the CVE fixes.
 
 ## Production Notes
 
