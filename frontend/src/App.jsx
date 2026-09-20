@@ -332,6 +332,13 @@ export default function SpeakUpApp() {
     navTo('auth');
   }, [navTo]);
 
+  const continueAsGuest = useCallback(() => {
+    setAuthError('');
+    setGuestMode(true);
+    setGuestModeBannerVisible(true);
+    navTo('analyze');
+  }, [navTo]);
+
   const handleAuthSubmit = useCallback(async ({ mode, email, password, profile }) => {
     setAuthSubmitting(true);
     setAuthError('');
@@ -456,6 +463,7 @@ export default function SpeakUpApp() {
             authMode={authMode}
             setAuthMode={setAuthMode}
             onSubmit={handleAuthSubmit}
+            onContinueAsGuest={continueAsGuest}
             currentUser={currentUser}
             authError={authError}
             authSubmitting={authSubmitting}

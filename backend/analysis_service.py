@@ -10,6 +10,8 @@ import httpx
 from pydub import AudioSegment
 from werkzeug.utils import secure_filename
 
+from speech_metrics import build_speech_metrics, describe_metrics_for_prompt, normalise_words
+
 
 ALLOWED_EXTENSIONS = {'wav', 'mp3', 'm4a', 'webm', 'ogg'}
 TRANSCRIPTION_MODEL = os.getenv('GROQ_TRANSCRIPTION_MODEL', 'whisper-large-v3')
@@ -78,9 +80,31 @@ def convert_to_wav(input_path, output_path):
 
 
 def transcribe_audio(groq_client, file_path):
+    """Transcribe with word-level timings.
+
+    verbose_json + word granularity is what makes the delivery metrics
+    possible. If the provider rejects those options we fall back to a plain
+    transcript rather than failing the whole analysis -- the student still gets
+    content and accuracy feedback, just without timing evidence.
+    """
     with open(file_path, 'rb') as audio_file:
+        audio_bytes = audio_file.read()
+
+    words = []
+    try:
         transcription = groq_client.audio.transcriptions.create(
-            file=("audio.wav", audio_file.read()),
+            file=("audio.wav", audio_bytes),
+            model=TRANSCRIPTION_MODEL,
+            response_format="verbose_json",
+            timestamp_granularities=["word", "segment"],
+        )
+        words = getattr(transcription, 'words', None) or []
+        if not words and isinstance(transcription, dict):
+            words = transcription.get('words') or []
+    except Exception as error:
+        print(f"[ANALYSIS] Word-level transcription unavailable, using plain transcript: {error}")
+        transcription = groq_client.audio.transcriptions.create(
+            file=("audio.wav", audio_bytes),
             model=TRANSCRIPTION_MODEL,
             response_format="json",
         )
@@ -90,8 +114,8 @@ def transcribe_audio(groq_client, file_path):
 
     return {
         "text": transcript_text,
-        "words": [],
-        "duration": duration
+        "words": normalise_words(words),
+        "duration": duration,
     }
 
 
@@ -100,6 +124,10 @@ def build_grading_prompt(topic, transcript_data, audio_attached=False):
     total_words = len(transcript_text.split())
     duration = transcript_data["duration"]
     words_per_minute = (total_words / duration * 60) if duration > 0 else 0
+    metrics = transcript_data.get("metrics") or build_speech_metrics(
+        transcript_data.get("words"), duration,
+    )
+    delivery_evidence = describe_metrics_for_prompt(metrics)
     audio_instruction = (
         "The original speech audio is attached. Use it to evaluate pronunciation, intonation, "
         "pauses, fluency, confidence, and delivery. Use the transcript for content, vocabulary, "
@@ -133,6 +161,12 @@ def build_grading_prompt(topic, transcript_data, audio_attached=False):
 - Total words: {total_words}
 - Duration: {duration:.1f} seconds
 - Speaking pace: {words_per_minute:.0f} words/minute
+
+**Measured Delivery Evidence (from word-level timings):**
+{delivery_evidence}
+
+Ground the Delivery score in the measured evidence above. Cite specific numbers
+(pace, filler count, pauses) rather than describing delivery in general terms.
 
 **Audio Availability:** {audio_instruction}
 

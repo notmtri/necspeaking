@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Lock, LogIn, Mail, UserPlus } from 'lucide-react';
+import { Lock, LogIn, Mail, UserPlus, UserRound } from 'lucide-react';
 import { FIELD_CLASSNAME, LabeledInput } from '../components/ProfileBits';
 
 const emptyForm = (currentUser) => ({
@@ -12,7 +12,7 @@ const emptyForm = (currentUser) => ({
   bio: currentUser?.bio || '',
 });
 
-export default function AuthPage({ authMode, setAuthMode, onSubmit, currentUser, authError, authSubmitting, authChecking }) {
+export default function AuthPage({ authMode, setAuthMode, onSubmit, onContinueAsGuest, currentUser, authError, authSubmitting, authChecking }) {
   const [email, setEmail] = useState(currentUser?.email || '');
   const [password, setPassword] = useState('');
   const [form, setForm] = useState(() => emptyForm(currentUser));
@@ -57,6 +57,10 @@ export default function AuthPage({ authMode, setAuthMode, onSubmit, currentUser,
             <div className="rounded-card border border-line bg-overlay p-4 text-sm text-ink-muted">
               <div className="font-semibold text-white">Saved practice history</div>
               <div className="mt-2">Signed-in sessions are stored, so scores and streaks build up over time.</div>
+            </div>
+            <div className="rounded-card border border-line bg-overlay p-4 text-sm text-ink-muted">
+              <div className="font-semibold text-white">Or practise as a guest</div>
+              <div className="mt-2">You can analyse a recording without an account. Guest sessions are not saved.</div>
             </div>
           </div>
         </div>
@@ -160,6 +164,22 @@ export default function AuthPage({ authMode, setAuthMode, onSubmit, currentUser,
               {isSignup ? 'Log in instead' : 'Create one'}
             </button>
           </div>
+
+          {onContinueAsGuest && (
+            <div className="mt-5 border-t border-line pt-5">
+              <button
+                type="button"
+                onClick={onContinueAsGuest}
+                className="inline-flex w-full items-center justify-center gap-2 rounded-control border border-line bg-overlay px-6 py-3 font-semibold text-slate-200 transition hover:bg-overlay-hover"
+              >
+                <UserRound size={17} />
+                Continue as guest
+              </button>
+              <p className="mt-2 text-center text-xs leading-5 text-ink-subtle">
+                Practise straight away. Guest sessions are not saved to a profile.
+              </p>
+            </div>
+          )}
         </div>
       </div>
     </section>

@@ -134,6 +134,30 @@ describe('App', () => {
     expect(container.textContent).toContain('Your free NEC speaking practice assistant');
   });
 
+  it('lets a signed-out visitor start a guest session from the auth page', async () => {
+    // Regression: nothing in the UI could turn guest mode on. The banner and
+    // state machinery existed but were only reachable via stale localStorage.
+    await renderApp('/auth');
+    expect(container.textContent).toContain('Continue as guest');
+
+    const guestButton = [...container.querySelectorAll('button')]
+      .find((button) => button.textContent.includes('Continue as guest'));
+    expect(guestButton).toBeTruthy();
+
+    await act(async () => {
+      guestButton.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    for (let attempt = 0; attempt < 30; attempt += 1) {
+      // eslint-disable-next-line no-await-in-loop
+      await act(async () => { await new Promise((resolve) => setTimeout(resolve, 0)); });
+      if (container.textContent.includes('Guest mode is active')) break;
+    }
+
+    expect(container.textContent).toContain('Guest mode is active');
+    expect(window.location.pathname).toBe('/analyze');
+    expect(window.localStorage.getItem('necs.guestMode')).toBe('true');
+  });
+
   it('shows guest session state when guest mode was previously enabled', async () => {
     window.localStorage.setItem('necs.guestMode', 'true');
 

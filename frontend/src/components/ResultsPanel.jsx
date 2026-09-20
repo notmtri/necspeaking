@@ -2,6 +2,7 @@ import React from 'react';
 import { Download, RotateCcw } from 'lucide-react';
 import { getScoreColor } from '../appShared';
 import ResultsInsights from './ResultsInsights';
+import DeliveryMetrics from './DeliveryMetrics';
 
 const CRITERIA = [
   { key: 'content', label: 'Content', max: 0.9 },
@@ -52,6 +53,8 @@ export default function ResultsPanel({ results, onDownloadReport, onReset, reset
           ))}
         </div>
       </section>
+
+      <DeliveryMetrics metrics={results.metrics} />
 
       <ResultsInsights results={results} />
 

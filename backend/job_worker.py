@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 import cloudinary.uploader
 
 from analysis_service import convert_to_wav, generate_docx, get_audio_duration, grade_speech, transcribe_audio
+from speech_metrics import build_speech_metrics
 from database import AnalysisJob, User, db, utcnow
 from user_progress import create_practice_session
 
@@ -92,6 +93,11 @@ class AnalysisWorker:
                 db.session.commit()
                 transcript_data = transcribe_audio(client, filepath)
 
+                # Derived before grading so the prompt can cite the numbers.
+                transcript_data["metrics"] = build_speech_metrics(
+                    transcript_data.get("words"), transcript_data.get("duration"),
+                )
+
                 job.progress_message = 'Grading speech.'
                 db.session.commit()
                 grading_result = grade_speech(client, job.topic, transcript_data, filepath)
@@ -137,6 +143,7 @@ class AnalysisWorker:
                 job.result_payload = {
                     "transcript": transcript_data["text"],
                     "duration": transcript_data["duration"],
+                    "metrics": transcript_data.get("metrics"),
                     "scores": grading_result["scores"],
                     "feedback": grading_result["feedback"],
                     "sample_response": grading_result["sample_response"],

@@ -8,7 +8,7 @@ BACKEND_DIR = Path(__file__).resolve().parents[1]
 if str(BACKEND_DIR) not in sys.path:
     sys.path.insert(0, str(BACKEND_DIR))
 
-from analysis_service import allowed_file, grade_speech, parse_grading_json  # noqa: E402
+from analysis_service import allowed_file, grade_speech, parse_grading_json, transcribe_audio  # noqa: E402
 
 
 class ParseGradingJsonTests(unittest.TestCase):
@@ -43,6 +43,95 @@ class AllowedFileTests(unittest.TestCase):
     def test_rejects_everything_else(self):
         for name in ('a.exe', 'a.txt', 'noextension', 'a.mp3.exe'):
             self.assertFalse(allowed_file(name), name)
+
+
+class _TranscriptionStubClient:
+    """Mimics the real SDK response shape.
+
+    groq's Transcription model declares only `text` but sets extra="allow", so
+    word timings arrive as a pydantic extra rather than a declared field. This
+    stub reproduces that so the extraction path is actually covered.
+    """
+
+    def __init__(self, words=None, fail_verbose=False):
+        self.words = words
+        self.fail_verbose = fail_verbose
+        self.calls = []
+        outer = self
+
+        class Transcriptions:
+            @staticmethod
+            def create(**kwargs):
+                outer.calls.append(kwargs)
+                if kwargs.get('response_format') == 'verbose_json':
+                    if outer.fail_verbose:
+                        raise RuntimeError('verbose_json not supported')
+                    return _VerboseResponse('hello world', outer.words or [])
+                return _PlainResponse('hello world')
+
+        self.audio = type('Audio', (), {'transcriptions': Transcriptions()})()
+
+
+class _VerboseResponse:
+    def __init__(self, text, words):
+        self.text = text
+        self.words = words
+
+
+class _PlainResponse:
+    def __init__(self, text):
+        self.text = text
+
+
+class TranscribeAudioTests(unittest.TestCase):
+    """transcribe_audio must ask for timings and survive their absence."""
+
+    SILENT_WAV = BACKEND_DIR / 'tests' / '_fixture_silence.wav'
+
+    @classmethod
+    def setUpClass(cls):
+        # 0.5s of silence; get_audio_duration reads it without needing ffmpeg.
+        import struct
+        import wave
+        with wave.open(str(cls.SILENT_WAV), 'wb') as handle:
+            handle.setnchannels(1)
+            handle.setsampwidth(2)
+            handle.setframerate(16000)
+            handle.writeframes(struct.pack('<8000h', *([0] * 8000)))
+
+    @classmethod
+    def tearDownClass(cls):
+        if cls.SILENT_WAV.exists():
+            cls.SILENT_WAV.unlink()
+
+    def test_requests_word_level_timestamps(self):
+        client = _TranscriptionStubClient(words=[{'word': 'hello', 'start': 0.0, 'end': 0.4}])
+        transcribe_audio(client, str(self.SILENT_WAV))
+
+        first = client.calls[0]
+        self.assertEqual(first['response_format'], 'verbose_json')
+        self.assertIn('word', first['timestamp_granularities'])
+
+    def test_extracts_words_from_the_response(self):
+        client = _TranscriptionStubClient(words=[
+            {'word': 'hello', 'start': 0.0, 'end': 0.4},
+            {'word': 'world', 'start': 0.5, 'end': 0.9},
+        ])
+        result = transcribe_audio(client, str(self.SILENT_WAV))
+
+        self.assertEqual([w['word'] for w in result['words']], ['hello', 'world'])
+        self.assertEqual(result['text'], 'hello world')
+
+    def test_falls_back_to_plain_transcript_when_verbose_is_rejected(self):
+        # The analysis must still produce content/accuracy feedback even if the
+        # provider will not give timings.
+        client = _TranscriptionStubClient(fail_verbose=True)
+        result = transcribe_audio(client, str(self.SILENT_WAV))
+
+        self.assertEqual(result['text'], 'hello world')
+        self.assertEqual(result['words'], [])
+        self.assertEqual(len(client.calls), 2)
+        self.assertEqual(client.calls[1]['response_format'], 'json')
 
 
 class _StubGroqClient:
