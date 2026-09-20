@@ -29,7 +29,7 @@ const STAGE_CUES = {
   results: 'Results are ready.',
 };
 
-export default function SimulationMode({ onAnalysisUserUpdate, onDownloadReport, notify, isOffline }) {
+export default function SimulationMode({ onAnalysisUserUpdate, onDownloadReport, notify, isOffline, isLoggedIn = false }) {
   const [simStep, setSimStep] = useState('intro');
   const [currentQuestion, setCurrentQuestion] = useState(null);
   const [questionBank, setQuestionBank] = useState([]);
@@ -732,6 +732,8 @@ export default function SimulationMode({ onAnalysisUserUpdate, onDownloadReport,
               onDownloadReport={() => onDownloadReport(results)}
               onReset={resetSimulation}
               resetLabel="Start new simulation"
+              topic={currentQuestion?.question || ''}
+              isLoggedIn={isLoggedIn}
               extraActions={(
                 <button type="button" onClick={downloadRecording} className="inline-flex items-center justify-center gap-2 rounded-control border border-line bg-overlay px-6 py-3 font-semibold text-white transition hover:bg-overlay-hover">
                   <Download size={18} />

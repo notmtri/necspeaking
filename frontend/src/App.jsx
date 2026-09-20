@@ -499,6 +499,7 @@ export default function SpeakUpApp() {
             onDownloadReport={downloadReport}
             onAnalysisUserUpdate={handleAnalysisUserUpdate}
             isOffline={isOffline}
+            isLoggedIn={Boolean(currentUser)}
           />
         );
       case 'samples':
@@ -508,8 +509,9 @@ export default function SpeakUpApp() {
           <SimulationMode
             onAnalysisUserUpdate={handleAnalysisUserUpdate}
             onDownloadReport={downloadReport}
-              notify={pushToast}
+            notify={pushToast}
             isOffline={isOffline}
+            isLoggedIn={Boolean(currentUser)}
           />
         );
       case 'home':

@@ -1,5 +1,7 @@
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime, timezone
+import hashlib
+import re
 import uuid
 
 db = SQLAlchemy()
@@ -76,15 +78,34 @@ class User(db.Model):
         return self._base_profile()
 
 
+def build_prompt_key(topic):
+    """Stable identity for a speaking prompt.
+
+    Attempts at the same question must group together even when the student
+    retypes it with different spacing, casing or punctuation, so the text is
+    normalised before hashing.
+    """
+    normalised = re.sub(r'[^a-z0-9 ]', ' ', (topic or '').lower())
+    normalised = ' '.join(normalised.split())
+    if not normalised:
+        return ''
+    return hashlib.sha1(normalised.encode('utf-8')).hexdigest()[:32]
+
+
 class UserPracticeSession(db.Model):
     __tablename__ = 'user_practice_sessions'
 
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False, index=True)
     topic = db.Column(db.String(500), nullable=False)
+    # Groups repeat attempts at the same prompt. Indexed with user_id because
+    # every read is "this student's attempts at this prompt".
+    prompt_key = db.Column(db.String(32), default='', index=True)
     transcript = db.Column(db.Text, nullable=False)
     duration = db.Column(db.Float, nullable=False, default=0)
     scores = db.Column(db.JSON, nullable=False, default=dict)
+    # Delivery measurements for this attempt; see speech_metrics.py.
+    metrics = db.Column(db.JSON, nullable=True)
     created_at = db.Column(db.DateTime, default=utcnow, index=True)
 
     user = db.relationship('User', backref=db.backref('practice_sessions', lazy=True, cascade='all, delete-orphan'))
@@ -93,9 +114,11 @@ class UserPracticeSession(db.Model):
         return {
             'id': self.id,
             'topic': self.topic,
+            'promptKey': self.prompt_key or '',
             'transcript': self.transcript,
             'duration': self.duration,
             'scores': self.scores or {},
+            'metrics': self.metrics or None,
             'createdAt': self.created_at.isoformat() if self.created_at else None
         }
 

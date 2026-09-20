@@ -1,8 +1,9 @@
 import React from 'react';
-import { Download, RotateCcw } from 'lucide-react';
+import { Download, RefreshCw, RotateCcw } from 'lucide-react';
 import { getScoreColor } from '../appShared';
 import ResultsInsights from './ResultsInsights';
 import DeliveryMetrics from './DeliveryMetrics';
+import AttemptComparison from './AttemptComparison';
 
 const CRITERIA = [
   { key: 'content', label: 'Content', max: 0.9 },
@@ -15,7 +16,16 @@ const CRITERIA = [
  * Shared by the Analyze page and Simulation mode, which previously carried two
  * copies of this markup that had drifted apart.
  */
-export default function ResultsPanel({ results, onDownloadReport, onReset, resetLabel = 'New analysis', extraActions = null }) {
+export default function ResultsPanel({
+  results,
+  onDownloadReport,
+  onReset,
+  resetLabel = 'New analysis',
+  extraActions = null,
+  topic = '',
+  isLoggedIn = false,
+  onPracticeAgain = null,
+}) {
   if (!results?.scores) return null;
 
   const { scores, feedback = {} } = results;
@@ -56,6 +66,8 @@ export default function ResultsPanel({ results, onDownloadReport, onReset, reset
 
       <DeliveryMetrics metrics={results.metrics} />
 
+      <AttemptComparison topic={topic} isLoggedIn={isLoggedIn} />
+
       <ResultsInsights results={results} />
 
       {results.sample_response && (
@@ -74,6 +86,16 @@ export default function ResultsPanel({ results, onDownloadReport, onReset, reset
           <Download size={16} />
           Download report
         </button>
+        {onPracticeAgain && (
+          <button
+            type="button"
+            onClick={onPracticeAgain}
+            className="inline-flex items-center justify-center gap-2 rounded-control border border-emerald-400/20 bg-emerald-400/10 px-6 py-3 font-semibold text-emerald-100 transition hover:bg-emerald-400/20"
+          >
+            <RefreshCw size={16} />
+            Practise this prompt again
+          </button>
+        )}
         {extraActions}
         <button
           type="button"

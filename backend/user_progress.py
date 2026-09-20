@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta
 
-from database import UserPracticeSession, db, utcnow
+from database import UserPracticeSession, build_prompt_key, db, utcnow
 
 
 def round_score(value):
@@ -92,12 +92,14 @@ def refresh_user_stats(user):
     user.commit_weeks = build_commit_weeks(practices)
 
 
-def create_practice_session(user, topic, transcript_text, duration, scores):
+def create_practice_session(user, topic, transcript_text, duration, scores, metrics=None):
     practice = UserPracticeSession(
         user_id=user.id,
         topic=topic,
+        prompt_key=build_prompt_key(topic),
         transcript=transcript_text,
         duration=float(duration or 0),
+        metrics=metrics or None,
         scores={
             "content": round_score(scores.get("content")),
             "accuracy": round_score(scores.get("accuracy")),

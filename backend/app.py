@@ -22,7 +22,7 @@ from urllib.parse import quote
 from sqlalchemy import inspect
 
 from analysis_service import allowed_file, build_job_storage_path, cleanup_old_files, get_audio_duration
-from database import AnalysisJob, AppAnnouncement, CommunityPost, Question, RateLimitEntry, Sample, User, UserPracticeSession, db, utcnow
+from database import AnalysisJob, AppAnnouncement, CommunityPost, Question, RateLimitEntry, Sample, User, UserPracticeSession, build_prompt_key, db, utcnow
 from job_worker import AnalysisWorker, should_start_embedded_worker
 from rate_limiter import rate_limit, rate_limiter
 import cloudinary
@@ -638,6 +638,35 @@ def auth_practice_history():
     user = get_current_user()
     sessions = UserPracticeSession.query.filter_by(user_id=user.id).order_by(UserPracticeSession.created_at.desc()).limit(12).all()
     return jsonify({"sessions": [session_item.to_dict() for session_item in sessions]})
+
+
+@app.route('/api/auth/practice-attempts', methods=['GET'])
+@require_login()
+def auth_practice_attempts():
+    """Every attempt this student has made at one prompt, oldest first.
+
+    Accepts either an explicit promptKey or the raw topic text, so the client
+    can ask about a result it just received without having to hash it.
+    """
+    user = get_current_user()
+    prompt_key = (request.args.get('promptKey') or '').strip()
+    if not prompt_key:
+        prompt_key = build_prompt_key(request.args.get('topic') or '')
+    if not prompt_key:
+        return jsonify({"error": "A promptKey or topic is required."}), 400
+
+    attempts = (
+        UserPracticeSession.query
+        .filter_by(user_id=user.id, prompt_key=prompt_key)
+        .order_by(UserPracticeSession.created_at.asc())
+        .limit(50)
+        .all()
+    )
+
+    return jsonify({
+        "promptKey": prompt_key,
+        "attempts": [attempt.to_dict() for attempt in attempts],
+    })
 
 
 @app.route('/api/auth/logout', methods=['POST'])

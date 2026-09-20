@@ -115,7 +115,8 @@ class AnalysisWorker:
                             job.topic,
                             transcript_data["text"],
                             transcript_data["duration"],
-                            grading_result["scores"]
+                            grading_result["scores"],
+                            metrics=transcript_data.get("metrics"),
                         )
                         db.session.commit()
                         refreshed_user = current_user.to_dict()

@@ -22,6 +22,7 @@ os.environ['ENABLE_EMBEDDED_WORKER'] = 'false'
 
 import app as app_module  # noqa: E402
 from database import CommunityPost, Question, Sample, User, db  # noqa: E402
+from user_progress import create_practice_session  # noqa: E402
 
 
 class ApiSmokeTests(unittest.TestCase):
@@ -275,6 +276,96 @@ class ApiSmokeTests(unittest.TestCase):
 
         response = self.client.get('/api/auth/community?limit=not-a-number')
         self.assertEqual(response.status_code, 200)
+
+    def _signup(self, email='attempts@example.com', username='attemptsuser'):
+        return self.client.post('/api/auth/signup', json={
+            'email': email,
+            'password': 'strongpass123',
+            'profile': {'name': 'Attempts User', 'username': username},
+        })
+
+    def test_practice_attempts_groups_repeat_attempts_at_one_prompt(self):
+        self._signup()
+        with app_module.app.app_context():
+            user = User.query.filter_by(username='attemptsuser').one()
+            create_practice_session(user, 'What is AI?', 'first try', 30.0,
+                                    {'content': 0.4, 'accuracy': 0.3, 'delivery': 0.2, 'total': 0.9})
+            # Same question, messily retyped: must still group.
+            create_practice_session(user, '  what   IS  ai ??  ', 'second try', 32.0,
+                                    {'content': 0.6, 'accuracy': 0.4, 'delivery': 0.3, 'total': 1.3})
+            create_practice_session(user, 'A different question entirely', 'other', 20.0,
+                                    {'content': 0.2, 'accuracy': 0.2, 'delivery': 0.1, 'total': 0.5})
+            db.session.commit()
+
+        response = self.client.get('/api/auth/practice-attempts?topic=What is AI?')
+        self.assertEqual(response.status_code, 200)
+        payload = response.get_json()
+        self.assertEqual(len(payload['attempts']), 2)
+        # Oldest first, so the client can show improvement over time.
+        totals = [a['scores']['total'] for a in payload['attempts']]
+        self.assertEqual(totals, [0.9, 1.3])
+
+    def test_practice_attempts_requires_a_prompt(self):
+        self._signup(email='noprompt@example.com', username='nopromptuser')
+        self.assertEqual(self.client.get('/api/auth/practice-attempts').status_code, 400)
+
+    def test_practice_attempts_requires_login(self):
+        self.assertEqual(
+            self.client.get('/api/auth/practice-attempts?topic=anything').status_code, 401)
+
+    def test_practice_attempts_are_scoped_to_the_logged_in_user(self):
+        # Another student's attempts at the same prompt must not leak.
+        with app_module.app.app_context():
+            other = User(email='other@example.com', username='otheruser',
+                         password_hash=generate_password_hash('strongpass123'), name='Other')
+            db.session.add(other)
+            db.session.flush()
+            create_practice_session(other, 'Shared prompt', 'theirs', 10.0,
+                                    {'content': 0.9, 'accuracy': 0.6, 'delivery': 0.5, 'total': 2.0})
+            db.session.commit()
+
+        self._signup(email='mine@example.com', username='mineuser')
+        response = self.client.get('/api/auth/practice-attempts?topic=Shared prompt')
+        self.assertEqual(response.get_json()['attempts'], [])
+
+    def test_practice_attempt_persists_delivery_metrics(self):
+        """The retry loop is only useful if metrics survive to the next attempt."""
+        from speech_metrics import build_speech_metrics
+
+        self._signup(email='metrics@example.com', username='metricsuser')
+        words = [{'word': 'um', 'start': 0.0, 'end': 0.2}] + [
+            {'word': f'w{i}', 'start': 0.5 + i * 0.3, 'end': 0.7 + i * 0.3} for i in range(20)
+        ]
+        metrics = build_speech_metrics(words, 12.0)
+        self.assertTrue(metrics['available'])
+
+        with app_module.app.app_context():
+            user = User.query.filter_by(username='metricsuser').one()
+            create_practice_session(
+                user, 'Reusable prompt', 'transcript', 12.0,
+                {'content': 0.5, 'accuracy': 0.3, 'delivery': 0.2, 'total': 1.0},
+                metrics=metrics,
+            )
+            db.session.commit()
+
+        attempts = self.client.get(
+            '/api/auth/practice-attempts?topic=Reusable prompt').get_json()['attempts']
+        self.assertEqual(len(attempts), 1)
+        stored = attempts[0]['metrics']
+        self.assertTrue(stored['available'])
+        self.assertEqual(stored['fillers']['total'], 1)
+        self.assertEqual(stored['wordCount'], 21)
+
+    def test_history_exposes_prompt_key_for_grouping(self):
+        self._signup(email='grouping@example.com', username='groupinguser')
+        with app_module.app.app_context():
+            user = User.query.filter_by(username='groupinguser').one()
+            create_practice_session(user, 'Consistent prompt', 'a', 10.0, {'total': 1.0})
+            db.session.commit()
+
+        sessions = self.client.get('/api/auth/practice-history').get_json()['sessions']
+        self.assertTrue(sessions[0]['promptKey'])
+        self.assertEqual(len(sessions[0]['promptKey']), 32)
 
     def test_cors_allows_configured_origin(self):
         response = self.client.get('/api/health', headers={'Origin': 'http://localhost:3001'})

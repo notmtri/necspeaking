@@ -9,7 +9,7 @@ const MAX_RECORDING_SECONDS = 300;
 const MAX_AUDIO_BYTES = 50 * 1024 * 1024;
 const SAMPLE_PROMPT = 'Many students join competitions to improve confidence. What have you learned from preparing for an English competition?';
 
-export default function AnalyzePage({ onDownloadReport, onAnalysisUserUpdate, isOffline }) {
+export default function AnalyzePage({ onDownloadReport, onAnalysisUserUpdate, isOffline, isLoggedIn = false }) {
   const [step, setStep] = useState('input');
   const [topic, setTopic] = useState('');
   const [audioFile, setAudioFile] = useState(null);
@@ -237,6 +237,17 @@ export default function AnalyzePage({ onDownloadReport, onAnalysisUserUpdate, is
     setProgressMessage('Queued for processing.');
   }, [cancelRecording, clearAudio]);
 
+  /** Same prompt, fresh recording -- the retry half of the practice loop. */
+  const practiceAgain = useCallback(() => {
+    cancelRecording();
+    clearAudio();
+    setResults(null);
+    setError(null);
+    setProgressMessage('Queued for processing.');
+    setStep('input');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [cancelRecording, clearAudio]);
+
   const workflow = [
     { label: 'Record', icon: Mic, active: step === 'input' || step === 'preview', complete: step === 'uploading' || step === 'results' },
     { label: 'Analyze', icon: Loader, active: step === 'uploading', complete: step === 'results' },
@@ -452,6 +463,9 @@ export default function AnalyzePage({ onDownloadReport, onAnalysisUserUpdate, is
             onDownloadReport={() => onDownloadReport(results)}
             onReset={reset}
             resetLabel="New analysis"
+            topic={topic}
+            isLoggedIn={isLoggedIn}
+            onPracticeAgain={practiceAgain}
           />
         )}
       </div>
