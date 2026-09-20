@@ -4,6 +4,7 @@ import json
 import mimetypes
 import os
 import re
+import time
 from datetime import datetime
 
 import httpx
@@ -18,6 +19,11 @@ TRANSCRIPTION_MODEL = os.getenv('GROQ_TRANSCRIPTION_MODEL', 'whisper-large-v3')
 GEMINI_GRADING_MODEL = os.getenv('GEMINI_GRADING_MODEL', 'gemini-3.5-flash')
 GROQ_GRADING_FALLBACK_MODEL = os.getenv('GROQ_GRADING_FALLBACK_MODEL', 'openai/gpt-oss-120b')
 GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent'
+# Flash models return 503 under load often enough that a single attempt would
+# regularly fall back to transcript-only grading.
+GEMINI_MAX_ATTEMPTS = int(os.getenv('GEMINI_MAX_ATTEMPTS', '3'))
+GEMINI_RETRY_BACKOFF_SECONDS = float(os.getenv('GEMINI_RETRY_BACKOFF_SECONDS', '1.5'))
+GEMINI_RETRYABLE_STATUSES = {429, 500, 502, 503, 504}
 
 
 GRADING_RESPONSE_SCHEMA = {
@@ -262,21 +268,51 @@ def grade_speech_with_gemini(topic, transcript_data, audio_path):
     }
 
     url = GEMINI_API_URL.format(model=GEMINI_GRADING_MODEL)
+    data = None
+    last_error = ''
+
     with httpx.Client(timeout=120) as client:
-        response = client.post(
-            url,
-            headers={
-                "Content-Type": "application/json",
-                "x-goog-api-key": gemini_api_key,
-            },
-            json=payload,
-        )
-        if response.status_code >= 400:
-            raise RuntimeError(
-                f"Gemini grading request failed with HTTP {response.status_code} "
-                f"for model '{GEMINI_GRADING_MODEL}': {response.text[:600]}"
+        for attempt in range(GEMINI_MAX_ATTEMPTS):
+            try:
+                response = client.post(
+                    url,
+                    headers={
+                        "Content-Type": "application/json",
+                        "x-goog-api-key": gemini_api_key,
+                    },
+                    json=payload,
+                )
+            except httpx.RequestError as error:
+                last_error = f"connection error: {error}"
+                if attempt + 1 < GEMINI_MAX_ATTEMPTS:
+                    time.sleep(GEMINI_RETRY_BACKOFF_SECONDS * (2 ** attempt))
+                    continue
+                raise RuntimeError(f"Gemini grading request failed: {last_error}") from error
+
+            if response.status_code == 200:
+                data = response.json()
+                break
+
+            last_error = (
+                f"HTTP {response.status_code} for model '{GEMINI_GRADING_MODEL}': "
+                f"{response.text[:400]}"
             )
-        data = response.json()
+
+            # 503/429 mean the model is busy, not that the request is wrong.
+            # Without a retry a momentary spike silently downgrades the student
+            # to transcript-only grading, which is the exact failure this whole
+            # code path was fixed to stop hiding.
+            if response.status_code in GEMINI_RETRYABLE_STATUSES and attempt + 1 < GEMINI_MAX_ATTEMPTS:
+                delay = GEMINI_RETRY_BACKOFF_SECONDS * (2 ** attempt)
+                print(f"[ANALYSIS] Gemini {response.status_code}, retrying in {delay:.1f}s "
+                      f"(attempt {attempt + 1}/{GEMINI_MAX_ATTEMPTS}).")
+                time.sleep(delay)
+                continue
+
+            raise RuntimeError(f"Gemini grading request failed with {last_error}")
+
+    if data is None:
+        raise RuntimeError(f"Gemini grading request failed with {last_error}")
 
     candidates = data.get("candidates") or []
     if not candidates:

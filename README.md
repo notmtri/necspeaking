@@ -93,6 +93,12 @@ From the repo root, `npm run start` forwards to the frontend dev server.
   the Gemini error. If you see `groq-fallback` on every job, the Gemini call is
   failing -- check `GEMINI_API_KEY` and confirm `GEMINI_GRADING_MODEL` names a
   model your key can actually reach.
+- `gemini-3.5-flash` is confirmed working with the corrected request shape
+  (`responseMimeType` + `responseSchema`). It does return HTTP 503 under load
+  fairly often, so transient failures (429/5xx) are retried with exponential
+  backoff before falling back; tune with `GEMINI_MAX_ATTEMPTS` and
+  `GEMINI_RETRY_BACKOFF_SECONDS`. A 400 is never retried, since that means the
+  request itself is malformed.
 - Completed and failed analysis jobs are cleaned up automatically after `ANALYSIS_JOB_RETENTION_HOURS` hours.
 - Community posts can be reported publicly and moderated from the admin panel.
 - Delivery metrics are derived from word-level transcription timings

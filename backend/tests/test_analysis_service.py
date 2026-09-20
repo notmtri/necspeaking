@@ -1,6 +1,7 @@
 import os
 import sys
 import unittest
+from unittest import mock
 from pathlib import Path
 
 
@@ -174,3 +175,91 @@ class GradeSpeechFallbackTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class GeminiRetryTests(unittest.TestCase):
+    """503s are common on flash models under load.
+
+    Without a retry a momentary spike silently downgrades the student to
+    transcript-only grading -- the exact silent failure this path was fixed to
+    stop hiding. These use fake responses so CI never makes a live call.
+    """
+
+    VALID_BODY = {
+        'candidates': [{'content': {'parts': [{'text': '{"scores": {"total": 1.5}, '
+                                                      '"feedback": {}, "sample_response": ""}'}]}}]
+    }
+    TRANSCRIPT = {'text': 'hello world', 'words': [], 'duration': 10.0}
+
+    def setUp(self):
+        self._saved = os.environ.get('GEMINI_API_KEY')
+        os.environ['GEMINI_API_KEY'] = 'test-key'
+
+    def tearDown(self):
+        if self._saved is None:
+            os.environ.pop('GEMINI_API_KEY', None)
+        else:
+            os.environ['GEMINI_API_KEY'] = self._saved
+
+    def _client_returning(self, statuses):
+        """httpx.Client stub yielding the given statuses in order."""
+        responses = []
+        for status in statuses:
+            response = mock.Mock()
+            response.status_code = status
+            response.text = '{"error": "stub"}'
+            response.json.return_value = self.VALID_BODY
+            responses.append(response)
+
+        client = mock.MagicMock()
+        client.__enter__.return_value = client
+        client.post.side_effect = responses
+        return client
+
+    def test_retries_a_503_and_then_succeeds(self):
+        import analysis_service
+
+        client = self._client_returning([503, 200])
+        with mock.patch.object(analysis_service.httpx, 'Client', return_value=client),              mock.patch.object(analysis_service.time, 'sleep') as sleep:
+            result = analysis_service.grade_speech_with_gemini('topic', self.TRANSCRIPT, '')
+
+        self.assertEqual(result['scores']['total'], 1.5)
+        self.assertEqual(client.post.call_count, 2)
+        sleep.assert_called_once()
+
+    def test_gives_up_after_the_attempt_limit(self):
+        import analysis_service
+
+        attempts = analysis_service.GEMINI_MAX_ATTEMPTS
+        client = self._client_returning([503] * attempts)
+        with mock.patch.object(analysis_service.httpx, 'Client', return_value=client),              mock.patch.object(analysis_service.time, 'sleep'):
+            with self.assertRaises(RuntimeError) as caught:
+                analysis_service.grade_speech_with_gemini('topic', self.TRANSCRIPT, '')
+
+        self.assertIn('503', str(caught.exception))
+        self.assertEqual(client.post.call_count, attempts)
+
+    def test_does_not_retry_a_bad_request(self):
+        # A 400 means our payload is wrong; retrying just wastes time.
+        import analysis_service
+
+        client = self._client_returning([400])
+        with mock.patch.object(analysis_service.httpx, 'Client', return_value=client),              mock.patch.object(analysis_service.time, 'sleep') as sleep:
+            with self.assertRaises(RuntimeError):
+                analysis_service.grade_speech_with_gemini('topic', self.TRANSCRIPT, '')
+
+        self.assertEqual(client.post.call_count, 1)
+        sleep.assert_not_called()
+
+    def test_sends_the_documented_generation_config_fields(self):
+        """Guards the original bug: responseFormat was not a real field."""
+        import analysis_service
+
+        client = self._client_returning([200])
+        with mock.patch.object(analysis_service.httpx, 'Client', return_value=client):
+            analysis_service.grade_speech_with_gemini('topic', self.TRANSCRIPT, '')
+
+        config = client.post.call_args.kwargs['json']['generationConfig']
+        self.assertEqual(config['responseMimeType'], 'application/json')
+        self.assertIn('responseSchema', config)
+        self.assertNotIn('responseFormat', config)
