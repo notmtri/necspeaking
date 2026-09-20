@@ -174,8 +174,27 @@ The backfill rewrites one row at a time and is safe to re-run: rows that
 already have a key are skipped. Deploy the backend only after it completes,
 since the new code selects those columns.
 
-Nothing else needs changing. Render picks up `backend/requirements.txt`
+**3. Render: deploy manually, in this order.**
+
+The `necspeaking-backend` service has auto-deploy **off**, so merging does not
+deploy. After the Supabase migration finishes, trigger a deploy from the Render
+dashboard (or the Render MCP). Render picks up `backend/requirements.txt`
 automatically; note it now pins `flask-cors` 6.x for the CVE fixes.
+
+Two Render settings worth fixing while you are there:
+
+- **Health check path is empty.** Set it to `/api/health`. Render then waits for
+  the new instance to answer before routing traffic to it, instead of cutting
+  over blind.
+- The service runs a single free instance with `ENABLE_EMBEDDED_WORKER` needed
+  for analysis to run at all. Free instances spin down when idle; when that
+  happens mid-analysis the job used to hang forever. The worker now marks such
+  jobs failed after `ANALYSIS_JOB_STALE_MINUTES` so the student is told to
+  resubmit.
+
+**Deploy order:** Vercel env var → Supabase migration → Render deploy → Vercel
+redeploy. The frontend and backend are independent, but the backend must not
+run new code against the old schema.
 
 ## Production Notes
 
