@@ -97,7 +97,10 @@ class UserPracticeSession(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False, index=True)
-    topic = db.Column(db.String(500), nullable=False)
+    # Text, not String(500): real NEC prompts average ~450 characters and some
+    # exceed 500. AnalysisJob.topic was already Text, so a long prompt passed
+    # queueing and then failed here after grading had already succeeded.
+    topic = db.Column(db.Text, nullable=False)
     # Groups repeat attempts at the same prompt. Indexed with user_id because
     # every read is "this student's attempts at this prompt".
     prompt_key = db.Column(db.String(32), default='', index=True)

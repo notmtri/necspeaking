@@ -21,6 +21,9 @@ class AnalysisWorker:
         self.thread = None
         self.stop_event = threading.Event()
         self.retention_hours = int(os.getenv('ANALYSIS_JOB_RETENTION_HOURS', '72'))
+        # A job cannot legitimately process for this long; past it the worker
+        # that claimed it is gone (process restart, free-tier spin-down).
+        self.stale_processing_minutes = int(os.getenv('ANALYSIS_JOB_STALE_MINUTES', '20'))
         self.last_cleanup_at = None
 
     def start(self):
@@ -36,6 +39,7 @@ class AnalysisWorker:
     def run_loop(self):
         while not self.stop_event.is_set():
             try:
+                self.recover_stale_jobs()
                 self.cleanup_expired_jobs()
                 processed = self.process_next_job()
                 if not processed:
@@ -183,6 +187,43 @@ class AnalysisWorker:
             os.getenv('CLOUDINARY_API_KEY', '').strip(),
             os.getenv('CLOUDINARY_API_SECRET', '').strip(),
         ])
+
+    def recover_stale_jobs(self):
+        """Fail jobs stuck in 'processing' whose worker evidently died.
+
+        process_next_job claims a row by flipping pending -> processing. If the
+        process is then killed mid-job -- routine on a free-tier host that spins
+        down -- the row stays 'processing' forever: the worker only ever polls
+        for 'pending', and cleanup only removes rows with completed_at set. In
+        production this left 18 jobs showing "Processing audio..." for months,
+        and the students saw a spinner until the client timed out.
+
+        They are marked failed rather than re-queued: the uploaded audio lived
+        on the dead instance's disk and is gone, so a retry cannot succeed.
+        """
+        now = utcnow()
+        cutoff = now - timedelta(minutes=self.stale_processing_minutes)
+
+        with self.app.app_context():
+            stale = AnalysisJob.query.filter(
+                AnalysisJob.status == 'processing',
+                AnalysisJob.started_at.isnot(None),
+                AnalysisJob.started_at < cutoff,
+            ).all()
+            if not stale:
+                return 0
+
+            for job in stale:
+                job.status = 'failed'
+                job.error_message = (
+                    'The analysis worker restarted before this job finished. '
+                    'Please submit the recording again.'
+                )
+                job.progress_message = 'Processing interrupted.'
+                job.completed_at = now
+            db.session.commit()
+            print(f"[JOBS] Marked {len(stale)} stale processing job(s) as failed.")
+            return len(stale)
 
     def cleanup_expired_jobs(self):
         now = utcnow()

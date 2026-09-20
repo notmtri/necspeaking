@@ -1,0 +1,146 @@
+import os
+import sys
+import unittest
+from datetime import timedelta
+from pathlib import Path
+
+from werkzeug.security import generate_password_hash
+
+
+BACKEND_DIR = Path(__file__).resolve().parents[1]
+if str(BACKEND_DIR) not in sys.path:
+    sys.path.insert(0, str(BACKEND_DIR))
+
+TEST_DB_PATH = BACKEND_DIR / 'test_job_worker.db'
+
+os.environ.setdefault('SECRET_KEY', 'test-secret-key')
+os.environ.setdefault('PRODUCTION', 'false')
+os.environ['DATABASE_URL'] = f"sqlite:///{TEST_DB_PATH.as_posix()}"
+os.environ.setdefault('ADMIN_PASSWORD_HASH', generate_password_hash('admin-pass-123'))
+os.environ['ENABLE_EMBEDDED_WORKER'] = 'false'
+
+import app as app_module  # noqa: E402
+from database import AnalysisJob, User, db, utcnow  # noqa: E402
+from job_worker import AnalysisWorker  # noqa: E402
+from user_progress import create_practice_session  # noqa: E402
+
+
+def make_job(status, started_minutes_ago=None):
+    job = AnalysisJob(
+        topic='t', source='analyze', original_filename='a.mp3',
+        stored_audio_path='/tmp/a.mp3', status=status,
+    )
+    if started_minutes_ago is not None:
+        job.started_at = utcnow() - timedelta(minutes=started_minutes_ago)
+    db.session.add(job)
+    return job
+
+
+class StaleJobRecoveryTests(unittest.TestCase):
+    """Production had 18 jobs stuck in 'processing' for up to 118 days.
+
+    The worker only polls for 'pending' and cleanup only removes rows with
+    completed_at set, so a job whose worker died mid-run was never touched
+    again. Students saw a spinner until the client gave up.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        app_module.app.config.update(TESTING=True)
+        cls.worker = AnalysisWorker(app_module.app, lambda: None, str(BACKEND_DIR / 'uploads'))
+
+    def setUp(self):
+        with app_module.app.app_context():
+            db.drop_all()
+            db.create_all()
+
+    @classmethod
+    def tearDownClass(cls):
+        with app_module.app.app_context():
+            db.session.remove()
+            db.engine.dispose()
+        if TEST_DB_PATH.exists():
+            TEST_DB_PATH.unlink()
+
+    def test_marks_long_running_processing_jobs_as_failed(self):
+        with app_module.app.app_context():
+            stuck = make_job('processing', started_minutes_ago=180)
+            db.session.commit()
+            stuck_id = stuck.id
+
+            recovered = self.worker.recover_stale_jobs()
+            self.assertEqual(recovered, 1)
+
+            # The worker committed on its own app-context session. Drop this
+            # session's cached copy so the read below really hits the database.
+            db.session.expire_all()
+            job = db.session.get(AnalysisJob, stuck_id)
+            self.assertEqual(job.status, 'failed')
+            self.assertIsNotNone(job.completed_at, 'must be eligible for retention cleanup now')
+            self.assertIn('restarted', job.error_message)
+
+    def test_leaves_recent_processing_jobs_alone(self):
+        with app_module.app.app_context():
+            active = make_job('processing', started_minutes_ago=2)
+            db.session.commit()
+            active_id = active.id
+
+            self.assertEqual(self.worker.recover_stale_jobs(), 0)
+            db.session.expire_all()
+            self.assertEqual(db.session.get(AnalysisJob, active_id).status, 'processing')
+
+    def test_ignores_pending_and_finished_jobs(self):
+        with app_module.app.app_context():
+            make_job('pending')
+            done = make_job('completed', started_minutes_ago=500)
+            done.completed_at = utcnow()
+            db.session.commit()
+
+            self.assertEqual(self.worker.recover_stale_jobs(), 0)
+            statuses = sorted(j.status for j in AnalysisJob.query.all())
+            self.assertEqual(statuses, ['completed', 'pending'])
+
+
+class LongTopicTests(unittest.TestCase):
+    """Real NEC prompts average ~450 characters and some exceed 500.
+
+    AnalysisJob.topic was already Text but UserPracticeSession.topic was
+    String(500), so a long prompt survived queueing and grading and then failed
+    at the last step. Two production jobs died this way.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        app_module.app.config.update(TESTING=True)
+
+    def setUp(self):
+        with app_module.app.app_context():
+            db.drop_all()
+            db.create_all()
+
+    @classmethod
+    def tearDownClass(cls):
+        with app_module.app.app_context():
+            db.session.remove()
+            db.engine.dispose()
+        if TEST_DB_PATH.exists():
+            TEST_DB_PATH.unlink()
+
+    def test_practice_session_accepts_a_prompt_over_500_characters(self):
+        long_topic = 'Discuss the following statement in detail. ' * 20  # ~880 chars
+        self.assertGreater(len(long_topic), 500)
+
+        with app_module.app.app_context():
+            user = User(email='long@example.com', username='longuser',
+                        password_hash=generate_password_hash('strongpass123'), name='Long')
+            db.session.add(user)
+            db.session.flush()
+            create_practice_session(user, long_topic, 'transcript', 60.0, {'total': 1.0})
+            db.session.commit()
+
+            stored = user.practice_sessions[0].topic
+            self.assertEqual(stored, long_topic, 'topic must round-trip untruncated')
+
+
+if __name__ == '__main__':
+    unittest.main()

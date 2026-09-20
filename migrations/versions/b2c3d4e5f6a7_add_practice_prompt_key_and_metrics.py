@@ -1,4 +1,9 @@
-"""add prompt_key and metrics to practice sessions
+"""add prompt_key and metrics to practice sessions; widen topic
+
+Also widens user_practice_sessions.topic from VARCHAR(500) to TEXT. Real NEC
+prompts average ~450 characters and some exceed 500; AnalysisJob.topic was
+already TEXT, so a long prompt got through queueing and grading and then failed
+at the very last step with StringDataRightTruncation. Seen in production.
 
 prompt_key groups repeat attempts at the same speaking prompt so a student can
 compare one attempt against the last. metrics stores the per-attempt delivery
@@ -41,6 +46,16 @@ def upgrade():
     inspector = sa.inspect(op.get_bind())
     existing = {column['name'] for column in inspector.get_columns('user_practice_sessions')}
 
+    # Widen topic. SQLite ignores VARCHAR length so this is a no-op there;
+    # on PostgreSQL it is a metadata-only change with no table rewrite.
+    if op.get_bind().dialect.name == 'postgresql':
+        op.alter_column(
+            'user_practice_sessions', 'topic',
+            existing_type=sa.String(length=500),
+            type_=sa.Text(),
+            existing_nullable=False,
+        )
+
     if 'prompt_key' not in existing:
         op.add_column(
             'user_practice_sessions',
@@ -81,6 +96,16 @@ def upgrade():
 
 
 def downgrade():
+    if op.get_bind().dialect.name == 'postgresql':
+        # Truncates any topic over 500 characters; that is the pre-existing bug
+        # this revision fixes, so a downgrade knowingly reintroduces it.
+        op.execute("UPDATE user_practice_sessions SET topic = left(topic, 500)")
+        op.alter_column(
+            'user_practice_sessions', 'topic',
+            existing_type=sa.Text(),
+            type_=sa.String(length=500),
+            existing_nullable=False,
+        )
     op.drop_index('ix_user_practice_sessions_prompt_key', table_name='user_practice_sessions')
     op.drop_column('user_practice_sessions', 'metrics')
     op.drop_column('user_practice_sessions', 'prompt_key')
