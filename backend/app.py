@@ -18,13 +18,13 @@ from werkzeug.exceptions import HTTPException, RequestEntityTooLarge
 from groq import Groq
 import re
 import random
-from urllib.parse import quote
 from sqlalchemy import inspect
+from sqlalchemy.engine import make_url
 
 from analysis_service import allowed_file, build_job_storage_path, cleanup_old_files, get_audio_duration
-from database import AnalysisJob, AppAnnouncement, CommunityPost, Question, RateLimitEntry, Sample, User, UserPracticeSession, build_prompt_key, db, utcnow
+from database import MAX_AVATAR_CHARS, AnalysisJob, AppAnnouncement, CommunityPost, Question, RateLimitEntry, Sample, User, UserPracticeSession, avatar_from_name, build_prompt_key, db, utcnow
 from job_worker import AnalysisWorker, should_start_embedded_worker
-from rate_limiter import rate_limit, rate_limiter
+from rate_limiter import client_ip, rate_limit, rate_limiter
 import cloudinary
 import cloudinary.uploader
 
@@ -84,6 +84,12 @@ else:
     app.config['SESSION_COOKIE_SECURE'] = False
     app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 
+# 'None' is only needed while the API lives on a different site from the app.
+# Serve it from a subdomain of the app's own domain and this can be 'Lax'.
+samesite_override = os.getenv('SESSION_COOKIE_SAMESITE', '').strip().capitalize()
+if samesite_override in {'Lax', 'Strict', 'None'}:
+    app.config['SESSION_COOKIE_SAMESITE'] = samesite_override
+
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=2)
 
 # Database Configuration
@@ -107,7 +113,18 @@ if 'postgresql' in database_url:
         }
     }
 
-print(f"[DB] Connecting to: {database_url[:50]}...")
+def redact_database_url(url):
+    """The URL minus its password. The old boot log printed the first 50
+    characters of DATABASE_URL, which put the user name and the start of the
+    password into the hosting provider's logs on every restart."""
+    try:
+        parsed = make_url(url)
+        return parsed.render_as_string(hide_password=True)
+    except Exception:
+        return url.split('://', 1)[0] + '://***'
+
+
+print(f"[DB] Connecting to: {redact_database_url(database_url)}")
 
 db.init_app(app)
 
@@ -230,7 +247,21 @@ def ensure_csrf_token():
 
 
 def csrf_protection_enabled():
-    return not app.config.get('TESTING', False)
+    return not app.config.get('TESTING', False) and not app.config.get('CSRF_DISABLED', False)
+
+
+def session_carries_authority():
+    """True when the session cookie would let a forged request act as someone.
+
+    CSRF abuses the credentials a browser attaches automatically. A request
+    with no logged-in user or admin behind it has nothing to abuse -- an
+    attacker could send the same request directly. Demanding a token anyway is
+    what broke guest analysis in every browser that blocks third-party cookies
+    (Safari/iOS, Brave, Chrome incognito): the API is on a different site from
+    the app, so the session cookie holding the token never arrives and every
+    upload was rejected with 403.
+    """
+    return bool(session.get('admin_authenticated') or get_current_user())
 
 
 @app.before_request
@@ -247,6 +278,8 @@ def attach_request_context():
     if not wants_json_response():
         return None
     if request.path in CSRF_EXEMPT_PATHS:
+        return None
+    if not session_carries_authority():
         return None
 
     expected_token = session.get('csrf_token')
@@ -283,7 +316,7 @@ def finalize_response(response):
         'path': request.path,
         'status': response.status_code,
         'durationMs': duration_ms,
-        'remoteAddr': request.headers.get('X-Forwarded-For', request.remote_addr),
+        'clientIp': client_ip(),
     }
     logger.info(json.dumps(log_payload))
     return response
@@ -423,14 +456,15 @@ def require_login():
     return decorator
 
 
-# Avatars are stored inline and echoed in the community listing, so they need a
-# hard ceiling regardless of what the client sends. The frontend downscales to a
-# 256px JPEG (tens of KB); this is the independent backstop.
-MAX_AVATAR_CHARS = 200 * 1024
-
 # The community listing is a public, unauthenticated endpoint returning whole
 # profiles. Without a ceiling its payload grows with the user base.
-COMMUNITY_PAGE_SIZE = 60
+#
+# The default must cover every user for now: the client computes the
+# leaderboards and the username search from whatever this returns, so a page
+# of the 60 most recently *updated* users silently dropped top scorers who had
+# not practised lately. Avatars are bounded (see database.py), which keeps a
+# full page small.
+COMMUNITY_PAGE_SIZE = 200
 COMMUNITY_MAX_PAGE_SIZE = 200
 
 DEFAULT_ANNOUNCEMENT_MESSAGE = 'IMPORTANT NOTICE: Authentication system is still under development, please continue as guest.'
@@ -445,23 +479,6 @@ def get_or_create_announcement():
     db.session.add(announcement)
     db.session.commit()
     return announcement
-
-
-def avatar_from_name(name):
-    initials = ''.join([part[:1].upper() for part in (name or 'NECS User').split()[:2]]) or 'N'
-    svg = f"""
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96">
-      <defs>
-        <linearGradient id="avatar" x1="0" x2="1" y1="0" y2="1">
-          <stop offset="0%" stop-color="#0ea5e9" />
-          <stop offset="100%" stop-color="#1e293b" />
-        </linearGradient>
-      </defs>
-      <rect width="96" height="96" rx="30" fill="url(#avatar)" />
-      <text x="48" y="56" text-anchor="middle" fill="#ffffff" font-size="34" font-weight="700" font-family="Arial, sans-serif">{initials}</text>
-    </svg>
-    """.strip()
-    return f"data:image/svg+xml;charset=UTF-8,{quote(svg)}"
 
 
 # ============= AUTHENTICATION ROUTES =============
@@ -1038,11 +1055,21 @@ def download_analysis_job_document(job_id):
 
 @app.route('/api/samples', methods=['GET'])
 def get_samples():
+    samples = Sample.query.order_by(Sample.created_at.desc()).all()
+    return jsonify({"samples": [s.to_dict() for s in samples]})
+
+
+def parse_score(raw, default=None):
+    """A sample score from form input, or None when it is not a valid score."""
+    if raw is None or str(raw).strip() == '':
+        return default
     try:
-        samples = Sample.query.order_by(Sample.created_at.desc()).all()
-        return jsonify({"samples": [s.to_dict() for s in samples]})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        value = float(raw)
+    except (TypeError, ValueError):
+        return None
+    if value != value or value < 0 or value > 2:
+        return None
+    return value
 
 @app.route('/api/samples/upload', methods=['POST'])
 @require_admin()
@@ -1056,12 +1083,14 @@ def upload_sample():
         topic = request.form.get('topic')
         question = request.form.get('question', '')
         speaker = request.form.get('speaker')
-        score = float(request.form.get('score', 2.0))
+        score = parse_score(request.form.get('score'), default=2.0)
         transcript = request.form.get('transcript', '')
         feedback = request.form.get('feedback', '')
-        
+
         if not all([topic, speaker, transcript, feedback]):
             return jsonify({"error": "Missing required fields"}), 400
+        if score is None:
+            return jsonify({"error": "Score must be a number between 0 and 2."}), 400
 
         if not audio_file.filename or not allowed_file(audio_file.filename):
             return jsonify({"error": "Invalid file format."}), 400
@@ -1110,113 +1139,141 @@ def upload_sample():
         db.session.rollback()
         if 'temp_path' in locals() and os.path.exists(temp_path):
             os.remove(temp_path)
-        return jsonify({"error": str(e)}), 500
+        print(f"[SAMPLES] Upload error: {e}")
+        return jsonify({"error": "Sample upload failed."}), 500
 
 @app.route('/api/samples/<int:sample_id>', methods=['PUT'])
 @require_admin()
 def update_sample(sample_id):
+    sample = db.session.get(Sample, sample_id)
+    if not sample:
+        return jsonify({"error": "Not found"}), 404
+
+    if 'score' in request.form:
+        score = parse_score(request.form['score'])
+        if score is None:
+            return jsonify({"error": "Score must be a number between 0 and 2."}), 400
+        sample.score = score
+    for field in ('topic', 'question', 'speaker', 'transcript', 'feedback'):
+        if field in request.form:
+            setattr(sample, field, request.form[field])
+
     try:
-        sample = db.session.get(Sample, sample_id)
-        if not sample:
-            return jsonify({"error": "Not found"}), 404
-
-        if 'topic' in request.form: sample.topic = request.form['topic']
-        if 'question' in request.form: sample.question = request.form['question']
-        if 'speaker' in request.form: sample.speaker = request.form['speaker']
-        if 'score' in request.form: sample.score = float(request.form['score'])
-        if 'transcript' in request.form: sample.transcript = request.form['transcript']
-        if 'feedback' in request.form: sample.feedback = request.form['feedback']
-
         db.session.commit()
         return jsonify({"success": True})
-        
     except Exception as e:
         db.session.rollback()
-        return jsonify({"error": str(e)}), 500
+        print(f"[SAMPLES] Update error: {e}")
+        return jsonify({"error": "Sample update failed."}), 500
 
 @app.route('/api/samples/<int:sample_id>', methods=['DELETE'])
 @require_admin()
 def delete_sample(sample_id):
-    try:
-        sample = db.session.get(Sample, sample_id)
-        if not sample:
-            return jsonify({"error": "Not found"}), 404
+    sample = db.session.get(Sample, sample_id)
+    if not sample:
+        return jsonify({"error": "Not found"}), 404
 
+    try:
         db.session.delete(sample)
         db.session.commit()
         return jsonify({"success": True})
-        
     except Exception as e:
         db.session.rollback()
-        return jsonify({"error": str(e)}), 500
+        print(f"[SAMPLES] Delete error: {e}")
+        return jsonify({"error": "Sample deletion failed."}), 500
 
 @app.route('/api/questions', methods=['GET'])
 def get_questions():
-    try:
-        questions = Question.query.all()
-        return jsonify({"questions": [q.to_dict() for q in questions]})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    questions = Question.query.all()
+    return jsonify({"questions": [q.to_dict() for q in questions]})
+
+
+def read_question_payload(partial=False):
+    """Validated question fields from the JSON body, or (None, error).
+
+    A missing body or key used to raise inside the handler and come back as a
+    500 carrying the raw exception text (e.g. "'topic'").
+    """
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return None, "Request body must be a JSON object."
+
+    fields = {}
+    for key in ('topic', 'question', 'category'):
+        if key not in data:
+            continue
+        value = (data.get(key) or '').strip() if isinstance(data.get(key), str) else ''
+        if key in ('topic', 'question') and not value:
+            return None, f"{key.capitalize()} cannot be empty."
+        fields[key] = value or 'General'
+
+    if not partial:
+        for key in ('topic', 'question'):
+            if key not in fields:
+                return None, f"{key.capitalize()} is required."
+    if len(fields.get('topic', '')) > 500:
+        return None, "Topic is too long."
+    if len(fields.get('category', '')) > 200:
+        return None, "Category is too long."
+    return fields, None
+
 
 @app.route('/api/questions', methods=['POST'])
 @require_admin()
 def add_question():
+    fields, error = read_question_payload()
+    if error:
+        return jsonify({"error": error}), 400
     try:
-        data = request.get_json()
-        new_question = Question(
-            topic=data['topic'],
-            question=data['question'],
-            category=data.get('category', 'General')
-        )
+        new_question = Question(**{'category': 'General', **fields})
         db.session.add(new_question)
         db.session.commit()
         return jsonify({"success": True, "id": new_question.id})
     except Exception as e:
         db.session.rollback()
-        return jsonify({"error": str(e)}), 500
+        print(f"[QUESTIONS] Create error: {e}")
+        return jsonify({"error": "Could not add question."}), 500
 
 @app.route('/api/questions/<int:question_id>', methods=['PUT'])
 @require_admin()
 def update_question(question_id):
+    question = db.session.get(Question, question_id)
+    if not question:
+        return jsonify({"error": "Not found"}), 404
+    fields, error = read_question_payload(partial=True)
+    if error:
+        return jsonify({"error": error}), 400
     try:
-        data = request.get_json()
-        question = db.session.get(Question, question_id)
-        if not question:
-            return jsonify({"error": "Not found"}), 404
-        
-        if 'topic' in data: question.topic = data['topic']
-        if 'question' in data: question.question = data['question']
-        if 'category' in data: question.category = data['category']
-        
+        for key, value in fields.items():
+            setattr(question, key, value)
         db.session.commit()
         return jsonify({"success": True})
     except Exception as e:
         db.session.rollback()
-        return jsonify({"error": str(e)}), 500
+        print(f"[QUESTIONS] Update error: {e}")
+        return jsonify({"error": "Could not update question."}), 500
 
 @app.route('/api/questions/<int:question_id>', methods=['DELETE'])
 @require_admin()
 def delete_question(question_id):
+    question = db.session.get(Question, question_id)
+    if not question:
+        return jsonify({"error": "Not found"}), 404
     try:
-        question = db.session.get(Question, question_id)
-        if not question:
-            return jsonify({"error": "Not found"}), 404
         db.session.delete(question)
         db.session.commit()
         return jsonify({"success": True})
     except Exception as e:
         db.session.rollback()
-        return jsonify({"error": str(e)}), 500
+        print(f"[QUESTIONS] Delete error: {e}")
+        return jsonify({"error": "Could not delete question."}), 500
 
 @app.route('/api/questions/random', methods=['GET'])
 def get_random_question():
-    try:
-        questions = Question.query.all()
-        if not questions:
-            return jsonify({"error": "No questions"}), 404
-        return jsonify({"question": random.choice(questions).to_dict()})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    questions = Question.query.all()
+    if not questions:
+        return jsonify({"error": "No questions"}), 404
+    return jsonify({"question": random.choice(questions).to_dict()})
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))

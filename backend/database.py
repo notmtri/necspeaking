@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 import hashlib
 import re
 import uuid
+from urllib.parse import quote
 
 db = SQLAlchemy()
 
@@ -20,9 +21,31 @@ def utcnow():
 
 ADMIN_USERNAMES = {'notmtri'}
 
+# Avatars are stored inline and echoed in the community listing, so they need a
+# hard ceiling regardless of what the client sends. The frontend downscales to a
+# 256px JPEG (tens of KB); this is the independent backstop.
+MAX_AVATAR_CHARS = 200 * 1024
+
 
 def is_special_admin(username):
     return (username or '').strip().lower().lstrip('@') in ADMIN_USERNAMES
+
+
+def avatar_from_name(name):
+    initials = ''.join([part[:1].upper() for part in (name or 'NECS User').split()[:2]]) or 'N'
+    svg = f"""
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96">
+      <defs>
+        <linearGradient id="avatar" x1="0" x2="1" y1="0" y2="1">
+          <stop offset="0%" stop-color="#0ea5e9" />
+          <stop offset="100%" stop-color="#1e293b" />
+        </linearGradient>
+      </defs>
+      <rect width="96" height="96" rx="30" fill="url(#avatar)" />
+      <text x="48" y="56" text-anchor="middle" fill="#ffffff" font-size="34" font-weight="700" font-family="Arial, sans-serif">{initials}</text>
+    </svg>
+    """.strip()
+    return f"data:image/svg+xml;charset=UTF-8,{quote(svg)}"
 
 
 class User(db.Model):
@@ -50,6 +73,18 @@ class User(db.Model):
     created_at = db.Column(db.DateTime, default=utcnow)
     updated_at = db.Column(db.DateTime, default=utcnow, onupdate=utcnow)
 
+    def display_avatar(self):
+        """The avatar to serve, never larger than MAX_AVATAR_CHARS.
+
+        Photos uploaded before the size cap existed are still stored -- one
+        was over 1 MB -- and five of them made every public community listing
+        3.4 MB. Those are replaced by the initials avatar until re-uploaded.
+        """
+        avatar = self.avatar or ''
+        if not avatar or len(avatar) > MAX_AVATAR_CHARS:
+            return avatar_from_name(self.name)
+        return avatar
+
     def _base_profile(self):
         is_admin = is_special_admin(self.username)
         return {
@@ -62,7 +97,7 @@ class User(db.Model):
             'role': 'Admin' if is_admin else (self.role or 'Student'),
             'isAdmin': is_admin,
             'bio': self.bio or '',
-            'avatar': self.avatar or '',
+            'avatar': self.display_avatar(),
             'stats': self.stats or {},
             'progress': self.progress or [],
             'commitWeeks': self.commit_weeks or [],
@@ -159,7 +194,7 @@ class CommunityPost(db.Model):
                 'username': author.username if author else '',
                 'role': 'Admin' if author_is_admin else (author.role if author else 'Student'),
                 'isAdmin': author_is_admin,
-                'avatar': author.avatar if author else '',
+                'avatar': author.display_avatar() if author else '',
             }
         }
         if include_moderation:

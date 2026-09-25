@@ -82,7 +82,25 @@ From the repo root, `npm run start` forwards to the frontend dev server.
 
 ## Backend Notes
 
-- State-changing API routes now require a CSRF token header. The React app sends it automatically from the `csrf_token` cookie.
+- State-changing API routes require a CSRF token header whenever the session
+  belongs to a logged-in user or admin. The React app sends it automatically.
+  Anonymous requests are exempt: they carry no authority to forge, and
+  browsers that block third-party cookies (Safari/iOS, Brave, incognito Chrome)
+  never return the session cookie that holds the token, so requiring it
+  rejected every guest upload from those browsers.
+- **Known limitation: login does not persist in browsers that block
+  third-party cookies**, because the API (`onrender.com`) is a different site
+  from the app (`necspeaking.com`). The fix is infrastructure, not code: serve
+  the API as `api.necspeaking.com` (Render custom domain + a CNAME), point
+  `VITE_API_URL` at it, and set `SESSION_COOKIE_SAMESITE=Lax`.
+- Rate limits key on the client address read `TRUSTED_PROXY_HOPS` entries from
+  the right of `X-Forwarded-For` (3 on Render: Cloudflare edge, Cloudflare to
+  Render, Render internal). The leftmost entry is client-supplied and must
+  never be trusted.
+- Postgres tables have row level security enabled with no policies
+  (`c3d4e5f6a7b8`). That shuts Supabase's public REST API out of every table
+  while the backend, which connects as the table owner, is unaffected. Never
+  add `FORCE ROW LEVEL SECURITY`.
 - Analysis reports are uploaded to Cloudinary when Cloudinary credentials are configured. Without Cloudinary, reports fall back to local disk.
 - The backend is API-only. The React app is built and served separately (see `vercel.json`).
 - Speech analysis transcribes with Groq `GROQ_TRANSCRIPTION_MODEL` and grades with Gemini `GEMINI_GRADING_MODEL`, falling back to Groq `GROQ_GRADING_FALLBACK_MODEL` when Gemini is unavailable.
@@ -96,9 +114,18 @@ From the repo root, `npm run start` forwards to the frontend dev server.
 - `gemini-3.5-flash` is confirmed working with the corrected request shape
   (`responseMimeType` + `responseSchema`). It does return HTTP 503 under load
   fairly often, so transient failures (429/5xx) are retried with exponential
-  backoff before falling back; tune with `GEMINI_MAX_ATTEMPTS` and
-  `GEMINI_RETRY_BACKOFF_SECONDS`. A 400 is never retried, since that means the
-  request itself is malformed.
+  backoff; tune with `GEMINI_MAX_ATTEMPTS` and `GEMINI_RETRY_BACKOFF_SECONDS`.
+  A 400 is never retried, since that means the request itself is malformed.
+- When the primary model stays overloaded, grading moves through
+  `GEMINI_FALLBACK_MODELS` (default `gemini-3.6-flash,gemini-3.5-flash-lite`)
+  before dropping to transcript-only Groq. A timeout skips straight to the next
+  model. `result.grader_model` records which model actually graded the job.
+  On 2026-09-26 3.5/3.7/3.8-flash were all returning 503 while 3.6-flash and
+  3.5-flash-lite answered; 3.6-flash scored a known 1.8 sample at exactly 1.80.
+- Grader replies are validated before use: scores are clamped to the rubric
+  (0.9 / 0.6 / 0.5) and the total is recomputed from the parts.
+- A failed job shows the student an actionable message; the raw error is only
+  in the logs (`[JOBS] Failed job ...`).
 - Completed and failed analysis jobs are cleaned up automatically after `ANALYSIS_JOB_RETENTION_HOURS` hours.
 - Community posts can be reported publicly and moderated from the admin panel.
 - Delivery metrics are derived from word-level transcription timings
@@ -173,6 +200,9 @@ machine with `DATABASE_URL` pointing at Supabase:
 The backfill rewrites one row at a time and is safe to re-run: rows that
 already have a key are skipped. Deploy the backend only after it completes,
 since the new code selects those columns.
+
+`c3d4e5f6a7b8` then enables row level security. Both revisions are additive,
+so the currently deployed backend keeps working against the migrated schema.
 
 **3. Render: deploy manually, in this order.**
 

@@ -412,5 +412,161 @@ class ApiSmokeTests(unittest.TestCase):
         self.assertEqual(len(samples.get_json()['samples']), 1)
 
 
+    # --- CSRF --------------------------------------------------------------
+
+    def _with_csrf_enforced(self):
+        app_module.app.config['CSRF_DISABLED'] = False
+        app_module.app.config['TESTING'] = False
+        self.addCleanup(app_module.app.config.update, TESTING=True)
+
+    def test_guest_upload_needs_no_csrf_token(self):
+        """Safari/iOS, Brave and incognito Chrome drop the cross-site session
+        cookie, so a guest's token can never match. Production logs showed
+        every such upload rejected with 403 in 0ms."""
+        self._with_csrf_enforced()
+        guest = app_module.app.test_client()
+        response = guest.post('/api/analyze', data={
+            'topic': 'Guest topic',
+            'audio': (BytesIO(b'fake-audio-content'), 'response.mp3'),
+        }, content_type='multipart/form-data')
+        self.assertEqual(response.status_code, 202)
+
+    def test_logged_in_requests_still_need_the_csrf_token(self):
+        self._signup(email='csrf@example.com', username='csrfuser')
+        self._with_csrf_enforced()
+
+        forged = self.client.put('/api/auth/profile', json={'name': 'Forged'})
+        self.assertEqual(forged.status_code, 403)
+
+        with self.client.session_transaction() as session:
+            token = session['csrf_token']
+        genuine = self.client.put('/api/auth/profile', json={'name': 'Genuine'},
+                                  headers={'X-CSRF-Token': token})
+        self.assertEqual(genuine.status_code, 200)
+
+    def test_admin_requests_still_need_the_csrf_token(self):
+        with self.client.session_transaction() as session:
+            session['admin_authenticated'] = True
+        self._with_csrf_enforced()
+        response = self.client.put('/api/admin/announcement', json={'enabled': False, 'message': ''})
+        self.assertEqual(response.status_code, 403)
+
+    # --- client IP for rate limiting ----------------------------------------
+
+    def _client_ip(self, forwarded_for, hops):
+        from rate_limiter import client_ip
+        os.environ['TRUSTED_PROXY_HOPS'] = str(hops)
+        self.addCleanup(os.environ.pop, 'TRUSTED_PROXY_HOPS', None)
+        headers = {'X-Forwarded-For': forwarded_for} if forwarded_for else {}
+        with app_module.app.test_request_context('/', headers=headers, environ_base={'REMOTE_ADDR': '127.0.0.1'}):
+            return client_ip()
+
+    def test_client_ip_ignores_a_spoofed_forwarded_for_prefix(self):
+        """The limiter used the first entry, which the client writes itself."""
+        real = '116.96.77.213, 172.68.175.64, 10.31.166.32'
+        self.assertEqual(self._client_ip(real, 3), '116.96.77.213')
+        self.assertEqual(self._client_ip('6.6.6.6, ' + real, 3), '116.96.77.213')
+
+    def test_client_ip_uses_the_socket_when_no_proxy_is_trusted(self):
+        self.assertEqual(self._client_ip('6.6.6.6', 0), '127.0.0.1')
+
+    def test_rate_limit_cannot_be_dodged_with_forwarded_for(self):
+        os.environ['TRUSTED_PROXY_HOPS'] = '1'
+        self.addCleanup(os.environ.pop, 'TRUSTED_PROXY_HOPS', None)
+        statuses = [
+            self.client.post('/api/admin/login', json={'password': 'wrong'},
+                             headers={'X-Forwarded-For': f'10.0.0.{i}, 203.0.113.9'}).status_code
+            for i in range(7)
+        ]
+        self.assertIn(429, statuses)
+
+    # --- avatars --------------------------------------------------------------
+
+    def test_legacy_oversized_avatar_is_not_served(self):
+        with app_module.app.app_context():
+            db.session.add(User(
+                email='bigphoto@example.com', username='bigphoto', name='Big Photo',
+                password_hash=generate_password_hash('strongpass123'),
+                avatar='data:image/png;base64,' + 'A' * (1024 * 1024),
+            ))
+            db.session.commit()
+
+        response = self.client.get('/api/auth/community')
+        profile = response.get_json()['profiles'][0]
+        self.assertTrue(profile['avatar'].startswith('data:image/svg+xml'))
+        self.assertLess(len(response.get_data()), 20 * 1024)
+
+    def test_community_default_page_covers_all_users(self):
+        """Leaderboards are computed client-side from this list."""
+        with app_module.app.app_context():
+            for index in range(70):
+                db.session.add(User(
+                    email=f'bulk{index}@example.com', username=f'bulk{index}', name=f'Bulk {index}',
+                    password_hash='x',
+                ))
+            db.session.commit()
+        payload = self.client.get('/api/auth/community').get_json()
+        self.assertEqual(len(payload['profiles']), 70)
+        self.assertFalse(payload['hasMore'])
+
+    # --- admin question validation ------------------------------------------
+
+    def test_question_endpoints_validate_instead_of_crashing(self):
+        with self.client.session_transaction() as session:
+            session['admin_authenticated'] = True
+
+        missing = self.client.post('/api/questions', json={'topic': 'Only a topic'})
+        self.assertEqual(missing.status_code, 400)
+        self.assertEqual(missing.get_json()['error'], 'Question is required.')
+
+        no_body = self.client.post('/api/questions', data='not json', content_type='text/plain')
+        self.assertEqual(no_body.status_code, 400)
+
+        created = self.client.post('/api/questions', json={
+            'topic': 'Tech', 'question': 'Is AI good?', 'category': 'Society'})
+        self.assertEqual(created.status_code, 200)
+        question_id = created.get_json()['id']
+
+        blanked = self.client.put(f'/api/questions/{question_id}', json={'question': '   '})
+        self.assertEqual(blanked.status_code, 400)
+
+    def test_sample_score_is_validated(self):
+        with app_module.app.app_context():
+            sample = Sample(filename='s.mp3', topic='t', speaker='s', transcript='x', feedback='y')
+            db.session.add(sample)
+            db.session.commit()
+            sample_id = sample.id
+        with self.client.session_transaction() as session:
+            session['admin_authenticated'] = True
+
+        response = self.client.put(f'/api/samples/{sample_id}', data={'score': 'excellent'})
+        self.assertEqual(response.status_code, 400)
+        self.assertNotIn('could not convert', response.get_json()['error'])
+
+    # --- misc -----------------------------------------------------------------
+
+    def test_boot_log_never_contains_the_database_password(self):
+        redacted = app_module.redact_database_url(
+            'postgresql://postgres.ref:SuperSecret123@aws-0.pooler.supabase.com:6543/postgres')
+        self.assertNotIn('SuperSecret123', redacted)
+        self.assertIn('pooler.supabase.com', redacted)
+
+    def test_progress_chart_keeps_the_same_month_of_different_years_apart(self):
+        from datetime import datetime as dt
+        from user_progress import build_progress_points
+
+        class Practice:
+            def __init__(self, when, total):
+                self.created_at = when
+                self.scores = {'total': total}
+
+        points = build_progress_points([
+            Practice(dt(2025, 9, 10), 0.8),
+            Practice(dt(2026, 8, 10), 1.2),
+            Practice(dt(2026, 9, 10), 1.6),
+        ])
+        self.assertEqual([p['value'] for p in points], [0.8, 1.2, 1.6])
+        self.assertEqual([p['label'] for p in points], ['Sep', 'Aug', 'Sep'])
+
 if __name__ == '__main__':
     unittest.main()

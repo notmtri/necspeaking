@@ -11,24 +11,18 @@ def build_progress_points(sessions):
     if not sessions:
         return []
 
+    # Keyed by (year, month): keying by the month name alone merged, say,
+    # September 2025 and September 2026 into one averaged point.
     monthly_scores = {}
     for practice in sessions:
-        month_key = practice.created_at.strftime('%b')
+        month_key = (practice.created_at.year, practice.created_at.month)
         monthly_scores.setdefault(month_key, []).append(float((practice.scores or {}).get('total') or 0))
 
-    ordered_months = []
-    seen = set()
-    for practice in sessions:
-        month_key = practice.created_at.strftime('%b')
-        if month_key not in seen:
-            ordered_months.append(month_key)
-            seen.add(month_key)
-
     points = []
-    for month_key in ordered_months[-6:]:
-        scores = monthly_scores.get(month_key, [])
-        average = sum(scores) / len(scores) if scores else 0
-        points.append({"label": month_key, "value": round_score(average)})
+    for month_key in sorted(monthly_scores)[-6:]:
+        scores = monthly_scores[month_key]
+        label = datetime(month_key[0], month_key[1], 1).strftime('%b')
+        points.append({"label": label, "value": round_score(sum(scores) / len(scores))})
     return points
 
 

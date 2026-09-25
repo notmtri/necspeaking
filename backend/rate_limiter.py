@@ -149,11 +149,47 @@ class PersistentRateLimiter:
 rate_limiter = PersistentRateLimiter()
 
 
-def build_identifier():
-    forwarded_for = request.headers.get('X-Forwarded-For', '')
-    if forwarded_for:
-        return forwarded_for.split(',')[0].strip()
+def trusted_proxy_hops():
+    """How many proxies in front of the app append to X-Forwarded-For.
+
+    On Render every request arrives as "client, cloudflare, render-internal":
+    three hops appended after whatever the client itself sent. Defaults to 3
+    in production and 0 (trust nothing, use the socket address) locally.
+    """
+    configured = os.getenv('TRUSTED_PROXY_HOPS', '').strip()
+    if configured:
+        try:
+            return max(0, int(configured))
+        except ValueError:
+            pass
+    return 3 if os.getenv('PRODUCTION', '').strip().lower() == 'true' else 0
+
+
+def client_ip():
+    """The caller's address, read so that the caller cannot choose it.
+
+    The previous version took the *first* X-Forwarded-For entry. That entry is
+    whatever the client sent -- proxies append, they do not replace -- so a
+    random header per request gave an attacker unlimited login attempts,
+    signups and paid AI analyses. Counting the trusted hops from the right
+    yields the address the first trusted proxy actually saw.
+    """
+    hops = trusted_proxy_hops()
+    if hops <= 0:
+        return request.remote_addr or 'unknown-client'
+
+    chain = [part.strip() for part in request.headers.get('X-Forwarded-For', '').split(',') if part.strip()]
+    if len(chain) >= hops:
+        return chain[-hops]
+    if chain:
+        # Fewer hops than configured: the topology changed. Best effort rather
+        # than lumping every client into one bucket.
+        return chain[0]
     return request.remote_addr or 'unknown-client'
+
+
+def build_identifier():
+    return client_ip()
 
 
 def rate_limit(scope, max_requests=10, window_seconds=60):
