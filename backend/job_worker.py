@@ -11,6 +11,39 @@ from database import AnalysisJob, User, db, utcnow
 from user_progress import create_practice_session
 
 
+class AnalysisInputError(ValueError):
+    """A problem with the submitted recording itself; its message is shown as-is."""
+
+
+GRADING_FAILED_MESSAGE = (
+    "We couldn't grade this recording right now -- the grading service is busy. "
+    "Please submit it again in a few minutes."
+)
+AUDIO_MISSING_MESSAGE = (
+    "The server restarted before this recording was processed, so the upload was lost. "
+    "Please submit it again."
+)
+AUDIO_UNREADABLE_MESSAGE = (
+    "We couldn't read this audio file. Please record again, or upload an MP3, M4A, WAV, WEBM or OGG file."
+)
+
+
+def student_facing_error(error):
+    """Translate a processing failure into something a student can act on.
+
+    Raw exception text used to be shown verbatim: students saw
+    "Expecting ',' delimiter: line 1 column 465" or a server file path. The
+    raw error is still logged by the caller.
+    """
+    if isinstance(error, AnalysisInputError):
+        return str(error)
+    if isinstance(error, FileNotFoundError):
+        return AUDIO_MISSING_MESSAGE
+    if type(error).__name__ == 'CouldntDecodeError':
+        return AUDIO_UNREADABLE_MESSAGE
+    return GRADING_FAILED_MESSAGE
+
+
 class AnalysisWorker:
     def __init__(self, app, groq_client_factory, upload_folder):
         self.app = app
@@ -79,9 +112,12 @@ class AnalysisWorker:
             try:
                 client = self.groq_client_factory()
 
+                if not filepath or not os.path.exists(filepath):
+                    raise FileNotFoundError(filepath or 'no stored audio path')
+
                 duration = get_audio_duration(filepath)
                 if duration > 320:
-                    raise ValueError("Audio file exceeds 5 minute limit.")
+                    raise AnalysisInputError("This recording is longer than the 5 minute limit. Please trim it and try again.")
 
                 wav_filepath = filepath.rsplit('.', 1)[0] + '_compressed.wav'
                 convert_to_wav(filepath, wav_filepath)
@@ -91,7 +127,7 @@ class AnalysisWorker:
 
                 file_size_mb = os.path.getsize(filepath) / (1024 * 1024)
                 if file_size_mb > 20:
-                    raise ValueError("Audio file too large.")
+                    raise AnalysisInputError("This recording is too large to analyse. Please keep it under 5 minutes.")
 
                 job.progress_message = 'Transcribing audio.'
                 db.session.commit()
@@ -156,6 +192,7 @@ class AnalysisWorker:
                     "document_url": f"/api/analyze/jobs/{job.id}/document",
                     "document_external_url": document_external_url,
                     "grader": grading_result.get("grader", "unknown"),
+                    "grader_model": grading_result.get("grader_model", ""),
                     "audio_reviewed": bool(grading_result.get("audio_reviewed")),
                     "user": refreshed_user,
                 }
@@ -168,11 +205,11 @@ class AnalysisWorker:
                 job = db.session.get(AnalysisJob, job_id)
                 if job:
                     job.status = 'failed'
-                    job.error_message = str(error)
+                    job.error_message = student_facing_error(error)
                     job.progress_message = 'Processing failed.'
                     job.completed_at = utcnow()
                     db.session.commit()
-                print(f"[JOBS] Failed job {job_id}: {error}")
+                print(f"[JOBS] Failed job {job_id}: {type(error).__name__}: {error}")
             finally:
                 for candidate_path in {filepath, wav_filepath, job.stored_audio_path if job else ''}:
                     if candidate_path and os.path.exists(candidate_path):

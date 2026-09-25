@@ -17,6 +17,16 @@ from speech_metrics import build_speech_metrics, describe_metrics_for_prompt, no
 ALLOWED_EXTENSIONS = {'wav', 'mp3', 'm4a', 'webm', 'ogg'}
 TRANSCRIPTION_MODEL = os.getenv('GROQ_TRANSCRIPTION_MODEL', 'whisper-large-v3')
 GEMINI_GRADING_MODEL = os.getenv('GEMINI_GRADING_MODEL', 'gemini-3.5-flash')
+# Tried in order when the primary model is overloaded. Flash models return 503
+# "high demand" for minutes at a time, and not all of them at once, so a second
+# Gemini model keeps the audio in the grade far more often than dropping
+# straight to the transcript-only Groq fallback.
+GEMINI_FALLBACK_MODELS = [
+    model.strip()
+    for model in os.getenv('GEMINI_FALLBACK_MODELS', 'gemini-3.6-flash,gemini-3.5-flash-lite').split(',')
+    if model.strip()
+]
+GEMINI_REQUEST_TIMEOUT_SECONDS = float(os.getenv('GEMINI_REQUEST_TIMEOUT_SECONDS', '120'))
 GROQ_GRADING_FALLBACK_MODEL = os.getenv('GROQ_GRADING_FALLBACK_MODEL', 'openai/gpt-oss-120b')
 GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent'
 # Flash models return 503 under load often enough that a single attempt would
@@ -209,34 +219,117 @@ Return only valid JSON matching this shape:
 }}"""
 
 
-def parse_grading_json(result_text):
+def _strip_code_fences(result_text):
     if "```json" in result_text:
-        result_text = result_text.split("```json")[1].split("```")[0].strip()
-    elif "```" in result_text:
-        result_text = result_text.split("```")[1].split("```")[0].strip()
+        return result_text.split("```json")[1].split("```")[0].strip()
+    if "```" in result_text:
+        return result_text.split("```")[1].split("```")[0].strip()
+    return result_text.strip()
 
-    # Normalise the punctuation models emit outside string literals, which
-    # would otherwise break json.loads.
-    result_text = result_text.replace(u'\u2018', "'").replace(u'\u2019', "'")
-    result_text = result_text.replace(u'\u201c', '"').replace(u'\u201d', '"')
-    result_text = result_text.replace(u'\u2013', '-').replace(u'\u2014', '-')
 
+def _clean_invisible_characters(result_text):
     # Strip zero-width, bidi and BOM characters; normalise exotic spaces.
     result_text = re.sub(u'[\u200b-\u200f\u202a-\u202e\u2060\ufeff]', '', result_text)
     result_text = re.sub(u'[\u00a0\u202f]', ' ', result_text)
-
     # Raw control characters are illegal inside JSON strings. Everything else,
-    # including non-ASCII letters and accents, is real content and is kept --
-    # the previous blanket non-ASCII strip silently deleted feedback text.
-    result_text = re.sub(u'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]', '', result_text)
+    # including non-ASCII letters and accents, is real content and is kept.
+    return re.sub(u'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]', '', result_text)
+
+
+def parse_grading_json(result_text):
+    """Parse a grader's JSON reply without corrupting its string values.
+
+    The previous version rewrote curly quotes to straight ones across the whole
+    reply *before* parsing. Graders routinely quote the student inside feedback
+    -- 'you said \u201cteamwork\u201d' -- and that rewrite turned those into bare
+    `"` characters that terminated the JSON string early. Every such reply died
+    with "Expecting ',' delimiter"; that was the single largest cause of failed
+    analyses in production. The reply is now parsed as-is first, and the
+    punctuation rewrite is kept only as a last resort for replies that use
+    curly quotes as the JSON delimiters themselves.
+    """
+    result_text = _clean_invisible_characters(_strip_code_fences(result_text or ''))
 
     # strict=False permits raw tabs/newlines inside string values. Models often
-    # emit them in the multi-paragraph sample_response; the previous code
-    # stripped every control character, silently flattening those paragraphs.
-    return json.loads(result_text, strict=False)
+    # emit them in the multi-paragraph sample_response.
+    try:
+        return json.loads(result_text, strict=False)
+    except json.JSONDecodeError as first_error:
+        # Some models wrap the object in prose; take the outermost braces.
+        start, end = result_text.find('{'), result_text.rfind('}')
+        if start != -1 and end > start:
+            try:
+                return json.loads(result_text[start:end + 1], strict=False)
+            except json.JSONDecodeError:
+                pass
+
+        normalised = result_text.replace(u'\u201c', '"').replace(u'\u201d', '"')
+        try:
+            return json.loads(normalised, strict=False)
+        except json.JSONDecodeError:
+            raise first_error
 
 
-def grade_speech_with_gemini(topic, transcript_data, audio_path):
+SCORE_LIMITS = {"content": 0.9, "accuracy": 0.6, "delivery": 0.5}
+
+
+def _score(value, upper):
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return None
+    if number != number:  # NaN
+        return None
+    return round(min(max(number, 0.0), upper), 2)
+
+
+def normalise_grading_result(result):
+    """Validate a parsed grading reply and coerce it into the shape we store.
+
+    A reply can be valid JSON and still be unusable: a score as a string, a
+    missing feedback section, content scored 1.5 out of 0.9. Those used to
+    surface as a KeyError or a nonsense report after the student had already
+    waited through grading. Scores are clamped to the rubric and the total is
+    recomputed from the parts so it can never disagree with them.
+    """
+    if not isinstance(result, dict):
+        raise ValueError("Grader reply is not a JSON object.")
+
+    raw_scores = result.get("scores")
+    if not isinstance(raw_scores, dict):
+        raise ValueError("Grader reply has no scores.")
+
+    scores = {}
+    for criterion, upper in SCORE_LIMITS.items():
+        value = _score(raw_scores.get(criterion), upper)
+        if value is None:
+            raise ValueError(f"Grader reply has no usable {criterion} score.")
+        scores[criterion] = value
+    scores["total"] = round(sum(scores[criterion] for criterion in SCORE_LIMITS), 2)
+
+    raw_feedback = result.get("feedback") if isinstance(result.get("feedback"), dict) else {}
+    feedback = {
+        criterion: str(raw_feedback.get(criterion) or '').strip()
+        for criterion in SCORE_LIMITS
+    }
+
+    normalised = dict(result)
+    normalised["scores"] = scores
+    normalised["feedback"] = feedback
+    normalised["sample_response"] = str(result.get("sample_response") or '').strip()
+    return normalised
+
+
+def gemini_model_chain():
+    chain = []
+    for model in [GEMINI_GRADING_MODEL, *GEMINI_FALLBACK_MODELS]:
+        if model and model not in chain:
+            chain.append(model)
+    return chain
+
+
+def grade_speech_with_gemini(topic, transcript_data, audio_path, model=None):
+    model = model or GEMINI_GRADING_MODEL
     gemini_api_key = os.getenv('GEMINI_API_KEY', '').strip()
     if not gemini_api_key:
         raise RuntimeError("GEMINI_API_KEY is not configured.")
@@ -267,11 +360,11 @@ def grade_speech_with_gemini(topic, transcript_data, audio_path):
         },
     }
 
-    url = GEMINI_API_URL.format(model=GEMINI_GRADING_MODEL)
+    url = GEMINI_API_URL.format(model=model)
     data = None
     last_error = ''
 
-    with httpx.Client(timeout=120) as client:
+    with httpx.Client(timeout=GEMINI_REQUEST_TIMEOUT_SECONDS) as client:
         for attempt in range(GEMINI_MAX_ATTEMPTS):
             try:
                 response = client.post(
@@ -282,6 +375,13 @@ def grade_speech_with_gemini(topic, transcript_data, audio_path):
                     },
                     json=payload,
                 )
+            except httpx.TimeoutException as error:
+                # A model that just spent the whole timeout is saturated; a
+                # retry would most likely burn another full timeout. Let the
+                # caller move on to the next model instead.
+                raise RuntimeError(
+                    f"Gemini model '{model}' timed out after {GEMINI_REQUEST_TIMEOUT_SECONDS:.0f}s."
+                ) from error
             except httpx.RequestError as error:
                 last_error = f"connection error: {error}"
                 if attempt + 1 < GEMINI_MAX_ATTEMPTS:
@@ -294,7 +394,7 @@ def grade_speech_with_gemini(topic, transcript_data, audio_path):
                 break
 
             last_error = (
-                f"HTTP {response.status_code} for model '{GEMINI_GRADING_MODEL}': "
+                f"HTTP {response.status_code} for model '{model}': "
                 f"{response.text[:400]}"
             )
 
@@ -323,41 +423,77 @@ def grade_speech_with_gemini(topic, transcript_data, audio_path):
     if not result_text:
         raise RuntimeError("Gemini returned an empty grading response.")
 
-    return parse_grading_json(result_text)
+    return normalise_grading_result(parse_grading_json(result_text))
+
+
+GROQ_GRADING_ATTEMPTS = 2
+
+
+class GradingUnavailableError(RuntimeError):
+    """Every grader failed. The job fails with a retry-later message."""
 
 
 def grade_speech_with_groq(groq_client, topic, transcript_data):
-    prompt = build_grading_prompt(topic, transcript_data, audio_attached=False)
-    response = groq_client.chat.completions.create(
-        model=GROQ_GRADING_FALLBACK_MODEL,
-        messages=[{"role": "user", "content": prompt}],
-        temperature=0.3
-    )
+    """Transcript-only grading, used when no Gemini model is reachable.
 
-    return parse_grading_json(response.choices[0].message.content)
+    JSON mode is requested so the reply is at least meant to be an object, and
+    a reply that still will not parse is regenerated once: the fallback runs
+    exactly when Gemini is already down, so failing here fails the student.
+    """
+    prompt = build_grading_prompt(topic, transcript_data, audio_attached=False)
+    last_error = None
+    for attempt in range(GROQ_GRADING_ATTEMPTS):
+        response = groq_client.chat.completions.create(
+            model=GROQ_GRADING_FALLBACK_MODEL,
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.3,
+            response_format={"type": "json_object"},
+        )
+        try:
+            return normalise_grading_result(parse_grading_json(response.choices[0].message.content))
+        except ValueError as error:  # JSONDecodeError is a ValueError
+            last_error = error
+            print(f"[ANALYSIS] Groq returned an unusable grading reply "
+                  f"(attempt {attempt + 1}/{GROQ_GRADING_ATTEMPTS}): {error}")
+    raise GradingUnavailableError(f"Groq fallback returned no usable grading: {last_error}")
 
 
 def grade_speech(groq_client, topic, transcript_data, audio_path=''):
     """Grade a response, preferring Gemini because it can hear the audio.
 
-    The Groq fallback only ever sees the transcript, so Delivery is scored
-    blind there. The chosen grader is recorded on the result under `grader`
-    so a permanent fallback cannot go unnoticed.
+    Each Gemini model in the chain is tried in turn; only when none of them can
+    answer does grading fall back to Groq, which sees the transcript alone, so
+    Delivery is scored blind there. The chosen grader and model are recorded on
+    the result so a permanent fallback cannot go unnoticed.
     """
-    try:
-        result = grade_speech_with_gemini(topic, transcript_data, audio_path)
-        result['grader'] = 'gemini'
-        result['audio_reviewed'] = bool(audio_path)
-        return result
-    except Exception as error:
-        print(
-            f"[ANALYSIS] Gemini grading unavailable, falling back to Groq "
-            f"(transcript only, delivery scored without audio): {error}"
-        )
-        result = grade_speech_with_groq(groq_client, topic, transcript_data)
-        result['grader'] = 'groq-fallback'
-        result['audio_reviewed'] = False
-        return result
+    gemini_errors = []
+    for model in gemini_model_chain():
+        try:
+            result = grade_speech_with_gemini(topic, transcript_data, audio_path, model=model)
+            if gemini_errors:
+                print(f"[ANALYSIS] Graded with fallback Gemini model '{model}' after: "
+                      f"{' | '.join(gemini_errors)}")
+            result['grader'] = 'gemini'
+            result['grader_model'] = model
+            result['audio_reviewed'] = bool(audio_path)
+            return result
+        except Exception as error:
+            gemini_errors.append(f"{model}: {error}")
+            # A missing key fails identically for every model.
+            if not os.getenv('GEMINI_API_KEY', '').strip():
+                break
+
+    print(
+        f"[ANALYSIS] Gemini grading unavailable, falling back to Groq "
+        f"(transcript only, delivery scored without audio): {' | '.join(gemini_errors)}"
+    )
+    if groq_client is None:
+        raise GradingUnavailableError("No grader is available: Gemini failed and Groq is not configured.")
+    result = grade_speech_with_groq(groq_client, topic, transcript_data)
+    result['grader'] = 'groq-fallback'
+    result['grader_model'] = GROQ_GRADING_FALLBACK_MODEL
+    result['audio_reviewed'] = False
+    return result
 
 
 def generate_docx(topic, transcript, grading_result):

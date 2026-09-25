@@ -21,7 +21,13 @@ os.environ['ENABLE_EMBEDDED_WORKER'] = 'false'
 
 import app as app_module  # noqa: E402
 from database import AnalysisJob, User, db, utcnow  # noqa: E402
-from job_worker import AnalysisWorker  # noqa: E402
+from job_worker import (  # noqa: E402
+    AUDIO_MISSING_MESSAGE,
+    GRADING_FAILED_MESSAGE,
+    AnalysisInputError,
+    AnalysisWorker,
+    student_facing_error,
+)
 from user_progress import create_practice_session  # noqa: E402
 
 
@@ -140,6 +146,60 @@ class LongTopicTests(unittest.TestCase):
 
             stored = user.practice_sessions[0].topic
             self.assertEqual(stored, long_topic, 'topic must round-trip untruncated')
+
+
+class StudentFacingErrorTests(unittest.TestCase):
+    """Students used to see raw exception text: "Expecting ',' delimiter: line 1
+    column 465" or a server file path. They now get something to act on."""
+
+    def test_parser_and_provider_errors_become_a_retry_later_message(self):
+        import json
+        for error in (json.JSONDecodeError("Expecting ',' delimiter", '{}', 1),
+                      RuntimeError('Gemini grading request failed with HTTP 503')):
+            self.assertEqual(student_facing_error(error), GRADING_FAILED_MESSAGE)
+
+    def test_input_problems_keep_their_own_message(self):
+        error = AnalysisInputError('This recording is longer than the 5 minute limit.')
+        self.assertEqual(student_facing_error(error), str(error))
+
+    def test_a_lost_upload_says_to_resubmit(self):
+        self.assertEqual(student_facing_error(FileNotFoundError('/opt/render/x.webm')), AUDIO_MISSING_MESSAGE)
+
+
+class LostUploadTests(unittest.TestCase):
+    """A job queued just before a restart points at audio on the old disk."""
+
+    @classmethod
+    def setUpClass(cls):
+        app_module.app.config.update(TESTING=True)
+        cls.worker = AnalysisWorker(app_module.app, lambda: None, str(BACKEND_DIR / 'uploads'))
+
+    def setUp(self):
+        with app_module.app.app_context():
+            db.drop_all()
+            db.create_all()
+
+    @classmethod
+    def tearDownClass(cls):
+        with app_module.app.app_context():
+            db.session.remove()
+            db.engine.dispose()
+        if TEST_DB_PATH.exists():
+            TEST_DB_PATH.unlink()
+
+    def test_missing_audio_fails_with_a_resubmit_message_not_a_path(self):
+        with app_module.app.app_context():
+            job = make_job('pending')
+            job.stored_audio_path = str(BACKEND_DIR / 'uploads' / 'jobs' / 'gone-after-restart.webm')
+            db.session.commit()
+            job_id = job.id
+
+            self.assertTrue(self.worker.process_next_job())
+            db.session.expire_all()
+            job = db.session.get(AnalysisJob, job_id)
+            self.assertEqual(job.status, 'failed')
+            self.assertEqual(job.error_message, AUDIO_MISSING_MESSAGE)
+            self.assertNotIn('uploads', job.error_message)
 
 
 if __name__ == '__main__':
