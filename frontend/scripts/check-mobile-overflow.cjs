@@ -177,19 +177,35 @@ async function main() {
   const { server, origin } = await startStaticServer();
   const userDataDir = path.join(os.tmpdir(), `necs-mobile-check-${Date.now()}`);
   const debugPort = 9400 + Math.floor(Math.random() * 1000);
-  const browser = spawn(browserPath, [
+  const browserArgs = [
     '--headless',
     '--disable-gpu',
     '--disable-extensions',
     '--no-first-run',
     `--remote-debugging-port=${debugPort}`,
     `--user-data-dir=${userDataDir}`,
-    'about:blank',
-  ], { stdio: 'ignore' });
+  ];
+  // Ubuntu 24.04 runners block the unprivileged user namespaces Chrome's
+  // sandbox needs, so Chrome exited at launch and the check only ever saw
+  // "fetch failed". It loads nothing but our own static build, so running
+  // unsandboxed in CI is safe.
+  if (process.env.CI) browserArgs.push('--no-sandbox');
+  browserArgs.push('about:blank');
+
+  const browser = spawn(browserPath, browserArgs, { stdio: ['ignore', 'ignore', 'pipe'] });
+  let browserStderr = '';
+  let browserExit = null;
+  browser.stderr.on('data', (chunk) => { browserStderr = (browserStderr + chunk).slice(-4000); });
+  browser.on('exit', (code, signal) => { browserExit = signal || code; });
 
   let cdp;
   try {
-    await waitForJson(`http://127.0.0.1:${debugPort}/json/version`);
+    try {
+      await waitForJson(`http://127.0.0.1:${debugPort}/json/version`, 30000);
+    } catch (error) {
+      const reason = browserExit !== null ? `browser exited (${browserExit})` : error.message;
+      throw new Error(`Could not start ${browserPath}: ${reason}\n${browserStderr.trim()}`);
+    }
     const target = await fetch(`http://127.0.0.1:${debugPort}/json/new?${encodeURIComponent(origin)}`, { method: 'PUT' })
       .then((response) => response.json());
 
