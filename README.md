@@ -185,7 +185,10 @@ ignored. If you deploy without renaming it, the build silently falls back to
 | `REACT_APP_API_URL=https://your-api.onrender.com` | `VITE_API_URL=https://your-api.onrender.com` |
 
 Set it in Vercel → Project → Settings → Environment Variables, then redeploy.
-`vercel.json` already points at `frontend/build`, which is unchanged.
+The Vercel project's **Root Directory is `frontend`**, so every command in
+`vercel.json` runs from inside `frontend/` (`npm run build`, output `build`).
+Writing them repo-root style (`cd frontend && ...`) fails with
+`cd: frontend: No such file or directory`.
 
 **2. Supabase: run the new migration.**
 
