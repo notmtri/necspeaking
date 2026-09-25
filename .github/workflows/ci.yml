@@ -51,14 +51,20 @@ jobs:
         run: npm audit --omit=dev
 
   backend:
-    name: Backend
+    name: Backend (Python ${{ matrix.python }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # 3.11 is what Render runs (PYTHON_VERSION on the service); 3.13 is
+        # the local/dev target that needs audioop-lts.
+        python: ['3.11', '3.13']
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.13'
+          python-version: ${{ matrix.python }}
           cache: pip
           cache-dependency-path: backend/requirements.txt
 

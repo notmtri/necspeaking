@@ -95,9 +95,22 @@ app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=2)
 # Database Configuration
 database_url = os.getenv('DATABASE_URL', 'sqlite:///necs.db')
 
-# Fix legacy postgres:// URLs (Render sometimes uses this format)
-if database_url.startswith('postgres://'):
-    database_url = database_url.replace('postgres://', 'postgresql://', 1)
+def normalize_database_url(url):
+    """Pin PostgreSQL URLs to the psycopg2 driver that requirements.txt installs.
+
+    SQLAlchemy 2.1 changed the default driver for a bare postgresql:// URL
+    from psycopg2 to psycopg (v3). A fresh install on Render resolved 2.1 and
+    the app died at boot with "No module named 'psycopg'". Naming the driver
+    makes the URL mean the same thing on every SQLAlchemy version. The legacy
+    postgres:// scheme some hosts hand out is handled the same way.
+    """
+    for scheme in ('postgres://', 'postgresql://'):
+        if url.startswith(scheme):
+            return 'postgresql+psycopg2://' + url[len(scheme):]
+    return url
+
+
+database_url = normalize_database_url(database_url)
 
 app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False

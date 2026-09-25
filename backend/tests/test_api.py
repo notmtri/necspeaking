@@ -545,6 +545,20 @@ class ApiSmokeTests(unittest.TestCase):
 
     # --- misc -----------------------------------------------------------------
 
+    def test_postgres_urls_resolve_to_the_installed_driver(self):
+        """SQLAlchemy 2.1 made bare postgresql:// mean psycopg v3, which is not
+        installed; the first production deploy died at boot on exactly that.
+        create_engine imports the DBAPI, so this fails the same way."""
+        from sqlalchemy import create_engine
+        for url in ('postgres://u:p@db.example.com:5432/app',
+                    'postgresql://u:p@db.example.com:5432/app'):
+            normalized = app_module.normalize_database_url(url)
+            self.assertTrue(normalized.startswith('postgresql+psycopg2://'), normalized)
+            engine = create_engine(normalized)
+            self.assertEqual(engine.dialect.driver, 'psycopg2')
+            engine.dispose()
+        self.assertEqual(app_module.normalize_database_url('sqlite:///x.db'), 'sqlite:///x.db')
+
     def test_boot_log_never_contains_the_database_password(self):
         redacted = app_module.redact_database_url(
             'postgresql://postgres.ref:SuperSecret123@aws-0.pooler.supabase.com:6543/postgres')

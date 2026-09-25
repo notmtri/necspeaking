@@ -12,6 +12,9 @@ httpx==0.28.1
 gunicorn==26.2.0
 psycopg2-binary==2.9.13
 flask-sqlalchemy==3.1.1
+# Pinned: flask-sqlalchemy only requires >=2.0.16, so unpinned installs drift.
+# 2.1 changed the default PostgreSQL driver (see normalize_database_url).
+sqlalchemy==2.1.1
 flask-migrate==4.1.0
 cloudinary==1.46.2
 redis==8.1.0
