@@ -119,12 +119,20 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 if 'postgresql' in database_url:
     app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
         "pool_pre_ping": True,
-        "pool_recycle": 300,
-        # gunicorn runs 8 request threads plus the analysis worker thread
-        # (gunicorn.conf.py). Capped at 10 connections so the Supabase session
-        # pooler, which limits clients per project, is never exhausted.
-        "pool_size": 5,
-        "max_overflow": 5,
+        # Opening a connection to the database costs ~1.5-2 s from this
+        # region (TCP + TLS + auth, several round trips away), so connections
+        # are kept warm rather than recycled every few minutes. pre_ping still
+        # replaces any the pooler has dropped.
+        "pool_recycle": 1800,
+        # One persistent connection per request thread (GUNICORN_THREADS, see
+        # gunicorn.conf.py) plus the analysis worker, with no temporary overflow. Overflow
+        # connections are closed after each use, so every burst beyond the
+        # pool paid the full connection cost again: measured in production,
+        # 4 of 8 simultaneous requests took 2.7-3.7 s instead of 1.3 s.
+        # 10 total (at the default 8 threads) also keeps the Supabase session
+        # pooler's client limit safe.
+        "pool_size": int(os.getenv('GUNICORN_THREADS', '8')) + 2,
+        "max_overflow": 0,
         "pool_timeout": 30,
         "connect_args": {
             "sslmode": "require",

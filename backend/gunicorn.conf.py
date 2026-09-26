@@ -18,9 +18,10 @@ import os
 # process (ENABLE_EMBEDDED_WORKER), so each extra process would start another.
 workers = 1
 
-# Setting threads switches gunicorn to the gthread worker. Keep in step with
-# the database pool in app.py (pool_size + max_overflow must exceed this plus
-# the analysis worker's own connection).
+# Setting threads switches gunicorn to the gthread worker. app.py sizes the
+# database pool from the same GUNICORN_THREADS value (threads + 2), so every
+# thread keeps a warm connection; mind the Supabase pooler's client limit if
+# you raise it.
 threads = int(os.getenv('GUNICORN_THREADS', '8'))
 
 # Worker liveness timeout. The analysis runs on its own thread, not a request
