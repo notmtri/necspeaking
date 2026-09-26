@@ -128,15 +128,38 @@ class User(db.Model):
         return self._base_profile(stored_avatar)
 
 
+# "Question 2." / "Question 2:" / "22." -- how a question was numbered on the
+# paper it was copied from, not part of the question. At most three digits and
+# followed by punctuation, so "5 reasons why..." or "2020: a year" survive.
+PROMPT_NUMBERING = re.compile(r'^\s*(?:question\s*)?\d{1,3}\s*[.:)\-]\s*', re.IGNORECASE)
+# The official NEC papers end every question with this line; students paste
+# it in about half the time.
+PROMPT_BOILERPLATE = re.compile(
+    r'you have (?:\d+|one|two|three|four|five) minutes? to prepare'
+    r'(?: for your (?:talk|speech|presentation))?\.?|good luck!?',
+    re.IGNORECASE,
+)
+
+
+def normalise_prompt(topic):
+    """The words of a prompt, without numbering, boilerplate or punctuation."""
+    text = re.sub(r'[​-‏⁠﻿]', '', (topic or '').lower())
+    text = PROMPT_NUMBERING.sub('', text, count=1)
+    text = PROMPT_BOILERPLATE.sub(' ', text)
+    text = re.sub(r'[^a-z0-9 ]', ' ', text)
+    return ' '.join(text.split())
+
+
 def build_prompt_key(topic):
     """Stable identity for a speaking prompt.
 
     Attempts at the same question must group together even when the student
-    retypes it with different spacing, casing or punctuation, so the text is
-    normalised before hashing.
+    retypes it with different spacing, casing or punctuation, numbers it
+    differently ("Question 2." vs "2:"), or pastes the paper's "You have 5
+    minutes to prepare... Good luck!" line. A question picked from the bank
+    and the same question pasted in by hand therefore share a key.
     """
-    normalised = re.sub(r'[^a-z0-9 ]', ' ', (topic or '').lower())
-    normalised = ' '.join(normalised.split())
+    normalised = normalise_prompt(topic)
     if not normalised:
         return ''
     return hashlib.sha1(normalised.encode('utf-8')).hexdigest()[:32]
