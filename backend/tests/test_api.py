@@ -356,6 +356,68 @@ class ApiSmokeTests(unittest.TestCase):
         self.assertEqual(stored['fillers']['total'], 1)
         self.assertEqual(stored['wordCount'], 21)
 
+    def _attempt_with_feedback(self, username, feedback=True):
+        with app_module.app.app_context():
+            user = User.query.filter_by(username=username).one()
+            practice = create_practice_session(
+                user, 'Is AI good for students?', 'my transcript', 90.0,
+                {'content': 0.6, 'accuracy': 0.4, 'delivery': 0.3, 'total': 1.3},
+                feedback={'content': 'C fb', 'accuracy': 'A fb', 'delivery': 'D fb'} if feedback else None,
+                sample_response='A model answer.' if feedback else None,
+                grader='gemini-3.6-flash' if feedback else None,
+            )
+            db.session.commit()
+            return practice.id
+
+    def test_past_attempt_feedback_can_be_reopened(self):
+        self._signup(email='reopen@example.com', username='reopenuser')
+        attempt_id = self._attempt_with_feedback('reopenuser')
+
+        history = self.client.get('/api/auth/practice-history').get_json()['sessions']
+        self.assertTrue(history[0]['hasFeedback'])
+        self.assertNotIn('feedback', history[0], 'the list stays light; detail carries the text')
+
+        detail = self.client.get(f'/api/auth/practice-sessions/{attempt_id}')
+        self.assertEqual(detail.status_code, 200)
+        session = detail.get_json()['session']
+        self.assertEqual(session['feedback']['delivery'], 'D fb')
+        self.assertEqual(session['sampleResponse'], 'A model answer.')
+        self.assertEqual(session['grader'], 'gemini-3.6-flash')
+
+    def test_past_attempt_report_is_rebuilt(self):
+        self._signup(email='report@example.com', username='reportuser')
+        attempt_id = self._attempt_with_feedback('reportuser')
+
+        response = self.client.get(f'/api/auth/practice-sessions/{attempt_id}/document')
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('wordprocessingml', response.headers['Content-Type'])
+        self.assertTrue(response.data.startswith(b'PK'), 'a .docx is a zip archive')
+
+    def test_attempt_saved_before_feedback_was_stored_says_so(self):
+        self._signup(email='old@example.com', username='olduser')
+        attempt_id = self._attempt_with_feedback('olduser', feedback=False)
+
+        session = self.client.get(f'/api/auth/practice-sessions/{attempt_id}').get_json()['session']
+        self.assertIsNone(session['feedback'])
+        self.assertFalse(session['hasFeedback'])
+        report = self.client.get(f'/api/auth/practice-sessions/{attempt_id}/document')
+        self.assertEqual(report.status_code, 404)
+
+    def test_another_students_attempt_looks_missing(self):
+        with app_module.app.app_context():
+            db.session.add(User(email='owner@example.com', username='owneruser', name='Owner',
+                                password_hash=generate_password_hash('strongpass123')))
+            db.session.commit()
+        attempt_id = self._attempt_with_feedback('owneruser')
+
+        self._signup(email='snoop@example.com', username='snoopuser')
+        for path in (f'/api/auth/practice-sessions/{attempt_id}',
+                     f'/api/auth/practice-sessions/{attempt_id}/document'):
+            self.assertEqual(self.client.get(path).status_code, 404, path)
+
+        self.client.post('/api/auth/logout')
+        self.assertEqual(self.client.get(f'/api/auth/practice-sessions/{attempt_id}').status_code, 401)
+
     def test_history_exposes_prompt_key_for_grouping(self):
         self._signup(email='grouping@example.com', username='groupinguser')
         with app_module.app.app_context():

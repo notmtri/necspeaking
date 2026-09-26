@@ -147,18 +147,23 @@ class AnalysisWorker:
                 doc_stream = generate_docx(job.topic, transcript_data["text"], grading_result)
 
                 refreshed_user = None
+                practice_session_id = None
                 if job.user_id:
                     current_user = db.session.get(User, job.user_id)
                     if current_user:
-                        create_practice_session(
+                        practice = create_practice_session(
                             current_user,
                             job.topic,
                             transcript_data["text"],
                             transcript_data["duration"],
                             grading_result["scores"],
                             metrics=transcript_data.get("metrics"),
+                            feedback=grading_result.get("feedback"),
+                            sample_response=grading_result.get("sample_response"),
+                            grader=grading_result.get("grader_model") or grading_result.get("grader"),
                         )
                         db.session.commit()
+                        practice_session_id = practice.id
                         refreshed_user = current_user.to_dict()
 
                 jobs_folder = os.path.join(self.upload_folder, 'jobs')
@@ -195,6 +200,8 @@ class AnalysisWorker:
                     "grader_model": grading_result.get("grader_model", ""),
                     "audio_reviewed": bool(grading_result.get("audio_reviewed")),
                     "user": refreshed_user,
+                    # Where this result lives permanently once the job expires.
+                    "practice_session_id": practice_session_id,
                 }
                 job.status = 'completed'
                 job.progress_message = 'Completed.'

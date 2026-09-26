@@ -202,5 +202,79 @@ class LostUploadTests(unittest.TestCase):
             self.assertNotIn('uploads', job.error_message)
 
 
+class FeedbackIsKeptTests(unittest.TestCase):
+    """The feedback used to exist only on the job, which is deleted after 72
+    hours. A logged-in student's attempt must keep it permanently."""
+
+    GRADE = {
+        'scores': {'content': 0.7, 'accuracy': 0.5, 'delivery': 0.4, 'total': 1.6},
+        'feedback': {'content': 'Clear stance.', 'accuracy': 'Varied grammar.', 'delivery': 'Steady pace.'},
+        'sample_response': 'My question is... Thank you.',
+        'grader': 'gemini',
+        'grader_model': 'gemini-3.6-flash',
+        'audio_reviewed': True,
+    }
+
+    @classmethod
+    def setUpClass(cls):
+        app_module.app.config.update(TESTING=True)
+        cls.upload_dir = BACKEND_DIR / 'uploads'
+        cls.worker = AnalysisWorker(app_module.app, lambda: None, str(cls.upload_dir))
+
+    def setUp(self):
+        with app_module.app.app_context():
+            db.drop_all()
+            db.create_all()
+
+    @classmethod
+    def tearDownClass(cls):
+        with app_module.app.app_context():
+            db.session.remove()
+            db.engine.dispose()
+        if TEST_DB_PATH.exists():
+            TEST_DB_PATH.unlink()
+
+    def test_completed_job_stores_feedback_on_the_practice_session(self):
+        from unittest import mock
+        import job_worker
+        from database import UserPracticeSession
+
+        audio = self.upload_dir / 'jobs' / 'feedback-test.webm'
+        audio.parent.mkdir(parents=True, exist_ok=True)
+        audio.write_bytes(b'stub')
+
+        def fake_convert(src, dst):
+            Path(dst).write_bytes(b'wav')
+            return dst
+
+        with app_module.app.app_context():
+            user = User(email='keep@example.com', username='keeper', name='Keeper',
+                        password_hash=generate_password_hash('strongpass123'))
+            db.session.add(user)
+            db.session.flush()
+            job = make_job('pending')
+            job.user_id = user.id
+            job.stored_audio_path = str(audio)
+            db.session.commit()
+            job_id = job.id
+
+        with mock.patch.object(job_worker, 'get_audio_duration', return_value=60.0),                 mock.patch.object(job_worker, 'convert_to_wav', side_effect=fake_convert),                 mock.patch.object(job_worker, 'transcribe_audio',
+                                  return_value={'text': 'my answer', 'words': [], 'duration': 60.0}),                 mock.patch.object(job_worker, 'grade_speech', return_value=dict(self.GRADE)),                 mock.patch.object(self.worker, 'cloudinary_report_upload_enabled', return_value=False):
+            self.worker.process_next_job()
+
+        with app_module.app.app_context():
+            job = db.session.get(AnalysisJob, job_id)
+            self.assertEqual(job.status, 'completed', job.error_message)
+            session_id = job.result_payload['practice_session_id']
+            practice = db.session.get(UserPracticeSession, session_id)
+            self.assertEqual(practice.feedback, self.GRADE['feedback'])
+            self.assertEqual(practice.sample_response, self.GRADE['sample_response'])
+            self.assertEqual(practice.grader, 'gemini-3.6-flash')
+            self.assertTrue(practice.to_dict()['hasFeedback'])
+            doc = Path(job.document_path)
+        if doc.exists():
+            doc.unlink()
+
+
 if __name__ == '__main__':
     unittest.main()

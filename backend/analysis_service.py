@@ -510,17 +510,17 @@ def generate_docx(topic, transcript, grading_result):
     doc.add_paragraph()
 
     doc.add_heading('Score Summary', 1)
-    scores = grading_result['scores']
+    scores = grading_result.get('scores') or {}
 
     table = doc.add_table(rows=5, cols=2)
     table.style = 'Light Grid Accent 1'
 
     score_data = [
-        ('Content', f"{scores['content']}/0.9"),
-        ('Accuracy', f"{scores['accuracy']}/0.6"),
-        ('Delivery', f"{scores['delivery']}/0.5"),
+        ('Content', f"{scores.get('content', 0)}/0.9"),
+        ('Accuracy', f"{scores.get('accuracy', 0)}/0.6"),
+        ('Delivery', f"{scores.get('delivery', 0)}/0.5"),
         ('', ''),
-        ('TOTAL SCORE', f"{scores['total']}/2.0")
+        ('TOTAL SCORE', f"{scores.get('total', 0)}/2.0")
     ]
 
     for index, (criterion, score) in enumerate(score_data):
@@ -535,26 +535,28 @@ def generate_docx(topic, transcript, grading_result):
     doc.add_paragraph()
 
     doc.add_heading('Detailed Feedback', 1)
-    feedback = grading_result['feedback']
+    # Tolerates partial data: reports are also rebuilt later from stored
+    # attempts, some of which predate validation of the grader's reply.
+    feedback = grading_result.get('feedback') or {}
 
     doc.add_heading('1. Content', 2)
-    doc.add_paragraph(feedback['content'])
+    doc.add_paragraph(feedback.get('content') or '')
 
     doc.add_heading('2. Accuracy', 2)
-    doc.add_paragraph(feedback['accuracy'])
+    doc.add_paragraph(feedback.get('accuracy') or '')
 
     doc.add_heading('3. Delivery', 2)
-    doc.add_paragraph(feedback['delivery'])
+    doc.add_paragraph(feedback.get('delivery') or '')
 
     doc.add_page_break()
 
     doc.add_heading('Your Speech Transcript', 1)
-    doc.add_paragraph(transcript)
+    doc.add_paragraph(transcript or '')
 
     doc.add_page_break()
 
     doc.add_heading('Sample 2.0/2.0 Response', 1)
-    doc.add_paragraph(grading_result['sample_response'])
+    doc.add_paragraph(grading_result.get('sample_response') or '')
 
     file_stream = io.BytesIO()
     doc.save(file_stream)

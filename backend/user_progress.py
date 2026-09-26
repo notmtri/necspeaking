@@ -86,7 +86,8 @@ def refresh_user_stats(user):
     user.commit_weeks = build_commit_weeks(practices)
 
 
-def create_practice_session(user, topic, transcript_text, duration, scores, metrics=None):
+def create_practice_session(user, topic, transcript_text, duration, scores, metrics=None,
+                            feedback=None, sample_response=None, grader=None):
     practice = UserPracticeSession(
         user_id=user.id,
         topic=topic,
@@ -94,6 +95,9 @@ def create_practice_session(user, topic, transcript_text, duration, scores, metr
         transcript=transcript_text,
         duration=float(duration or 0),
         metrics=metrics or None,
+        feedback=feedback or None,
+        sample_response=sample_response or None,
+        grader=grader or None,
         scores={
             "content": round_score(scores.get("content")),
             "accuracy": round_score(scores.get("accuracy")),

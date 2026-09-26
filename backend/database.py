@@ -159,11 +159,22 @@ class UserPracticeSession(db.Model):
     scores = db.Column(db.JSON, nullable=False, default=dict)
     # Delivery measurements for this attempt; see speech_metrics.py.
     metrics = db.Column(db.JSON, nullable=True)
+    # The written feedback and sample answer are what students come for. They
+    # used to live only on the AnalysisJob, which is deleted after
+    # ANALYSIS_JOB_RETENTION_HOURS, so history kept four numbers and nothing a
+    # student could re-read. NULL for attempts saved before this was stored.
+    feedback = db.Column(db.JSON, nullable=True)
+    sample_response = db.Column(db.Text, nullable=True)
+    grader = db.Column(db.String(64), nullable=True)
     created_at = db.Column(db.DateTime, default=utcnow, index=True)
 
     user = db.relationship('User', backref=db.backref('practice_sessions', lazy=True, cascade='all, delete-orphan'))
 
+    def has_feedback(self):
+        return bool(self.feedback)
+
     def to_dict(self):
+        """History row: scores and metrics, light enough to list."""
         return {
             'id': self.id,
             'topic': self.topic,
@@ -172,7 +183,26 @@ class UserPracticeSession(db.Model):
             'duration': self.duration,
             'scores': self.scores or {},
             'metrics': self.metrics or None,
+            'hasFeedback': self.has_feedback(),
             'createdAt': self.created_at.isoformat() if self.created_at else None
+        }
+
+    def to_detail_dict(self):
+        """One attempt in full, including the feedback and sample answer."""
+        data = self.to_dict()
+        data.update({
+            'feedback': self.feedback or None,
+            'sampleResponse': self.sample_response or '',
+            'grader': self.grader or '',
+        })
+        return data
+
+    def grading_result(self):
+        """The stored attempt in the shape generate_docx expects."""
+        return {
+            'scores': self.scores or {},
+            'feedback': self.feedback or {},
+            'sample_response': self.sample_response or '',
         }
 
 

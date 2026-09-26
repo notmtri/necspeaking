@@ -22,7 +22,7 @@ from sqlalchemy import inspect
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import defer
 
-from analysis_service import allowed_file, build_job_storage_path, cleanup_old_files, get_audio_duration
+from analysis_service import allowed_file, build_job_storage_path, cleanup_old_files, generate_docx, get_audio_duration
 from database import MAX_AVATAR_CHARS, AnalysisJob, AppAnnouncement, CommunityPost, Question, RateLimitEntry, Sample, User, UserPracticeSession, avatar_from_name, build_prompt_key, db, utcnow
 from job_worker import AnalysisWorker, should_start_embedded_worker
 from rate_limiter import client_ip, rate_limit, rate_limiter
@@ -718,6 +718,53 @@ def auth_practice_attempts():
         "promptKey": prompt_key,
         "attempts": [attempt.to_dict() for attempt in attempts],
     })
+
+
+def get_own_practice_session(session_id):
+    """The logged-in student's attempt, or None.
+
+    Someone else's attempt gets the same answer as a missing one, so ids
+    cannot be probed.
+    """
+    practice = db.session.get(UserPracticeSession, session_id)
+    user = get_current_user()
+    if not practice or not user or practice.user_id != user.id:
+        return None
+    return practice
+
+
+@app.route('/api/auth/practice-sessions/<int:session_id>', methods=['GET'])
+@require_login()
+def auth_practice_session_detail(session_id):
+    practice = get_own_practice_session(session_id)
+    if not practice:
+        return jsonify({"error": "Practice attempt not found."}), 404
+    return jsonify({"session": practice.to_detail_dict()})
+
+
+@app.route('/api/auth/practice-sessions/<int:session_id>/document', methods=['GET'])
+@require_login()
+def auth_practice_session_document(session_id):
+    """The feedback report for a past attempt, rebuilt from what is stored.
+
+    The report file made at analysis time is deleted with its job, so it is
+    regenerated here; the content is identical because it comes from the same
+    feedback, sample answer and transcript.
+    """
+    practice = get_own_practice_session(session_id)
+    if not practice:
+        return jsonify({"error": "Practice attempt not found."}), 404
+    if not practice.has_feedback():
+        return jsonify({"error": "Detailed feedback was not saved for this attempt."}), 404
+
+    stream = generate_docx(practice.topic, practice.transcript, practice.grading_result())
+    stamp = practice.created_at.strftime('%Y%m%d') if practice.created_at else 'attempt'
+    return send_file(
+        stream,
+        as_attachment=True,
+        download_name=f"necs_feedback_{stamp}_{practice.id}.docx",
+        mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    )
 
 
 @app.route('/api/auth/logout', methods=['POST'])
