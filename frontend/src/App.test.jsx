@@ -67,11 +67,14 @@ describe('App', () => {
     });
 
     // Routes are code-split, so the page only appears once its dynamic import
-    // resolves. Pump the event loop until the Suspense fallback clears.
-    for (let attempt = 0; attempt < 30; attempt += 1) {
+    // resolves. Wait on wall-clock time, not a tick count: on a slow CI
+    // runner a larger page chunk took more than 30 ticks to load and the test
+    // saw the Suspense fallback.
+    const deadline = Date.now() + 5000;
+    while (Date.now() < deadline) {
       // eslint-disable-next-line no-await-in-loop
       await act(async () => {
-        await new Promise((resolve) => setTimeout(resolve, 0));
+        await new Promise((resolve) => setTimeout(resolve, 10));
       });
       if (!container.querySelector('[role="status"] .lucide-loader')
           && !container.textContent.includes('Loading page')) {
