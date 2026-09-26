@@ -120,6 +120,12 @@ if 'postgresql' in database_url:
     app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
         "pool_pre_ping": True,
         "pool_recycle": 300,
+        # gunicorn runs 8 request threads plus the analysis worker thread
+        # (gunicorn.conf.py). Capped at 10 connections so the Supabase session
+        # pooler, which limits clients per project, is never exhausted.
+        "pool_size": 5,
+        "max_overflow": 5,
+        "pool_timeout": 30,
         "connect_args": {
             "sslmode": "require",
             "connect_timeout": 30,

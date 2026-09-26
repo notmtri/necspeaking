@@ -90,3 +90,23 @@ jobs:
           ADMIN_PASSWORD_HASH: ci-placeholder
           DATABASE_URL: sqlite:///ci-verify.db
         run: python -m flask --app manage.py db upgrade
+
+      # Boot the app the way Render does (`gunicorn app:app` from backend/,
+      # which loads gunicorn.conf.py) and prove concurrent requests are
+      # served in parallel rather than queued behind each other.
+      - name: Serve under gunicorn
+        working-directory: backend
+        env:
+          SECRET_KEY: ci-secret-key
+          PRODUCTION: 'false'
+          ENABLE_EMBEDDED_WORKER: 'false'
+          ADMIN_PASSWORD_HASH: ci-placeholder
+          DATABASE_URL: sqlite:///ci-verify.db
+          PORT: '8765'
+        run: |
+          gunicorn --check-config app:app
+          gunicorn app:app > gunicorn.log 2>&1 &
+          for i in $(seq 1 30); do curl -sf http://127.0.0.1:8765/api/health && break; sleep 1; done
+          grep -E "Using worker: gthread" gunicorn.log
+          python ../.github/scripts/check_concurrency.py http://127.0.0.1:8765
+          kill %1
