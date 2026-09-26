@@ -88,11 +88,15 @@ From the repo root, `npm run start` forwards to the frontend dev server.
   browsers that block third-party cookies (Safari/iOS, Brave, incognito Chrome)
   never return the session cookie that holds the token, so requiring it
   rejected every guest upload from those browsers.
-- **Known limitation: login does not persist in browsers that block
-  third-party cookies**, because the API (`onrender.com`) is a different site
-  from the app (`necspeaking.com`). The fix is infrastructure, not code: serve
-  the API as `api.necspeaking.com` (Render custom domain + a CNAME), point
-  `VITE_API_URL` at it, and set `SESSION_COOKIE_SAMESITE=Lax`.
+- The API is served as **`https://api.necspeaking.com`** (Render custom domain
+  on `necspeaking-backend`, `CNAME api -> necspeaking-backend.onrender.com` in
+  Vercel DNS). That makes it the same site as `www.necspeaking.com`, so the
+  session cookie is first-party and logins persist in browsers that block
+  third-party cookies (Safari/iOS, Brave, incognito Chrome); on the old
+  `onrender.com` host they silently did not. Production sets
+  `VITE_API_URL=https://api.necspeaking.com` (Vercel) and
+  `SESSION_COOKIE_SAMESITE=Lax` (Render). Do not point the frontend back at
+  `onrender.com`.
 - Rate limits key on the client address read `TRUSTED_PROXY_HOPS` entries from
   the right of `X-Forwarded-For` (3 on Render: Cloudflare edge, Cloudflare to
   Render, Render internal). The leftmost entry is client-supplied and must
