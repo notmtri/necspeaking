@@ -4,7 +4,8 @@ import { PageHeader } from '../components/AppChrome';
 import AudioPlayer from '../components/AudioPlayer';
 import ResultsPanel from '../components/ResultsPanel';
 import { formatTime } from '../appShared';
-import { apiFetch, isAbortError, waitForAnalysisJob } from '../apiClient';
+import { apiFetch, isAbortError } from '../apiClient';
+import { useAnalysisJob } from '../useAnalysisJob';
 
 const READING_SECONDS = 60;
 const PREPARATION_SECONDS = 300;
@@ -43,6 +44,30 @@ export default function SimulationMode({ onAnalysisUserUpdate, onDownloadReport,
   const [error, setError] = useState(null);
   const [micTested, setMicTested] = useState(false);
   const [progressMessage, setProgressMessage] = useState('Queued for processing.');
+  const recordedBlobRef = useRef(null);
+  recordedBlobRef.current = recordedBlob;
+
+  const { submit: submitAnalysis } = useAnalysisJob({
+    source: 'simulation',
+    onResume: (context) => {
+      if (context.question) setCurrentQuestion(context.question);
+      setResults(null);
+      setError(null);
+      setProgressMessage('Picking up your analysis where you left off.');
+      setSimStep('analyzing');
+    },
+    onProgress: setProgressMessage,
+    onComplete: async (result) => {
+      setResults(result);
+      if (result.user) await onAnalysisUserUpdate?.(result.user);
+      setSimStep('results');
+    },
+    onFailed: (requestError) => {
+      setError(requestError?.message || 'Connection failed. Make sure the backend is running.');
+      // After a resume the recording is no longer in memory.
+      setSimStep(recordedBlobRef.current ? 'playback' : 'intro');
+    },
+  });
   const [focusMode, setFocusMode] = useState(false);
   const [browserFullscreenActive, setBrowserFullscreenActive] = useState(false);
   const [examRulesAccepted, setExamRulesAccepted] = useState(false);
@@ -321,21 +346,8 @@ export default function SimulationMode({ onAnalysisUserUpdate, onDownloadReport,
     formData.append('topic', currentQuestion.question);
     formData.append('source', 'simulation');
 
-    try {
-      const data = await apiFetch('/api/analyze', { method: 'POST', body: formData });
-      const job = await waitForAnalysisJob(data.job.id, {
-        onTick: (jobState) => setProgressMessage(jobState?.progressMessage || 'Processing analysis job.'),
-      });
-      if (!job.result) throw new Error('Analysis job completed without a result payload.');
-
-      setResults(job.result);
-      if (job.result.user) await onAnalysisUserUpdate?.(job.result.user);
-      setSimStep('results');
-    } catch (requestError) {
-      setError(requestError.message || 'Connection failed. Make sure the backend is running.');
-      setSimStep('playback');
-    }
-  }, [currentQuestion, isOffline, onAnalysisUserUpdate, recordedBlob]);
+    await submitAnalysis(formData, { question: currentQuestion });
+  }, [currentQuestion, isOffline, recordedBlob, submitAnalysis]);
 
   const resetSimulation = useCallback(() => {
     clearTimer();
@@ -723,6 +735,10 @@ export default function SimulationMode({ onAnalysisUserUpdate, onDownloadReport,
               </div>
               <div className="text-lg font-semibold text-white">Analyzing your speech</div>
               <div className="mt-2 text-sm text-ink-muted">{progressMessage}</div>
+              <p className="mx-auto mt-5 max-w-md text-sm leading-6 text-ink-subtle">
+                This usually takes under a minute. You can switch tabs or leave this page;
+                come back to Simulation and your result will be waiting.
+              </p>
             </div>
           )}
 

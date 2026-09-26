@@ -3,6 +3,7 @@ import { Award, BarChart3, CheckCircle, Flame, Lock, LogOut, Target, Trash2, Tre
 import { getDisplayRole, isAdminProfile, readImageAsResizedDataUri } from '../appShared';
 import { PageHeader } from '../components/AppChrome';
 import { FIELD_CLASSNAME, LabeledInput, ProfileDetailRow, ProfileMetricCard, ProfileSectionCard } from '../components/ProfileBits';
+import PracticeHistoryItem from '../components/PracticeHistoryItem';
 
 const CRITERIA = [
   { key: 'content', label: 'Content', max: 0.9, tone: 'sky' },
@@ -323,23 +324,7 @@ export default function ProfilePage({ currentUser, practiceHistory, onSave, onLo
           <ProfileSectionCard title="Recent practice" eyebrow="Saved activity" className="xl:col-span-2">
             <div className="space-y-3">
               {practiceHistory?.length ? practiceHistory.map((session) => (
-                <div key={session.id} className="rounded-card border border-line bg-overlay px-4 py-4">
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="truncate text-sm font-semibold text-white">{session.topic}</div>
-                      <div className="mt-1 text-xs text-ink-subtle">{new Date(session.createdAt).toLocaleString()}</div>
-                    </div>
-                    <div className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 text-sm font-semibold text-emerald-100">
-                      {session.scores?.total ?? 0}/2.0
-                    </div>
-                  </div>
-                  <div className="mt-3 grid gap-3 sm:grid-cols-4">
-                    <ProfileDetailRow label="Content" value={session.scores?.content ?? 0} />
-                    <ProfileDetailRow label="Accuracy" value={session.scores?.accuracy ?? 0} />
-                    <ProfileDetailRow label="Delivery" value={session.scores?.delivery ?? 0} />
-                    <ProfileDetailRow label="Duration" value={`${Math.round(session.duration || 0)}s`} />
-                  </div>
-                </div>
+                <PracticeHistoryItem key={session.id} session={session} />
               )) : (
                 <div className="rounded-card border border-dashed border-line bg-overlay px-4 py-5 text-sm text-ink-muted">
                   Complete a speech analysis while logged in to start building your history.

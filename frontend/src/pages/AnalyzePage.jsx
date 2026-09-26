@@ -3,7 +3,7 @@ import { AlertCircle, CheckCircle, ClipboardList, FileAudio, Loader, Mic, Pause,
 import { PageHeader } from '../components/AppChrome';
 import ResultsPanel from '../components/ResultsPanel';
 import { formatTime } from '../appShared';
-import { apiFetch, waitForAnalysisJob } from '../apiClient';
+import { useAnalysisJob } from '../useAnalysisJob';
 
 const MAX_RECORDING_SECONDS = 300;
 const MAX_AUDIO_BYTES = 50 * 1024 * 1024;
@@ -21,6 +21,30 @@ export default function AnalyzePage({ onDownloadReport, onAnalysisUserUpdate, is
   const [results, setResults] = useState(null);
   const [error, setError] = useState(null);
   const [progressMessage, setProgressMessage] = useState('Queued for processing.');
+  const audioFileRef = useRef(null);
+  audioFileRef.current = audioFile;
+
+  const { submit: submitAnalysis } = useAnalysisJob({
+    source: 'analyze',
+    onResume: (context) => {
+      setTopic(context.topic || '');
+      setResults(null);
+      setError(null);
+      setProgressMessage('Picking up your analysis where you left off.');
+      setStep('uploading');
+    },
+    onProgress: setProgressMessage,
+    onComplete: async (result) => {
+      setResults(result);
+      if (result.user) await onAnalysisUserUpdate?.(result.user);
+      setStep('results');
+    },
+    onFailed: (requestError) => {
+      setError(requestError?.message || 'Connection failed. Make sure the backend is running.');
+      // After a resume there is no audio in memory to retry with.
+      setStep(audioFileRef.current ? 'preview' : 'input');
+    },
+  });
 
   const audioRef = useRef(null);
   const uploadInputRef = useRef(null);
@@ -210,22 +234,8 @@ export default function AnalyzePage({ onDownloadReport, onAnalysisUserUpdate, is
     formData.append('topic', topic);
     formData.append('source', 'analyze');
 
-    try {
-      const data = await apiFetch('/api/analyze', { method: 'POST', body: formData });
-      const job = await waitForAnalysisJob(data.job.id, {
-        onTick: (jobState) => setProgressMessage(jobState?.progressMessage || 'Processing analysis job.'),
-      });
-
-      if (!job.result) throw new Error('Analysis job completed without a result payload.');
-
-      setResults(job.result);
-      if (job.result.user) await onAnalysisUserUpdate?.(job.result.user);
-      setStep('results');
-    } catch (requestError) {
-      setError(requestError.message || 'Connection failed. Make sure the backend is running.');
-      setStep('preview');
-    }
-  }, [audioFile, isOffline, onAnalysisUserUpdate, topic]);
+    await submitAnalysis(formData, { topic });
+  }, [audioFile, isOffline, submitAnalysis, topic]);
 
   const reset = useCallback(() => {
     cancelRecording();
@@ -454,6 +464,10 @@ export default function AnalyzePage({ onDownloadReport, onAnalysisUserUpdate, is
             <div className="mx-auto mt-6 h-2 max-w-md overflow-hidden rounded-full bg-overlay">
               <div className="h-full w-1/2 animate-pulse rounded-full bg-sky-400" />
             </div>
+            <p className="mx-auto mt-5 max-w-md text-sm leading-6 text-ink-subtle">
+              This usually takes under a minute. You can switch tabs or leave this page;
+              come back to Analyze and your result will be waiting.
+            </p>
           </div>
         )}
 

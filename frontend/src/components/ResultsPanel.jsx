@@ -70,6 +70,12 @@ export default function ResultsPanel({
 
       <ResultsInsights results={results} />
 
+      {results.practice_session_id && (
+        <p className="rounded-control border border-emerald-400/20 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-100">
+          Saved to your profile. You can reopen this feedback and its report any time under Recent practice.
+        </p>
+      )}
+
       {results.sample_response && (
         <section className="rounded-card border border-amber-400/20 bg-amber-400/10 p-4">
           <h3 className="mb-2 text-base font-semibold text-white">Sample 2.0 response</h3>
