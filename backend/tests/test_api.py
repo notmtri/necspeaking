@@ -496,6 +496,43 @@ class ApiSmokeTests(unittest.TestCase):
         self.assertTrue(profile['avatar'].startswith('data:image/svg+xml'))
         self.assertLess(len(response.get_data()), 20 * 1024)
 
+    def test_community_listing_never_fetches_oversized_avatars(self):
+        """Discarding big photos in Python still pulled ~2.4 MB across regions
+        per listing. The query must leave them in the database, without
+        falling back to one lazy load per user."""
+        from sqlalchemy import event
+
+        small = 'data:image/jpeg;base64,' + 'B' * 5000
+        with app_module.app.app_context():
+            db.session.add(User(email='big@example.com', username='bigone', name='Big One',
+                                password_hash='x', avatar='data:image/png;base64,' + 'A' * (300 * 1024)))
+            db.session.add(User(email='small@example.com', username='smallone', name='Small One',
+                                password_hash='x', avatar=small))
+            db.session.commit()
+
+        statements = []
+
+        def capture(conn, cursor, statement, *args):
+            statements.append(statement)
+
+        with app_module.app.app_context():
+            engine = db.engine
+        event.listen(engine, 'before_cursor_execute', capture)
+        try:
+            response = self.client.get('/api/auth/community')
+        finally:
+            event.remove(engine, 'before_cursor_execute', capture)
+
+        profiles = {p['username']: p for p in response.get_json()['profiles']}
+        self.assertEqual(profiles['smallone']['avatar'], small)
+        self.assertTrue(profiles['bigone']['avatar'].startswith('data:image/svg+xml'))
+
+        user_selects = [s for s in statements if 'FROM users' in s]
+        self.assertEqual(len(user_selects), 2, 'one count and one page query, no per-user lazy loads')
+        for statement in user_selects:
+            self.assertNotIn('users.avatar AS users_avatar', statement)
+        self.assertIn('CASE WHEN', user_selects[-1])
+
     def test_community_default_page_covers_all_users(self):
         """Leaderboards are computed client-side from this list."""
         with app_module.app.app_context():

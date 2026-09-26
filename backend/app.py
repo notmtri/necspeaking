@@ -20,6 +20,7 @@ import re
 import random
 from sqlalchemy import inspect
 from sqlalchemy.engine import make_url
+from sqlalchemy.orm import defer
 
 from analysis_service import allowed_file, build_job_storage_path, cleanup_old_files, get_audio_duration
 from database import MAX_AVATAR_CHARS, AnalysisJob, AppAnnouncement, CommunityPost, Question, RateLimitEntry, Sample, User, UserPracticeSession, avatar_from_name, build_prompt_key, db, utcnow
@@ -599,15 +600,21 @@ def auth_community():
     offset = max(0, offset)
 
     query = User.query.order_by(User.updated_at.desc(), User.created_at.desc())
-    total = query.order_by(None).count()
-    users = query.offset(offset).limit(limit).all()
+    # A plain count; Query.count() wraps a SELECT of every column, avatar included.
+    total = db.session.query(db.func.count(User.id)).scalar()
+    # Oversized legacy avatars are never served, so never fetch them either.
+    rows = (
+        query.options(defer(User.avatar))
+        .add_columns(User.servable_avatar_column().label('servable_avatar'))
+        .offset(offset).limit(limit).all()
+    )
 
     return jsonify({
-        "profiles": [user.to_public_dict() for user in users],
+        "profiles": [user.to_public_dict(stored_avatar=avatar) for user, avatar in rows],
         "total": total,
         "limit": limit,
         "offset": offset,
-        "hasMore": offset + len(users) < total,
+        "hasMore": offset + len(rows) < total,
     })
 
 

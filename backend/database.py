@@ -1,4 +1,5 @@
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import case, func
 from datetime import datetime, timezone
 import hashlib
 import re
@@ -73,19 +74,33 @@ class User(db.Model):
     created_at = db.Column(db.DateTime, default=utcnow)
     updated_at = db.Column(db.DateTime, default=utcnow, onupdate=utcnow)
 
-    def display_avatar(self):
+    @classmethod
+    def servable_avatar_column(cls):
+        """SQL for the stored avatar, or '' when it exceeds MAX_AVATAR_CHARS.
+
+        Filtering in Python still meant fetching every oversized photo from
+        the database first. Four legacy photos (~2.4 MB together) crossed from
+        Mumbai to Oregon on every community listing just to be discarded,
+        making it the slowest call on every page load (~4.9 s). Selecting this
+        instead of the raw column leaves them in the database.
+        """
+        return case((func.length(cls.avatar) <= MAX_AVATAR_CHARS, cls.avatar), else_='')
+
+    def display_avatar(self, stored=None):
         """The avatar to serve, never larger than MAX_AVATAR_CHARS.
 
         Photos uploaded before the size cap existed are still stored -- one
         was over 1 MB -- and five of them made every public community listing
         3.4 MB. Those are replaced by the initials avatar until re-uploaded.
+        `stored` is a value already read via servable_avatar_column(); when
+        given, the (possibly deferred) avatar column is not touched.
         """
-        avatar = self.avatar or ''
+        avatar = (self.avatar if stored is None else stored) or ''
         if not avatar or len(avatar) > MAX_AVATAR_CHARS:
             return avatar_from_name(self.name)
         return avatar
 
-    def _base_profile(self):
+    def _base_profile(self, stored_avatar=None):
         is_admin = is_special_admin(self.username)
         return {
             'id': f'user-{self.id}',
@@ -97,7 +112,7 @@ class User(db.Model):
             'role': 'Admin' if is_admin else (self.role or 'Student'),
             'isAdmin': is_admin,
             'bio': self.bio or '',
-            'avatar': self.display_avatar(),
+            'avatar': self.display_avatar(stored_avatar),
             'stats': self.stats or {},
             'progress': self.progress or [],
             'commitWeeks': self.commit_weeks or [],
@@ -109,8 +124,8 @@ class User(db.Model):
         data['email'] = self.email
         return data
 
-    def to_public_dict(self):
-        return self._base_profile()
+    def to_public_dict(self, stored_avatar=None):
+        return self._base_profile(stored_avatar)
 
 
 def build_prompt_key(topic):
