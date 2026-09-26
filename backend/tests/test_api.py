@@ -658,6 +658,27 @@ class ApiSmokeTests(unittest.TestCase):
             engine.dispose()
         self.assertEqual(app_module.normalize_database_url('sqlite:///x.db'), 'sqlite:///x.db')
 
+    def test_running_app_py_as_a_script_uses_the_backend_instance_folder(self):
+        """`python backend/app.py` from the repo root (the README's run step)
+        used <repo>/instance for SQLite while `flask db upgrade` used
+        backend/instance, so the app and its migrations saw different
+        databases."""
+        import subprocess
+        repo_root = BACKEND_DIR.parent
+        probe = (
+            "import os, runpy, sys, flask\n"
+            "flask.Flask.run = lambda self, *a, **k: print('INSTANCE=' + self.instance_path)\n"
+            "sys.path.insert(0, 'backend')\n"
+            "runpy.run_path('backend/app.py', run_name='__main__')\n"
+        )
+        env = dict(os.environ, ENABLE_EMBEDDED_WORKER='false', DATABASE_URL='sqlite:///script-probe.db')
+        result = subprocess.run([sys.executable, '-c', probe], cwd=repo_root, env=env,
+                                capture_output=True, text=True, timeout=120)
+        lines = [line for line in result.stdout.splitlines() if line.startswith('INSTANCE=')]
+        self.assertTrue(lines, result.stderr[-2000:])
+        self.assertEqual(Path(lines[0][len('INSTANCE='):]), BACKEND_DIR / 'instance')
+        (BACKEND_DIR / 'instance' / 'script-probe.db').unlink(missing_ok=True)
+
     def test_boot_log_never_contains_the_database_password(self):
         redacted = app_module.redact_database_url(
             'postgresql://postgres.ref:SuperSecret123@aws-0.pooler.supabase.com:6543/postgres')

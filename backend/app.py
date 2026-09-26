@@ -32,7 +32,15 @@ import cloudinary.uploader
 load_dotenv()
 
 # The React app is deployed separately (see vercel.json); this process is API-only.
-app = Flask(__name__)
+#
+# instance_path is pinned next to this file. Run as a script (`python
+# backend/app.py`, as the README says), __name__ is '__main__', and Flask
+# resolves the instance folder -- where a relative SQLite DATABASE_URL lives --
+# from the *current directory*. Locally the app therefore used
+# <repo>/instance/necs.db while `flask db upgrade` migrated
+# backend/instance/necs.db. gunicorn imports the module, so production always
+# resolved to backend/instance; now every entry point does.
+app = Flask(__name__, instance_path=os.path.join(os.path.dirname(os.path.abspath(__file__)), 'instance'))
 
 # REMOVED REDIS LIMITER - Use custom rate limiting instead
 # If you need Redis later, add it back with proper configuration
