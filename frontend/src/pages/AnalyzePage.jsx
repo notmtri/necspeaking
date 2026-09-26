@@ -1,17 +1,19 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { AlertCircle, CheckCircle, ClipboardList, FileAudio, Loader, Mic, Pause, RotateCcw, Square, Upload, Volume2 } from 'lucide-react';
+import { AlertCircle, BookOpen, CheckCircle, ClipboardList, FileAudio, Loader, Mic, Pause, RotateCcw, Square, Upload, Volume2 } from 'lucide-react';
 import { PageHeader } from '../components/AppChrome';
 import ResultsPanel from '../components/ResultsPanel';
+import QuestionPicker from '../components/QuestionPicker';
 import { formatTime } from '../appShared';
 import { useAnalysisJob } from '../useAnalysisJob';
 
 const MAX_RECORDING_SECONDS = 300;
 const MAX_AUDIO_BYTES = 50 * 1024 * 1024;
-const SAMPLE_PROMPT = 'Many students join competitions to improve confidence. What have you learned from preparing for an English competition?';
 
 export default function AnalyzePage({ onDownloadReport, onAnalysisUserUpdate, isOffline, isLoggedIn = false }) {
   const [step, setStep] = useState('input');
   const [topic, setTopic] = useState('');
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [pickedQuestion, setPickedQuestion] = useState(null);
   const [audioFile, setAudioFile] = useState(null);
   const [audioURL, setAudioURL] = useState(null);
   const [audioSourceType, setAudioSourceType] = useState('upload');
@@ -312,17 +314,30 @@ export default function AnalyzePage({ onDownloadReport, onAnalysisUserUpdate, is
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="text-base font-semibold text-white">Speaking prompt</div>
-                  <div className="mt-1 text-sm leading-6 text-ink-muted">Use the exact question when you have it.</div>
+                  <div className="mt-1 text-sm leading-6 text-ink-muted">Pick a past NEC question, or type the exact question you were given.</div>
                 </div>
                 <button
                   type="button"
-                  onClick={() => setTopic(SAMPLE_PROMPT)}
+                  onClick={() => setPickerOpen((open) => !open)}
+                  aria-expanded={pickerOpen}
                   className="inline-flex min-h-[40px] shrink-0 items-center justify-center gap-2 rounded-control border border-sky-400/20 bg-sky-400/10 px-4 py-2 text-sm font-semibold text-sky-100 transition hover:bg-sky-400/20"
                 >
-                  <ClipboardList size={15} />
-                  Use sample prompt
+                  <BookOpen size={15} />
+                  {pickerOpen ? 'Hide past questions' : 'Past NEC questions'}
                 </button>
               </div>
+              {pickerOpen && (
+                <div className="mb-4">
+                  <QuestionPicker
+                    selectedId={pickedQuestion?.id ?? null}
+                    onSelect={(question) => {
+                      setTopic(question.promptText);
+                      setPickedQuestion(question);
+                      setPickerOpen(false);
+                    }}
+                  />
+                </div>
+              )}
               <label className="block">
                 <span className="sr-only">Speaking prompt</span>
                 <textarea
@@ -333,6 +348,12 @@ export default function AnalyzePage({ onDownloadReport, onAnalysisUserUpdate, is
                   rows="6"
                 />
               </label>
+              {pickedQuestion && topic === pickedQuestion.promptText && (
+                <div className="mt-3 inline-flex items-center gap-2 rounded-full border border-sky-400/20 bg-sky-400/10 px-3 py-1 text-xs font-semibold text-sky-100">
+                  <BookOpen size={13} />
+                  {pickedQuestion.label}
+                </div>
+              )}
             </div>
 
             <div className="min-w-0 space-y-4">
