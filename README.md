@@ -101,6 +101,13 @@ From the repo root, `npm run start` forwards to the frontend dev server.
   the right of `X-Forwarded-For` (3 on Render: Cloudflare edge, Cloudflare to
   Render, Render internal). The leftmost entry is client-supplied and must
   never be trusted.
+- Limits count per student, not per network: a school puts a whole class
+  behind one IP. Analyses are `ANALYSIS_LIMIT_PER_HOUR` (10) per account, or
+  per browser session for guests, under a per-IP ceiling of
+  `ANALYSIS_NETWORK_LIMIT_PER_HOUR` (100) that a client cannot dodge by
+  dropping its cookie. Logins are limited per IP *and* email (8 per 5 min,
+  so one account cannot be brute-forced) under a 100-per-5-minute IP
+  ceiling; signups are 60 per hour per IP.
 - Postgres tables have row level security enabled with no policies
   (`c3d4e5f6a7b8`). That shuts Supabase's public REST API out of every table
   while the backend, which connects as the table owner, is unaffected. Never
