@@ -320,7 +320,7 @@ def attach_request_context():
 
     expected_token = session.get('csrf_token')
     supplied_token = request.headers.get('X-CSRF-Token', '')
-    if not expected_token or not supplied_token or supplied_token != expected_token:
+    if not expected_token or not supplied_token or not secrets.compare_digest(supplied_token.encode(), expected_token.encode()):
         return jsonify({"error": "CSRF validation failed."}), 403
     return None
 
@@ -437,6 +437,24 @@ def normalize_username(username):
     return cleaned[:50]
 
 
+# Column widths in database.py. PostgreSQL rejects an over-long value with a
+# DataError, which surfaced as a bare 500 ("Signup failed."); SQLite silently
+# accepts it, so local testing never showed the problem.
+PROFILE_FIELD_LIMITS = {
+    'name': ('Full name', 255),
+    'class_name': ('Class', 100),
+    'school': ('School', 255),
+    'cohort': ('Cohort', 100),
+}
+
+
+def profile_length_error(values):
+    for key, (label, limit) in PROFILE_FIELD_LIMITS.items():
+        if len(values.get(key) or '') > limit:
+            return f"{label} must be {limit} characters or fewer."
+    return None
+
+
 def validate_account_payload(data, is_signup=False):
     email = normalize_email(data.get('email'))
     password = data.get('password', '')
@@ -444,9 +462,9 @@ def validate_account_payload(data, is_signup=False):
 
     if not email:
         return None, "Email is required."
-    if not re.fullmatch(r'^[^@\s]+@[^@\s]+\.[^@\s]+$', email):
+    if len(email) > 255 or not re.fullmatch(r'^[^@\s]+@[^@\s]+\.[^@\s]+$', email):
         return None, "Enter a valid email address."
-    if not password or len(password) < 8:
+    if not isinstance(password, str) or len(password) < 8:
         return None, "Password must be at least 8 characters."
 
     payload = {
@@ -469,6 +487,9 @@ def validate_account_payload(data, is_signup=False):
             return None, "Full name is required."
         if not payload["username"] or len(payload["username"]) < 3:
             return None, "Username must be at least 3 characters."
+        length_error = profile_length_error(payload)
+        if length_error:
+            return None, length_error
 
     return payload, None
 
@@ -765,7 +786,7 @@ def auth_practice_session_document(session_id):
     if not practice.has_feedback():
         return jsonify({"error": "Detailed feedback was not saved for this attempt."}), 404
 
-    stream = generate_docx(practice.topic, practice.transcript, practice.grading_result())
+    stream = generate_docx(practice.topic, practice.transcript, practice.grading_result(), report_date=practice.created_at)
     stamp = practice.created_at.strftime('%Y%m%d') if practice.created_at else 'attempt'
     return send_file(
         stream,
@@ -809,13 +830,21 @@ def update_profile():
                 return current or ''
             return (data.get(key) or '').strip()
 
-        user.name = name
+        updates = {
+            'name': name,
+            'class_name': optional_field('className', user.class_name),
+            'school': optional_field('school', user.school),
+            'cohort': optional_field('cohort', user.cohort),
+            'bio': optional_field('bio', user.bio),
+        }
+        length_error = profile_length_error(updates)
+        if length_error:
+            return jsonify({"error": length_error}), 400
+
+        for key, value in updates.items():
+            setattr(user, key, value)
         user.username = username
-        user.class_name = optional_field('className', user.class_name)
-        user.school = optional_field('school', user.school)
-        user.cohort = optional_field('cohort', user.cohort)
         user.role = role
-        user.bio = optional_field('bio', user.bio)
 
         avatar = (data.get('avatar') or '').strip()
         if len(avatar) > MAX_AVATAR_CHARS:
@@ -930,17 +959,6 @@ def update_announcement():
         return jsonify({"error": "Could not update announcement."}), 500
 
 # ============= EXISTING ROUTES =============
-
-def clean_metadata_file():
-    path = 'uploads/samples/metadata.json'
-    if os.path.exists(path):
-        with open(path, 'r', encoding='utf-8') as f:
-            raw = f.read()
-        cleaned = re.sub(r'[\x00-\x09\x0B\x0C\x0E-\x1F]', '', raw)
-        with open(path, 'w', encoding='utf-8') as f:
-            f.write(cleaned)
-
-clean_metadata_file()
 
 def get_groq_client():
     if not groq_client:
@@ -1188,7 +1206,9 @@ def upload_sample():
         if not filename:
             return jsonify({"error": "Invalid file name."}), 400
 
-        temp_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        # Unique per upload: requests run on concurrent threads, and two
+        # uploads of the same file name would otherwise overwrite each other.
+        temp_path = build_job_storage_path(app.config['UPLOAD_FOLDER'], filename)
         audio_file.save(temp_path)
 
         try:
@@ -1201,7 +1221,7 @@ def upload_sample():
             temp_path,
             resource_type="video",
             folder="necs_samples",
-            public_id=f"sample_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
+            public_id=f"sample_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{secrets.token_hex(4)}",
             overwrite=True
         )
         

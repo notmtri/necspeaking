@@ -13,6 +13,8 @@ import analysis_service  # noqa: E402
 from analysis_service import (  # noqa: E402
     GradingUnavailableError,
     allowed_file,
+    build_job_storage_path,
+    generate_docx,
     grade_speech,
     normalise_grading_result,
     parse_grading_json,
@@ -103,6 +105,27 @@ class AllowedFileTests(unittest.TestCase):
     def test_rejects_everything_else(self):
         for name in ('a.exe', 'a.txt', 'noextension', 'a.mp3.exe'):
             self.assertFalse(allowed_file(name), name)
+
+
+class JobStoragePathTests(unittest.TestCase):
+    def test_same_name_uploads_in_the_same_second_get_different_paths(self):
+        # Simulation mode names every upload "recording.webm".
+        import tempfile
+        with tempfile.TemporaryDirectory() as folder:
+            first = build_job_storage_path(folder, 'recording.webm')
+            second = build_job_storage_path(folder, 'recording.webm')
+        self.assertNotEqual(first, second)
+        self.assertTrue(first.endswith('_recording.webm'))
+
+
+class GenerateDocxTests(unittest.TestCase):
+    def test_uses_the_given_report_date(self):
+        from datetime import datetime
+        from docx import Document
+
+        stream = generate_docx('Topic', 'transcript', {'scores': {}}, report_date=datetime(2025, 3, 4))
+        text = '\n'.join(paragraph.text for paragraph in Document(stream).paragraphs)
+        self.assertIn('Date: March 04, 2025', text)
 
 
 class _TranscriptionStubClient:

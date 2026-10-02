@@ -119,7 +119,7 @@ class AnalysisWorker:
                 if duration > 320:
                     raise AnalysisInputError("This recording is longer than the 5 minute limit. Please trim it and try again.")
 
-                wav_filepath = filepath.rsplit('.', 1)[0] + '_compressed.wav'
+                wav_filepath = os.path.splitext(filepath)[0] + '_compressed.wav'
                 convert_to_wav(filepath, wav_filepath)
                 if filepath != wav_filepath and os.path.exists(filepath):
                     os.remove(filepath)
@@ -174,15 +174,22 @@ class AnalysisWorker:
                     output_file.write(doc_stream.getvalue())
                 document_external_url = ''
                 if self.cloudinary_report_upload_enabled():
-                    upload_result = cloudinary.uploader.upload(
-                        doc_path,
-                        resource_type='raw',
-                        folder='necs_reports',
-                        public_id=f"report_{job.id}",
-                        overwrite=True,
-                    )
-                    document_external_url = upload_result.get('secure_url') or ''
-                    if os.path.exists(doc_path):
+                    # The grade is already saved to the student's history by
+                    # now, so a Cloudinary hiccup must not fail the job: the
+                    # student would be told to resubmit and get a duplicate
+                    # attempt. The local copy serves the download instead.
+                    try:
+                        upload_result = cloudinary.uploader.upload(
+                            doc_path,
+                            resource_type='raw',
+                            folder='necs_reports',
+                            public_id=f"report_{job.id}",
+                            overwrite=True,
+                        )
+                        document_external_url = upload_result.get('secure_url') or ''
+                    except Exception as upload_error:
+                        print(f"[JOBS] Report upload failed for {job.id}, serving local copy: {upload_error}")
+                    if document_external_url and os.path.exists(doc_path):
                         os.remove(doc_path)
 
                 job.document_path = doc_path if not document_external_url else ''

@@ -128,16 +128,32 @@ export async function waitForAnalysisJob(jobId, options = {}) {
     signal,
     intervalMs = 2000,
     maxWaitMs = 8 * 60 * 1000,
+    maxConsecutiveErrors = 5,
     onTick,
   } = options;
   const startedAt = Date.now();
+  let consecutiveErrors = 0;
 
   while (true) {
     if (signal?.aborted) {
       throw new DOMException('The operation was aborted.', 'AbortError');
     }
 
-    const data = await apiFetch(`/api/analyze/jobs/${jobId}`, { signal });
+    let data;
+    try {
+      data = await apiFetch(`/api/analyze/jobs/${jobId}`, { signal });
+      consecutiveErrors = 0;
+    } catch (error) {
+      // A phone switching networks or a momentary 5xx used to end the wait
+      // and show a failure while the server was still grading. Keep polling
+      // through transient errors; a 4xx means the job is really gone.
+      const transient = !error?.status || error.status === 429 || error.status >= 500;
+      if (isAbortError(error) || !transient || ++consecutiveErrors >= maxConsecutiveErrors) {
+        throw error;
+      }
+      await sleep(intervalMs);
+      continue;
+    }
     const job = data.job;
     onTick?.(job);
 

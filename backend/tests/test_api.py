@@ -277,6 +277,21 @@ class ApiSmokeTests(unittest.TestCase):
         response = self.client.get('/api/auth/community?limit=not-a-number')
         self.assertEqual(response.status_code, 200)
 
+    def test_overlong_profile_fields_are_a_400_not_a_database_error(self):
+        # SQLite ignores String(n); PostgreSQL raised a DataError -> 500.
+        response = self.client.post('/api/auth/signup', json={
+            'email': 'long@example.com',
+            'password': 'strongpass123',
+            'profile': {'name': 'Long', 'username': 'longuser', 'className': 'x' * 101},
+        })
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('Class', response.get_json()['error'])
+
+        self._signup(email='long2@example.com', username='longuser2')
+        response = self.client.put('/api/auth/profile', json={'name': 'Long', 'cohort': 'y' * 101})
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('Cohort', response.get_json()['error'])
+
     def _signup(self, email='attempts@example.com', username='attemptsuser'):
         return self.client.post('/api/auth/signup', json={
             'email': email,

@@ -5,6 +5,7 @@ import mimetypes
 import os
 import re
 import time
+import uuid
 from datetime import datetime
 
 import httpx
@@ -496,7 +497,9 @@ def grade_speech(groq_client, topic, transcript_data, audio_path=''):
     return result
 
 
-def generate_docx(topic, transcript, grading_result):
+def generate_docx(topic, transcript, grading_result, report_date=None):
+    """Build the feedback report. `report_date` defaults to today; a report
+    rebuilt later from a stored attempt passes the attempt's own date."""
     from docx import Document
     from docx.enum.text import WD_ALIGN_PARAGRAPH
 
@@ -505,7 +508,7 @@ def generate_docx(topic, transcript, grading_result):
     title = doc.add_heading('necs. - Speech Feedback Report', 0)
     title.alignment = WD_ALIGN_PARAGRAPH.CENTER
 
-    doc.add_paragraph(f"Date: {datetime.now().strftime('%B %d, %Y')}")
+    doc.add_paragraph(f"Date: {(report_date or datetime.now()).strftime('%B %d, %Y')}")
     doc.add_paragraph(f"Topic: {topic}")
     doc.add_paragraph()
 
@@ -570,4 +573,8 @@ def build_job_storage_path(upload_folder, filename):
     os.makedirs(jobs_folder, exist_ok=True)
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
     secured = secure_filename(filename)
-    return os.path.join(jobs_folder, f"{timestamp}_{secured}")
+    # The random part keeps concurrent uploads apart. Simulation mode names
+    # every upload "recording.webm", so two students submitting in the same
+    # second used to share one path: the second upload overwrote the first,
+    # and whichever job ran first deleted the file out from under the other.
+    return os.path.join(jobs_folder, f"{timestamp}_{uuid.uuid4().hex[:12]}_{secured}")

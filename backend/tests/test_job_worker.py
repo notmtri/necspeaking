@@ -275,6 +275,50 @@ class FeedbackIsKeptTests(unittest.TestCase):
         if doc.exists():
             doc.unlink()
 
+    def test_report_upload_failure_keeps_the_job_and_serves_the_local_copy(self):
+        """The attempt is already saved when the report is uploaded. Failing
+        the job there told the student to resubmit, duplicating the attempt."""
+        from unittest import mock
+        import job_worker
+        from database import UserPracticeSession
+
+        audio = self.upload_dir / 'jobs' / 'cloudinary-down.webm'
+        audio.parent.mkdir(parents=True, exist_ok=True)
+        audio.write_bytes(b'stub')
+
+        def fake_convert(src, dst):
+            Path(dst).write_bytes(b'wav')
+            return dst
+
+        with app_module.app.app_context():
+            user = User(email='cdn@example.com', username='cdnuser', name='Cdn',
+                        password_hash=generate_password_hash('strongpass123'))
+            db.session.add(user)
+            db.session.flush()
+            job = make_job('pending')
+            job.user_id = user.id
+            job.stored_audio_path = str(audio)
+            db.session.commit()
+            job_id = job.id
+
+        with mock.patch.object(job_worker, 'get_audio_duration', return_value=60.0), \
+                mock.patch.object(job_worker, 'convert_to_wav', side_effect=fake_convert), \
+                mock.patch.object(job_worker, 'transcribe_audio',
+                                  return_value={'text': 'my answer', 'words': [], 'duration': 60.0}), \
+                mock.patch.object(job_worker, 'grade_speech', return_value=dict(self.GRADE)), \
+                mock.patch.object(self.worker, 'cloudinary_report_upload_enabled', return_value=True), \
+                mock.patch.object(job_worker.cloudinary.uploader, 'upload', side_effect=RuntimeError('cdn down')):
+            self.worker.process_next_job()
+
+        with app_module.app.app_context():
+            job = db.session.get(AnalysisJob, job_id)
+            self.assertEqual(job.status, 'completed', job.error_message)
+            self.assertEqual(job.result_payload['document_external_url'], '')
+            doc = Path(job.document_path)
+            self.assertTrue(doc.exists(), 'the local report must remain downloadable')
+            self.assertEqual(UserPracticeSession.query.filter_by(user_id=job.user_id).count(), 1)
+        doc.unlink()
+
 
 if __name__ == '__main__':
     unittest.main()
