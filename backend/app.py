@@ -1,6 +1,7 @@
 from flask import Flask, g, jsonify, redirect, request, send_file, session
 from flask_cors import CORS
 from dotenv import load_dotenv
+import hashlib
 import json
 import logging
 import os
@@ -513,6 +514,40 @@ def require_login():
     return decorator
 
 
+# ----- Rate-limit identities ------------------------------------------------
+#
+# Every limit used to count per client IP. A school network puts a whole
+# classroom behind one address, so the first few students to log in or submit
+# used up the limit for everyone else in the room. Limits now count per
+# student (account, or browser session for guests), and a much higher
+# per-network ceiling still bounds what one address can do, since a client
+# can always drop its cookie to look like a new guest.
+
+ANALYSIS_LIMIT_PER_HOUR = int(os.getenv('ANALYSIS_LIMIT_PER_HOUR', '10'))
+ANALYSIS_NETWORK_LIMIT_PER_HOUR = int(os.getenv('ANALYSIS_NETWORK_LIMIT_PER_HOUR', '100'))
+
+
+def student_key():
+    """The logged-in account, else this browser session."""
+    user = get_current_user()
+    if user:
+        return f"user:{user.id}"
+    client_id = session.get('client_id')
+    if not client_id:
+        client_id = secrets.token_urlsafe(16)
+        session['client_id'] = client_id
+    return f"session:{client_id}"
+
+
+def login_attempt_key():
+    """One address guessing at one account. The address alone would lock a
+    classroom out as soon as a few students logged in together."""
+    data = request.get_json(silent=True)
+    email = normalize_email(data.get('email')) if isinstance(data, dict) and isinstance(data.get('email'), str) else ''
+    digest = hashlib.sha256(email.encode('utf-8')).hexdigest()[:16]
+    return f"{client_ip()}|{digest}"
+
+
 # The community listing is a public, unauthenticated endpoint returning whole
 # profiles. Without a ceiling its payload grows with the user base.
 #
@@ -541,7 +576,9 @@ def get_or_create_announcement():
 # ============= AUTHENTICATION ROUTES =============
 
 @app.route('/api/auth/signup', methods=['POST'])
-@rate_limit('auth-signup', max_requests=5, window_seconds=300)
+# Per network: a teacher signs a whole class up in one lesson. Same hourly
+# total as the old 5-per-5-minutes, without the burst cap that blocked it.
+@rate_limit('auth-signup', max_requests=60, window_seconds=3600)
 def signup():
     try:
         data = request.get_json(silent=True) or {}
@@ -587,7 +624,8 @@ def signup():
 
 
 @app.route('/api/auth/login', methods=['POST'])
-@rate_limit('auth-login', max_requests=8, window_seconds=300)
+@rate_limit('auth-login', max_requests=8, window_seconds=300, key=login_attempt_key)
+@rate_limit('auth-login-network', max_requests=100, window_seconds=300)
 def login():
     try:
         data = request.get_json(silent=True) or {}
@@ -661,7 +699,7 @@ def get_community_posts():
 
 @app.route('/api/community/posts', methods=['POST'])
 @require_login()
-@rate_limit('community-post-create', max_requests=10, window_seconds=300)
+@rate_limit('community-post-create', max_requests=10, window_seconds=300, key=student_key)
 def create_community_post():
     try:
         user = get_current_user()
@@ -1071,7 +1109,8 @@ def admin_delete_community_post(post_id):
         return jsonify({"error": "Could not delete post."}), 500
 
 @app.route('/api/analyze', methods=['POST'])
-@rate_limit('analysis-create', max_requests=10, window_seconds=3600)
+@rate_limit('analysis-create', max_requests=ANALYSIS_LIMIT_PER_HOUR, window_seconds=3600, key=student_key)
+@rate_limit('analysis-create-network', max_requests=ANALYSIS_NETWORK_LIMIT_PER_HOUR, window_seconds=3600)
 def analyze_speech():
     try:
         cleanup_old_files(app.config['UPLOAD_FOLDER'])

@@ -557,6 +557,53 @@ class ApiSmokeTests(unittest.TestCase):
         ]
         self.assertIn(429, statuses)
 
+    # --- one school network, many students ----------------------------------
+
+    def test_a_classroom_can_log_in_together(self):
+        """Every student behind the school's one IP shared 8 logins per 5 min."""
+        statuses = [
+            self.client.post('/api/auth/login', json={'email': f'student{i}@school.edu', 'password': 'wrongpass1'}).status_code
+            for i in range(20)
+        ]
+        self.assertNotIn(429, statuses)
+
+    def test_guessing_one_account_is_still_limited(self):
+        statuses = [
+            self.client.post('/api/auth/login', json={'email': 'target@school.edu', 'password': f'guess{i:04d}'}).status_code
+            for i in range(10)
+        ]
+        self.assertEqual(statuses[:8], [401] * 8)
+        self.assertEqual(statuses[8:], [429, 429])
+
+    def test_analysis_limit_is_per_student_not_per_network(self):
+        first, second = app_module.app.test_client(), app_module.app.test_client()
+        for client, name in ((first, 'alpha'), (second, 'bravo')):
+            client.post('/api/auth/signup', json={
+                'email': f'{name}@school.edu', 'password': 'strongpass123',
+                'profile': {'name': name, 'username': name},
+            })
+
+        # No audio attached: a request that passes the limit gets a 400.
+        statuses = [first.post('/api/analyze', data={'topic': 't'}).status_code for _ in range(11)]
+        self.assertEqual(statuses[:10], [400] * 10)
+        self.assertEqual(statuses[10], 429)
+        self.assertEqual(second.post('/api/analyze', data={'topic': 't'}).status_code, 400,
+                         'a classmate on the same network keeps their own allowance')
+
+    def test_guests_get_their_own_allowance_per_browser(self):
+        first, second = app_module.app.test_client(), app_module.app.test_client()
+        for _ in range(10):
+            first.post('/api/analyze', data={'topic': 't'})
+        self.assertEqual(first.post('/api/analyze', data={'topic': 't'}).status_code, 429)
+        self.assertEqual(second.post('/api/analyze', data={'topic': 't'}).status_code, 400)
+
+    def test_dropping_the_cookie_still_hits_the_network_ceiling(self):
+        cookieless = app_module.app.test_client(use_cookies=False)
+        statuses = [cookieless.post('/api/analyze', data={'topic': 't'}).status_code
+                    for _ in range(app_module.ANALYSIS_NETWORK_LIMIT_PER_HOUR + 1)]
+        self.assertNotIn(429, statuses[:-1])
+        self.assertEqual(statuses[-1], 429)
+
     # --- avatars --------------------------------------------------------------
 
     def test_legacy_oversized_avatar_is_not_served(self):

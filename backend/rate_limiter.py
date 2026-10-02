@@ -192,11 +192,20 @@ def build_identifier():
     return client_ip()
 
 
-def rate_limit(scope, max_requests=10, window_seconds=60):
+def rate_limit(scope, max_requests=10, window_seconds=60, key=None):
+    """Limit a route to `max_requests` per `window_seconds` per identifier.
+
+    The identifier is the client IP unless `key` is given: a callable that
+    returns the identifier to count, or None to skip this limit for the
+    request. Stack several decorators to apply several limits.
+    """
     def decorator(func):
         @wraps(func)
         def wrapped(*args, **kwargs):
-            allowed, retry_after = rate_limiter.hit(scope, build_identifier(), max_requests, window_seconds)
+            identifier = key() if key else build_identifier()
+            if identifier is None:
+                return func(*args, **kwargs)
+            allowed, retry_after = rate_limiter.hit(scope, identifier, max_requests, window_seconds)
             if not allowed:
                 response = jsonify({"error": "Rate limit exceeded. Try again later."})
                 response.status_code = 429
