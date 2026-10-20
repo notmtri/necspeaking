@@ -1,13 +1,13 @@
 :root {
-  --navy-950: #071735;
-  --navy-900: #0B2350;
-  --navy-800: #12306A;
-  --navy-700: #1B3F86;
+  --navy-950: #0A1834;
+  --navy-900: #122A57;
+  --navy-800: #1D3C73;
+  --navy-700: #1B427B;
   --navy-500: #4A6BB0;
   --navy-100: #DCE4F4;
   --navy-50: #EEF2FA;
-  --red: #C8102E;
-  --red-700: #9E0C24;
+  --red: #C72027;
+  --red-700: #9C171D;
   --red-50: #FCECEF;
   --gold: #B88A2E;
   --gold-50: #FBF4E4;
@@ -64,7 +64,17 @@ svg.i.lg { width: 22px; height: 22px; }
 .shell { display: grid; grid-template-columns: 264px minmax(0, 1fr); min-height: calc(100vh - var(--bar, 38px)); }
 .side { position: sticky; top: var(--bar, 38px); height: calc(100vh - var(--bar, 38px)); overflow-y: auto; background: var(--navy-900); color: #C3CDE2; display: flex; flex-direction: column; }
 .brand { display: flex; align-items: center; gap: 11px; padding: 20px 20px 18px; border-bottom: 1px solid rgba(255,255,255,.08); }
-.brand-mark { width: 38px; height: 38px; border-radius: 9px; background: var(--red); display: grid; place-items: center; color: #fff; font-family: var(--serif); font-weight: 700; font-size: 20px; letter-spacing: -.5px; }
+.brand-mark { width: 40px; height: 40px; flex: none; border-radius: 10px; background: #fff url({{ASSET:mark.png}}) center / 66% no-repeat; box-shadow: 0 1px 3px rgba(0,0,0,.2); }
+.brand-mark.lg { width: 48px; height: 48px; border-radius: 12px; }
+.logo-full { width: 128px; height: 78px; background: url({{ASSET:logo.png}}) left center / contain no-repeat; }
+.logo-full.sm { width: 92px; height: 56px; margin-bottom: 8px; }
+.av.official { background: #fff url({{ASSET:mark.png}}) center / 62% no-repeat; border: 1px solid var(--line); }
+.ph-lawn { --ph: url({{ASSET:lawn.jpg}}); }
+.ph-statues { --ph: url({{ASSET:statues.jpg}}); }
+.ph-facade { --ph: url({{ASSET:facade.jpg}}); }
+.ph-fountain { --ph: url({{ASSET:fountain.jpg}}); }
+.hero.ph { background: linear-gradient(100deg, rgba(10,24,52,.97) 0%, rgba(18,42,87,.92) 42%, rgba(18,42,87,.4) 72%, rgba(18,42,87,.12) 100%), var(--ph) center 38% / cover; }
+.banner { position: relative; height: 150px; border-radius: 14px; overflow: hidden; background: linear-gradient(0deg, rgba(10,24,52,.72), rgba(10,24,52,0) 60%), var(--ph) center 45% / cover; display: flex; align-items: flex-end; padding: 14px 18px; color: #fff; font-size: 13px; font-weight: 600; }
 .brand-txt { line-height: 1.15; }
 .brand-txt b { display: block; color: #fff; font-size: 15px; letter-spacing: .2px; }
 .brand-txt span { font-size: 11.5px; color: #93A3C6; letter-spacing: .3px; }
@@ -376,14 +386,14 @@ a.list-item:hover .li-title { color: var(--navy-700); }
 
 /* ---------- Sign-in ---------- */
 .signin { min-height: calc(100vh - var(--bar, 38px)); display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); }
-.signin-art { position: relative; padding: 48px; color: #fff; display: flex; flex-direction: column; background: radial-gradient(900px 500px at 100% 0%, rgba(200,16,46,.5), transparent 60%), linear-gradient(150deg, var(--navy-950), var(--navy-700)); overflow: hidden; }
+.signin-art { position: relative; padding: 48px; color: #fff; display: flex; flex-direction: column; background: linear-gradient(180deg, rgba(10,24,52,.55) 0%, rgba(10,24,52,.18) 22%, rgba(10,24,52,.25) 38%, rgba(10,24,52,.88) 58%, rgba(10,24,52,.97) 100%), url({{ASSET:lawn.jpg}}) center 18% / cover; overflow: hidden; }
 .signin-art h1 { font-family: var(--serif); font-size: 46px; font-weight: 600; letter-spacing: -.8px; line-height: 1.05; margin-top: auto; max-width: 560px; }
 .signin-art p { color: #C9D3E8; font-size: 17px; max-width: 520px; margin-top: 16px; }
 .signin-art .quote { margin-top: 36px; padding-left: 16px; border-left: 3px solid var(--red); color: #DCE3F3; font-family: var(--serif); font-size: 18px; font-style: italic; max-width: 520px; }
 .signin-art .three { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 36px; max-width: 600px; }
 .signin-art .three div { padding: 14px; border-radius: 12px; background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.12); font-size: 13.5px; color: #DCE3F3; }
 .signin-art .three b { display: block; color: #fff; font-size: 14px; margin-bottom: 4px; }
-.lattice { position: absolute; right: -80px; top: -80px; width: 420px; height: 420px; opacity: .14; }
+.lattice { display: none; }
 .signin-pane { padding: 48px; display: flex; flex-direction: column; justify-content: center; gap: 18px; max-width: 640px; }
 .persona { display: flex; gap: 14px; padding: 16px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); cursor: pointer; text-align: left; width: 100%; align-items: flex-start; transition: .12s; }
 .persona:hover { border-color: var(--navy-700); box-shadow: 0 0 0 3px var(--navy-50); }
@@ -396,6 +406,9 @@ a.list-item:hover .li-title { color: var(--navy-700); }
 .entra .acct { padding: 8px 0; font-size: 15px; display: flex; gap: 8px; align-items: center; }
 
 /* ---------- Responsive ---------- */
+@media (max-width: 1500px) {
+  .demo-bar .note { display: none; }
+}
 @media (max-width: 1100px) {
   .g4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .split { grid-template-columns: minmax(0, 1fr); }
@@ -410,7 +423,7 @@ a.list-item:hover .li-title { color: var(--navy-700); }
   .demo-bar .note { display: none; }
   .g3, .g2 { grid-template-columns: minmax(0, 1fr); }
   .signin { grid-template-columns: minmax(0, 1fr); }
-  .signin-art { padding: 32px 20px; }
+  .signin-art { padding: 32px 20px; background: linear-gradient(180deg, rgba(10,24,52,.5) 0%, rgba(10,24,52,.9) 32%, rgba(10,24,52,.96) 100%), url({{ASSET:lawn.jpg}}) center top / 160% auto no-repeat, var(--navy-950); }
   .signin-art h1 { font-size: 34px; margin-top: 40px; }
   .signin-art .three { grid-template-columns: minmax(0, 1fr); }
   .signin-pane { padding: 28px 16px; }

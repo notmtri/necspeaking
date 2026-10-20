@@ -101,8 +101,8 @@ function tone(id) { let h = 0; for (const c of id) h = (h * 31 + c.charCodeAt(0)
 function av(id, cls = '') {
   const p = person(id);
   if (p.guest) return `<span class="av guest ${cls}" title="${esc(name(id))} (guest)">${initials(p)}</span>`;
-  const bg = p.official ? 'var(--red)' : tone(id);
-  return `<span class="av ${cls}" style="background:${bg}" title="${esc(name(id))}">${initials(p)}</span>`;
+  if (p.official) return `<span class="av official ${cls}" title="${esc(name(id))}" role="img" aria-label="${esc(name(id))}"></span>`;
+  return `<span class="av ${cls}" style="background:${tone(id)}" title="${esc(name(id))}">${initials(p)}</span>`;
 }
 const me = () => person(S.role);
 const isAdmin = () => S.role === 'linh';
@@ -315,11 +315,11 @@ function demoBar() {
     <span class="pill mode-${MODE}">${REV ? ic('sparkle', 'sm') + 'With suggested changes' : ic('file', 'sm') + 'Proposal as written (Sept 2026)'}</span>
     <span class="spacer"></span>
     ${S.role ? `<label>Viewing as <select data-change="persona" aria-label="Switch persona">${PERSONAS.map(p => `<option value="${p.id}" ${p.id === S.role ? 'selected' : ''}>${esc(name(p.id))} · ${esc(p.label)}</option>`).join('')}</select></label>` : ''}
-    <label><input type="checkbox" data-change="annotate" ${S.annotate ? 'checked' : ''}> ${REV ? 'Show changes' : 'Show proposal refs'}</label>
+    <label><input type="checkbox" data-change="annotate" ${S.annotate ? 'checked' : ''}> Labels</label>
     <button data-act="tourstart">${ic('activity', 'sm')} Present</button>
     <a class="btnlink" href="compare.html">Side by side</a>
     <button data-act="${REV ? 'changes' : 'map'}">${REV ? 'What changed?' : 'Proposal map'}</button>
-    <a class="btnlink" href="${REV ? 'proposal-as-written.html' : 'with-suggested-changes.html'}">${REV ? '← Proposal as written' : 'Revised version →'}</a>
+    <a class="btnlink" href="${REV ? 'proposal-as-written.html' : 'with-suggested-changes.html'}">${REV ? '← As written' : 'Revised →'}</a>
     <button data-act="reset" title="Clear everything you changed in this demo">Reset</button>
   </div>`;
 }
@@ -356,7 +356,7 @@ function sidebar(page, arg) {
   const activeKey = { forum: 'forums', thread: REV ? 'qa' : 'forums', guide: 'living' }[page] || page;
   const counts = isAdmin() ? adminCounts() : {};
   return `<aside class="side" id="side">
-    <div class="brand"><div class="brand-mark">VU</div><div class="brand-txt"><b>VinUniversity</b><span>International Faculty Community</span></div></div>
+    <div class="brand"><div class="brand-mark" role="img" aria-label="VinUniversity"></div><div class="brand-txt"><b>VinUniversity</b><span>International Faculty Community</span></div></div>
     <nav class="nav" aria-label="Main">
       ${navItems().map(([k, l, i, x]) => `<a href="#/${k}" class="${activeKey === k ? 'on' : ''} ${x || ''}">${ic(i)}${l}</a>`).join('')}
       ${isAdmin() ? `<div class="nav-h">Administration</div>${ADMIN_TABS().map(([k, l, i]) => `<a href="#/admin/${k}" class="${page === 'admin' && (arg || 'overview') === k ? 'on' : ''}">${ic(i)}${l}${counts[k] ? `<span class="count">${counts[k]}</span>` : ''}</a>`).join('')}` : ''}
@@ -390,13 +390,14 @@ function signin() {
   return `<div class="signin">
     <section class="signin-art">
       <svg class="lattice" viewBox="0 0 200 200" fill="none" stroke="#fff" stroke-width=".6">${Array.from({ length: 10 }, (_, i) => `<circle cx="100" cy="100" r="${10 + i * 9}"/>`).join('')}</svg>
-      <div class="row"><div class="brand-mark">VU</div><div class="brand-txt"><b>VinUniversity</b><span>International Faculty Community</span></div></div>
+      <div class="row"><div class="brand-mark lg" role="img" aria-label="VinUniversity"></div><div class="brand-txt"><b>VinUniversity</b><span>International Faculty Community</span></div></div>
       <h1>One home for international faculty in Hanoi.</h1>
       <p>Find colleagues who share your field, your hobbies or your situation. Get trusted answers about schools, housing and banking. Meet someone on your first week, not your first year.</p>
       <div class="three"><div><b>Who can I connect with?</b>Directory, interest groups and a buddy for every new arrival.</div><div><b>What do I need to know?</b>Curated guides and dated faculty recommendations.</div><div><b>What’s happening?</b>Events, outings and conversations across all colleges.</div></div>
       <div class="quote">“A new colleague should be able to find people with shared interests, identify someone who can answer a relocation question, and receive a personal connection without needing to know whom to ask.” <span style="font-style:normal;font-size:13px;color:#93A3C6">Proposal §16</span></div>
     </section>
     <section class="signin-pane">
+      <div class="logo-full" role="img" aria-label="VinUniversity"></div>
       <div><div class="tiny strong" style="letter-spacing:1px;text-transform:uppercase;color:var(--red)">${REV ? 'Revised concept · with suggested changes' : 'Concept demo · proposal as written'}</div>
       <h2 style="font-family:var(--serif);font-size:30px;color:var(--navy-900);margin-top:8px;font-weight:600">Choose who to be</h2>
       <p class="muted mt8">Each persona sees a different side of the platform. You can switch at any time from the bar at the top; what you do as one persona (for example, requesting a buddy) shows up for the others.</p></div>
@@ -408,7 +409,7 @@ function signin() {
 function entraBlocked() {
   return `<div style="background:#EFEFEF;min-height:calc(100vh - var(--bar, 38px));padding:16px">
     <div class="entra">
-      <div style="font-weight:700;color:#444">VinUniversity</div>
+      <div class="logo-full sm" role="img" aria-label="VinUniversity"></div>
       <div class="acct">${ic('back', 'sm')} erik.lindqvist@example.se</div>
       <h2>Enter password</h2>
       <div class="err">This account doesn’t exist in the VinUniversity directory. Only VinUniversity faculty and staff can sign in. Contact your administrator.</div>
@@ -493,7 +494,7 @@ function homeFaculty() {
   if (isPre()) {
     const d = daysUntil(SOFIA_ARRIVAL);
     const done = ARRIVAL_PLAN.filter(a => planDone(a)).length;
-    hero = `<section class="hero"><div class="row between wrap" style="align-items:flex-start;gap:24px"><div>
+    hero = `<section class="hero ph ph-facade"><div class="row between wrap" style="align-items:flex-start;gap:24px"><div>
       <div class="tiny" style="letter-spacing:1px;text-transform:uppercase;color:#F5B3BE;font-weight:700">Pre-arrival access ${chg(1)}</div>
       <h1 class="mt8">Welcome, Sofia. Hanoi is getting ready for you.</h1>
       <p>You’re using the invitation link HR sent when you signed your contract. Your VinUniversity account starts on ${fmt(SOFIA_ARRIVAL)}, and everything you set up here carries over.</p>
@@ -503,7 +504,7 @@ function homeFaculty() {
   } else {
     const greet = p.isNew ? `Welcome to Hanoi, ${p.first}.` : `Good morning, ${p.first}.`;
     const sub = p.isNew ? `You joined ${collegeName(p.college)} ${ago(p.joined)}. Here’s where to start.` : `${S.threads.filter(t => monthsSince(t.date) < .25).length} new conversations this week and ${upcomingEvents(100).length} events coming up.`;
-    hero = `<section class="hero"><h1>${greet}</h1><p>${sub}</p>
+    hero = `<section class="hero ph ${p.isNew ? 'ph-statues' : 'ph-lawn'}"><h1>${greet}</h1><p>${sub}</p>
       <div class="hero-stats"><div><b>${intl}</b><span>international faculty</span></div><div><b>${S.faculty.filter(f => f.buddy.available).length}</b><span>volunteer buddies</span></div><div><b>${S.threads.length}</b><span>conversations</span></div><div><b>${upcomingEvents(100, e => e.date <= addDays(TODAY_ISO, 30)).length}</b><span>events in the next 30 days</span></div></div></section>`;
   }
   let extra = '';
@@ -537,7 +538,7 @@ function bridgeCard(compact) {
 function homePartner() {
   const fam = upcomingEvents(4, partnerFriendly);
   const partnerThreads = S.threads.filter(t => ['partners', 'schools', 'housing', 'health'].includes(t.forum)).sort((a, b) => (b.forum === 'partners') - (a.forum === 'partners') || lastActivity(b).localeCompare(lastActivity(a))).slice(0, 5);
-  return `<section class="hero"><div class="tiny" style="letter-spacing:1px;text-transform:uppercase;color:#F5B3BE;font-weight:700">Partner guest access ${chg(2)}</div>
+  return `<section class="hero ph ph-fountain"><div class="tiny" style="letter-spacing:1px;text-transform:uppercase;color:#F5B3BE;font-weight:700">Partner guest access ${chg(2)}</div>
     <h1 class="mt8">Welcome, Erik.</h1><p>Sofia added you as her partner, so you can follow the arrival plan together, ask questions and join family events. Your guest access stays linked to her account.</p>
     <div class="row wrap mt16"><a class="btn red" href="#/arrival">${ic('plane', 'sm')}Shared arrival plan</a><a class="btn" href="#/qa">${ic('message', 'sm')}Ask & Discuss</a></div></section>
     ${arrivalSummary(true)}
@@ -562,7 +563,7 @@ function homeAdmin() {
     S.leavers.filter(l => l.status === 'leaving').length && { i: 'users', t: `${S.leavers.filter(l => l.status === 'leaving').length} leavers from the HR sync`, s: 'Deactivate on their last day', go: 'admin/users' },
     S.feedback.filter(f => !f.done).length && { i: 'chat', t: `${S.feedback.filter(f => !f.done).length} feedback submissions`, s: 'From the feedback button', go: 'admin/moderation' },
   ].filter(Boolean);
-  return `<section class="hero"><h1>Good morning, Linh.</h1><p>${REV ? 'Week 7 of the pilot.' : 'Platform administrator · Faculty Affairs.'} Here is what needs you today.</p>
+  return `<section class="hero ph ph-facade"><h1>Good morning, Linh.</h1><p>${REV ? 'Week 7 of the pilot.' : 'Platform administrator · Faculty Affairs.'} Here is what needs you today.</p>
     <div class="hero-stats"><div><b>${S.faculty.length}</b><span>faculty profiles</span></div><div><b>${S.faculty.filter(f => f.complete < 70).length}</b><span>incomplete profiles</span></div><div><b>${c.matching}</b><span>match requests</span></div><div><b>${WAU[WAU.length - 1]}</b><span>active this week</span></div></div></section>
     <div class="split mt24"><section class="card"><div class="card-h"><h2>${ic('alert')}Needs your attention ${ref(7, 'admin dashboard')}</h2></div><div class="card-b">
       ${att.length ? att.map(a => `<a class="list-item" href="#/${a.go}"><span class="forum-ico">${ic(a.i)}</span><div class="li-main"><span class="li-title">${a.t}</span><span class="li-sub">${a.s}</span></div>${ic('chev')}</a>`).join('') : '<div class="empty">All clear.</div>'}</div></section>
@@ -803,7 +804,7 @@ PAGES.living = arg => {
   if (REV && arg === 'recs') return pageHead('Living in Hanoi', 'Practical guides, and dated recommendations from colleagues.') + tabs + recsBody();
   const cats = [...new Set(S.guides.map(g => g.cat))];
   const list = S.guides.filter(g => !S.guideCat || g.cat === S.guideCat);
-  return pageHead('Living in Hanoi', 'Curated guides for the practical side of moving here. Official information is clearly marked and kept apart from peer advice.', `${ref(3)} ${ref(7, 'official vs peer')} ${tech('SharePoint')}`) + tabs
+  return pageHead('Living in Hanoi', 'Curated guides for the practical side of moving here. Official information is clearly marked and kept apart from peer advice.', `${ref(3)} ${ref(7, 'official vs peer')} ${tech('SharePoint')}`) + `<div class="banner ph-fountain mb16"><span>VinUniversity campus, Gia Lâm, Hanoi</span></div>` + tabs
     + `<div class="chips mb16"><span class="chip ${!S.guideCat ? 'on' : ''}" data-act="guidecat" data-v="">All</span>${cats.map(c => `<span class="chip ${S.guideCat === c ? 'on' : ''}" data-act="guidecat" data-v="${esc(c)}">${esc(c)}</span>`).join('')}</div>
     <div class="grid g-auto">${list.map(g => { const due = D(g.next) <= TODAY; return `<a class="card guide-card" href="#/guide/${g.id}"><div class="row between">${sourceBadge(g)}<span class="tiny muted">${g.mins} min</span></div><h3>${esc(g.title)}</h3><p class="small muted" style="margin:0">${esc(g.summary)}</p><div class="row between mt8"><span class="tag">${esc(g.cat)}</span><span class="tiny ${due ? '' : 'muted'}" style="${due ? 'color:var(--amber);font-weight:600' : ''}">${due ? 'Review overdue' : 'Reviewed ' + fmt(g.reviewed)}</span></div></a>`; }).join('')}</div>`;
 };
