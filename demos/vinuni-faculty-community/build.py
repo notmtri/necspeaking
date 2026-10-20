@@ -1,4 +1,4 @@
-"""Builds the two self-contained demo pages from src/.
+"""Builds the self-contained demo pages from src/.
 
     python3 build.py
 
@@ -21,11 +21,16 @@ def main() -> None:
     css = (SRC / "styles.css").read_text(encoding="utf-8")
     data = (SRC / "data.js").read_text(encoding="utf-8")
     app = (SRC / "app.js").read_text(encoding="utf-8")
+    tour = (SRC / "tour.js").read_text(encoding="utf-8")
     for filename, (mode, title) in PAGES.items():
         html = (shell.replace("{{TITLE}}", title).replace("{{MODE}}", mode)
-                .replace("{{CSS}}", css).replace("{{DATA}}", data).replace("{{APP}}", app))
+                .replace("{{CSS}}", css).replace("{{DATA}}", data).replace("{{TOUR}}", tour)
+                .replace("{{APP}}", app))
         (HERE / filename).write_text(html, encoding="utf-8")
         print(f"wrote {filename} ({len(html) // 1024} KB)")
+    compare = (SRC / "compare.html").read_text(encoding="utf-8")
+    (HERE / "compare.html").write_text(compare.replace("{{CSS}}", css).replace("{{TOUR}}", tour), encoding="utf-8")
+    print("wrote compare.html")
 
 
 if __name__ == "__main__":

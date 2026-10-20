@@ -8,6 +8,11 @@ or build step is needed.
 | --- | --- |
 | `proposal-as-written.html` | The proposal exactly as written. Purple `§` labels point to proposal sections, and **Proposal map** in the top bar links every section and each §14 MVP criterion to the screen that shows it. |
 | `with-suggested-changes.html` | The same platform with our eight suggested changes. Teal **Change** labels mark each one, and **What changed?** lists them with a “Show me” link. |
+| `compare.html` | Presenter view for meetings: both versions side by side, moved through an 11-step tour with **Next**/**Back** or the arrow keys. On a phone, a toggle switches between the two. |
+
+**Present** in either page's top bar runs the same tour inside that one page.
+Keep all three files in the same folder; the side-by-side view loads the
+other two.
 
 Switch persona from the top bar: a new faculty member (Sofia), an
 established one (James), a partner (Erik) and the administrator (Linh).
@@ -20,7 +25,7 @@ VinUniversity system.
 
 ## Editing
 
-The two pages are generated from `src/` and share one codebase; `MODE`
-selects the version. After editing anything in `src/`, run:
+All three pages are generated from `src/`. The two demos share one
+codebase (`MODE` selects the version), and `src/tour.js` holds the tour steps. After editing anything in `src/`, run:
 
     python3 build.py

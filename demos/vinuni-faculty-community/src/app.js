@@ -6,6 +6,7 @@ const REV = MODE === 'revised';
 const KEY = 'vinuni-ifc-demo-' + MODE + '-v1';
 const TODAY_ISO = '2026-10-15';
 const SOFIA_ARRIVAL = '2026-11-09';
+const EMBED = window.self !== window.top; // inside the side-by-side page
 
 const $ = (s, r = document) => r.querySelector(s);
 const clone = o => JSON.parse(JSON.stringify(o));
@@ -276,9 +277,36 @@ function render() {
   after();
 }
 function after() {
-  const bar = $('#demobar'); if (bar) document.documentElement.style.setProperty('--bar', bar.offsetHeight + 'px');
+  document.body.classList.toggle('embed', EMBED);
+  const bar = $('#demobar'); if (bar) document.documentElement.style.setProperty('--bar', (EMBED ? 0 : bar.offsetHeight) + 'px');
+  $('#tourbox').innerHTML = !EMBED && S.tour != null ? tourPanel() : '';
   save();
 }
+
+/* ---------- Presenter tour ---------- */
+function applyStep(i) {
+  const s = TOUR[i][REV ? 'R' : 'P'];
+  closeOverlays(); S.tour = EMBED ? null : i; S.role = s.who; save();
+  if (!s.who) { if (location.hash) location.hash = ''; else render(); }
+  else go(s.go || 'home');
+  setTimeout(() => highlight(s.hl), 160);
+}
+function highlight(sel) {
+  document.querySelectorAll('.tour-hl').forEach(e => e.classList.remove('tour-hl'));
+  const el = sel && document.querySelector(sel); if (!el) return;
+  el.classList.add('tour-hl'); el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+function tourPanel() {
+  const i = S.tour, st = TOUR[i];
+  return `<div class="tour" role="dialog" aria-label="Presenter tour"><div class="row between"><span class="tiny strong" style="letter-spacing:1px;text-transform:uppercase;color:var(--red)">Step ${i + 1} of ${TOUR.length}</span><button class="icon-btn" style="width:30px;height:30px" data-act="tourend" aria-label="End tour">${ic('x', 'sm')}</button></div>
+    <h3>${esc(st.t)}</h3><p class="small">${esc(st.say)}</p>
+    <div class="row between"><div class="tour-dots">${TOUR.map((_, k) => `<i class="${k === i ? 'on' : ''}"></i>`).join('')}</div><div class="row"><button class="btn sm" data-act="tourstep" data-v="-1" ${i === 0 ? 'disabled' : ''}>${ic('back', 'sm')}Back</button><button class="btn primary sm" data-act="tourstep" data-v="1">${i === TOUR.length - 1 ? 'Finish' : 'Next'} ${i === TOUR.length - 1 ? '' : ic('chev', 'sm')}</button></div></div></div>`;
+}
+window.addEventListener('message', e => {
+  const m = e.data || {};
+  if (m.type === 'tour' && TOUR[m.i]) applyStep(m.i);
+  if (m.type === 'annotate') { S.annotate = !!m.on; render(); }
+});
 
 /* ---------- Chrome ---------- */
 function demoBar() {
@@ -288,6 +316,8 @@ function demoBar() {
     <span class="spacer"></span>
     ${S.role ? `<label>Viewing as <select data-change="persona" aria-label="Switch persona">${PERSONAS.map(p => `<option value="${p.id}" ${p.id === S.role ? 'selected' : ''}>${esc(name(p.id))} · ${esc(p.label)}</option>`).join('')}</select></label>` : ''}
     <label><input type="checkbox" data-change="annotate" ${S.annotate ? 'checked' : ''}> ${REV ? 'Show changes' : 'Show proposal refs'}</label>
+    <button data-act="tourstart">${ic('activity', 'sm')} Present</button>
+    <a class="btnlink" href="compare.html">Side by side</a>
     <button data-act="${REV ? 'changes' : 'map'}">${REV ? 'What changed?' : 'Proposal map'}</button>
     <a class="btnlink" href="${REV ? 'proposal-as-written.html' : 'with-suggested-changes.html'}">${REV ? '← Proposal as written' : 'Revised version →'}</a>
     <button data-act="reset" title="Clear everything you changed in this demo">Reset</button>
@@ -1085,6 +1115,9 @@ function changesModal() {
 ================================================================== */
 const ACT = {
   close: closeOverlays,
+  tourstart: () => applyStep(0),
+  tourend: () => { S.tour = null; highlight(null); render(); },
+  tourstep: el => { const n = S.tour + +el.dataset.v; if (n >= TOUR.length) ACT.tourend(); else applyStep(Math.max(0, n)); },
   side: () => { const open = document.body.classList.toggle('side-open'); $('#scrim').classList.toggle('open', open); },
   persona: el => { S.role = el.dataset.id; save(); go('home'); },
   signout: () => { S.role = null; save(); location.hash = ''; render(); },
@@ -1273,6 +1306,7 @@ document.addEventListener('click', e => {
 });
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') closeOverlays();
+  if (S.tour != null && !e.target.closest('input, textarea, select') && (e.key === 'ArrowRight' || e.key === 'ArrowLeft')) ACT.tourstep({ dataset: { v: e.key === 'ArrowRight' ? 1 : -1 } });
   if (e.key === 'Enter' && e.target.matches('article[data-act]')) ACT[e.target.dataset.act](e.target, e);
 });
 document.addEventListener('change', e => {

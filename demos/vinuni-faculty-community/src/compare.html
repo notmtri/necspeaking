@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Faculty Community · Side by Side</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&family=Newsreader:opsz,wght@6..72,500;6..72,600;6..72,700&display=swap" rel="stylesheet">
+<style>
+{{CSS}}
+html, body { height: 100%; }
+body { display: grid; grid-template-rows: auto auto minmax(0, 1fr); overflow: hidden; }
+.cmp-bar { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding: 10px 18px; background: var(--navy-950); color: #C9D3E8; font-size: 13px; }
+.cmp-bar .brand-txt b { font-size: 14px; }
+.cmp-bar .spacer { flex: 1; }
+.cmp-bar button, .cmp-bar a { background: transparent; border: 1px solid rgba(255,255,255,.22); color: #E7ECF7; border-radius: 7px; padding: 5px 11px; font-size: 13px; cursor: pointer; display: inline-flex; gap: 6px; align-items: center; }
+.cmp-bar button:hover, .cmp-bar a:hover { background: rgba(255,255,255,.1); text-decoration: none; }
+.cmp-bar button:disabled { opacity: .4; cursor: default; }
+.cmp-bar button.primary { background: var(--red); border-color: var(--red); color: #fff; }
+.cmp-bar .seg button { border: 0; color: var(--ink-2); padding: 5px 12px; }
+.cmp-bar .seg button.on { background: var(--surface); color: var(--navy-800); }
+.cmp-bar label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; }
+.narr { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 18px; align-items: center; padding: 14px 22px; background: var(--surface); border-bottom: 1px solid var(--line); }
+.narr .num { font-family: var(--serif); font-size: 40px; font-weight: 600; color: var(--red); line-height: 1; min-width: 46px; }
+.narr h1 { font-family: var(--serif); font-size: 24px; font-weight: 600; color: var(--navy-900); }
+.narr p { margin: 4px 0 0; color: var(--ink-2); font-size: 15.5px; max-width: 1100px; }
+.cmp { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 10px; min-height: 0; background: var(--navy-100); }
+.pane { display: grid; grid-template-rows: auto minmax(0, 1fr); min-height: 0; border-radius: 12px; overflow: hidden; background: var(--surface); box-shadow: var(--shadow-lg); }
+.pane-h { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 14px; font-weight: 700; font-size: 13.5px; }
+.pane-h.p { background: var(--ann-50); color: var(--ann); }
+.pane-h.r { background: var(--chg-50); color: var(--chg); }
+.pane-h a { font-weight: 600; font-size: 12.5px; color: inherit; }
+.pane iframe { width: 100%; height: 100%; border: 0; display: block; }
+.only { display: none; }
+@media (max-width: 900px) {
+  .cmp { grid-template-columns: minmax(0, 1fr); }
+  .cmp[data-show="p"] .pane.r, .cmp[data-show="r"] .pane.p { display: none; }
+  .only { display: inline-flex; }
+  .narr { grid-template-columns: auto minmax(0, 1fr); padding: 12px 16px; }
+  .narr .stepnav { grid-column: 1 / -1; }
+  .narr h1 { font-size: 20px; }
+  .narr p { font-size: 14px; }
+}
+</style>
+</head>
+<body>
+<header class="cmp-bar">
+  <div class="row"><div class="brand-mark" style="width:30px;height:30px;font-size:15px;border-radius:7px">VU</div><div class="brand-txt"><b>Side by side</b><span>Proposal as written vs. with suggested changes · concept demo, fictional data</span></div></div>
+  <span class="spacer"></span>
+  <div class="seg only" id="pick" role="tablist"><button class="on" data-show="p">Proposal</button><button data-show="r">Revised</button></div>
+  <label><input type="checkbox" id="ann" checked> Labels</label>
+  <button id="restart">Restart</button>
+</header>
+<section class="narr" aria-live="polite">
+  <div class="num" id="num">1</div>
+  <div><h1 id="title"></h1><p id="say"></p></div>
+  <div class="row stepnav"><div class="tour-dots" id="dots"></div><button class="btn" id="prev">Back</button><button class="btn primary" id="next">Next</button></div>
+</section>
+<main class="cmp" id="cmp" data-show="p">
+  <section class="pane p"><div class="pane-h p"><span>Proposal as written</span><a href="proposal-as-written.html" target="_blank" rel="noopener">Open on its own ↗</a></div><iframe id="fp" src="proposal-as-written.html" title="Proposal as written"></iframe></section>
+  <section class="pane r"><div class="pane-h r"><span>With suggested changes</span><a href="with-suggested-changes.html" target="_blank" rel="noopener">Open on its own ↗</a></div><iframe id="fr" src="with-suggested-changes.html" title="With suggested changes"></iframe></section>
+</main>
+<script>
+{{TOUR}}
+const frames = [document.getElementById('fp'), document.getElementById('fr')];
+let step = 0;
+try { step = Math.min(TOUR.length - 1, +(sessionStorage.getItem('cmp-step') || 0)); } catch (e) { /* storage unavailable */ }
+const send = (f, msg) => f.contentWindow && f.contentWindow.postMessage(msg, '*');
+function show() {
+  const s = TOUR[step];
+  document.getElementById('num').textContent = step + 1;
+  document.getElementById('title').textContent = s.t;
+  document.getElementById('say').textContent = s.say;
+  document.getElementById('dots').innerHTML = TOUR.map((_, k) => `<i class="${k === step ? 'on' : ''}"></i>`).join('');
+  document.getElementById('prev').disabled = step === 0;
+  document.getElementById('next').textContent = step === TOUR.length - 1 ? 'Restart' : 'Next';
+  frames.forEach(f => send(f, { type: 'tour', i: step }));
+  try { sessionStorage.setItem('cmp-step', step); } catch (e) { /* storage unavailable */ }
+}
+const move = d => { step = step + d >= TOUR.length ? 0 : Math.max(0, step + d); show(); };
+frames.forEach(f => f.addEventListener('load', () => { send(f, { type: 'annotate', on: document.getElementById('ann').checked }); send(f, { type: 'tour', i: step }); }));
+document.getElementById('next').onclick = () => move(1);
+document.getElementById('prev').onclick = () => move(-1);
+document.getElementById('restart').onclick = () => { step = 0; show(); };
+document.getElementById('ann').onchange = e => frames.forEach(f => send(f, { type: 'annotate', on: e.target.checked }));
+document.getElementById('pick').onclick = e => { const b = e.target.closest('button'); if (!b) return; document.getElementById('cmp').dataset.show = b.dataset.show; document.querySelectorAll('#pick button').forEach(x => x.classList.toggle('on', x === b)); };
+document.addEventListener('keydown', e => { if (e.key === 'ArrowRight' || e.key === 'PageDown') move(1); if (e.key === 'ArrowLeft' || e.key === 'PageUp') move(-1); });
+show();
+</script>
+</body>
+</html>

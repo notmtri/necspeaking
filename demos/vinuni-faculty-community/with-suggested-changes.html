@@ -447,6 +447,20 @@ a.list-item:hover .li-title { color: var(--navy-700); }
   .fab { right: 14px; bottom: 14px; padding: 10px 14px; }
 }
 
+/* ---------- Presenter tour ---------- */
+.tour { position: fixed; left: 20px; bottom: 20px; z-index: 70; width: min(420px, calc(100vw - 32px)); background: var(--surface); border: 1px solid var(--line); border-top: 4px solid var(--red); border-radius: 14px; box-shadow: var(--shadow-lg); padding: 16px 18px; display: flex; flex-direction: column; gap: 8px; }
+.tour h3 { font-family: var(--serif); font-size: 21px; color: var(--navy-900); font-weight: 600; }
+.tour p { margin: 0; color: var(--ink-2); line-height: 1.55; }
+.tour-dots { display: flex; gap: 5px; }
+.tour-dots i { width: 7px; height: 7px; border-radius: 50%; background: var(--line); }
+.tour-dots i.on { background: var(--red); width: 18px; border-radius: 99px; }
+.tour-hl { outline: 3px solid var(--red) !important; outline-offset: 4px; animation: hlpulse 1.4s ease 2; }
+@keyframes hlpulse { 50% { outline-color: rgba(200, 16, 46, .25); } }
+body.embed .demo-bar, body.embed .fab { display: none !important; }
+body.embed .shell, body.embed .signin { min-height: 100vh; }
+body.embed .side { top: 0; height: 100vh; }
+body.embed .top { top: 0; }
+
 </style>
 </head>
 <body>
@@ -455,6 +469,7 @@ a.list-item:hover .li-title { color: var(--navy-700); }
 <aside class="drawer" id="drawer" aria-label="Details"></aside>
 <div class="modal" id="modal" role="dialog" aria-modal="true"></div>
 <div class="toasts" id="toasts" aria-live="polite"></div>
+<div id="tourbox"></div>
 <script>
 const MODE = "revised";
 /* ------------------------------------------------------------------
@@ -764,6 +779,34 @@ const ARRIVAL_PLAN = [
 
 const WAU = [38, 41, 44, 40, 52, 58, 61, 57, 63, 66, 71, 74]; // weekly active users, last 12 weeks
 
+/* Presenter tour. Each step says what to open in each version:
+   P = proposal as written, R = with suggested changes.
+   who: persona to view as (null = sign-in screen), go: route, hl: element to highlight. */
+const TOUR = [
+  { t: 'Two versions of one platform', say: 'Left: the proposal exactly as written. Right: the same platform with eight suggested changes. Every person, school and provider in the demo is fictional.',
+    P: { who: null }, R: { who: null } },
+  { t: 'A new faculty member’s first screen', say: 'As written, Sofia can only sign in once her VinUni account exists, which is after she arrives. In the revised version, HR sends her an invitation link when she signs her contract, weeks before she lands, when housing and schools are being decided.',
+    P: { who: 'sofia', go: 'home', hl: '.hero' }, R: { who: 'sofia', go: 'home', hl: '.hero' } },
+  { t: 'Partners and families', say: 'Erik, Sofia’s partner, does the school visits and house hunting. As written, he can’t sign in at all. The revised version gives him a guest account linked to Sofia’s, with no access to the faculty directory.',
+    P: { who: 'erik', go: 'home', hl: '.entra' }, R: { who: 'erik', go: 'home', hl: '.hero' } },
+  { t: 'Getting started', say: 'As written, onboarding is a four-step checklist after arrival. The revised version adds an arrival plan timed to the arrival date, shared by Sofia and Erik, with each step linked to the right guide.',
+    P: { who: 'sofia', go: 'home', hl: '.card' }, R: { who: 'erik', go: 'arrival', hl: '.steps' } },
+  { t: 'Finding a buddy', say: 'Both versions suggest 3–5 buddies with a transparent score, and spread the load so the same people aren’t always picked. In the pilot, a coordinator confirms every match by hand.',
+    P: { who: 'sofia', go: 'match', hl: '.flow' }, R: { who: 'sofia', go: 'match', hl: '.flow' } },
+  { t: 'Where conversations happen', say: 'Ten separate forums spread a small community thin. The revised version has one Ask & Discuss stream with topic tags. A topic gets its own space once it is busy.',
+    P: { who: 'james', go: 'forums' }, R: { who: 'james', go: 'qa' } },
+  { t: 'Working with WhatsApp and Zalo', say: 'Faculty already chat in these groups. Instead of competing with them, the revised version posts a weekly digest there and lets moderators save good answers here, so they can be found later.',
+    P: { who: 'james', go: 'home' }, R: { who: 'james', go: 'home', hl: '.chg-box' } },
+  { t: 'Privacy and consent', say: 'Both versions keep family information private by default. The revised version records consent for each field, as Vietnam’s Personal Data Protection Law and Decree 13 require, and lets people download or delete their data.',
+    P: { who: 'sofia', go: 'profile', hl: '#famfields' }, R: { who: 'sofia', go: 'profile', hl: '#famfields' } },
+  { t: 'Measuring the pilot', say: 'The proposal’s dashboard counts activity. The revised version adds four outcome targets for a one-semester pilot, with a decision at the end: expand, adjust or stop.',
+    P: { who: 'linh', go: 'admin/overview' }, R: { who: 'linh', go: 'admin/overview', hl: '.chg-box' } },
+  { t: 'Technology', say: 'Both use the same Microsoft stack. The pilot starts on Dataverse for Teams or Microsoft Lists, which most licences already include, and moves to full Dataverse only if the pilot meets its targets.',
+    P: { who: 'linh', go: 'admin/architecture' }, R: { who: 'linh', go: 'admin/architecture', hl: '.chg-box' } },
+  { t: 'What a pilot would need', say: 'An owning office (Faculty Affairs?), a licence check with IT, a privacy review, and 5–10 volunteer buddies for one semester. Everything else in the demo can follow.',
+    P: { who: 'linh', go: 'home' }, R: { who: 'linh', go: 'home' } },
+];
+
 /* ==================================================================
    International Faculty Community — clickable concept demo.
    One codebase, two builds: MODE = "proposal" | "revised".
@@ -772,6 +815,7 @@ const REV = MODE === 'revised';
 const KEY = 'vinuni-ifc-demo-' + MODE + '-v1';
 const TODAY_ISO = '2026-10-15';
 const SOFIA_ARRIVAL = '2026-11-09';
+const EMBED = window.self !== window.top; // inside the side-by-side page
 
 const $ = (s, r = document) => r.querySelector(s);
 const clone = o => JSON.parse(JSON.stringify(o));
@@ -1042,9 +1086,36 @@ function render() {
   after();
 }
 function after() {
-  const bar = $('#demobar'); if (bar) document.documentElement.style.setProperty('--bar', bar.offsetHeight + 'px');
+  document.body.classList.toggle('embed', EMBED);
+  const bar = $('#demobar'); if (bar) document.documentElement.style.setProperty('--bar', (EMBED ? 0 : bar.offsetHeight) + 'px');
+  $('#tourbox').innerHTML = !EMBED && S.tour != null ? tourPanel() : '';
   save();
 }
+
+/* ---------- Presenter tour ---------- */
+function applyStep(i) {
+  const s = TOUR[i][REV ? 'R' : 'P'];
+  closeOverlays(); S.tour = EMBED ? null : i; S.role = s.who; save();
+  if (!s.who) { if (location.hash) location.hash = ''; else render(); }
+  else go(s.go || 'home');
+  setTimeout(() => highlight(s.hl), 160);
+}
+function highlight(sel) {
+  document.querySelectorAll('.tour-hl').forEach(e => e.classList.remove('tour-hl'));
+  const el = sel && document.querySelector(sel); if (!el) return;
+  el.classList.add('tour-hl'); el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+function tourPanel() {
+  const i = S.tour, st = TOUR[i];
+  return `<div class="tour" role="dialog" aria-label="Presenter tour"><div class="row between"><span class="tiny strong" style="letter-spacing:1px;text-transform:uppercase;color:var(--red)">Step ${i + 1} of ${TOUR.length}</span><button class="icon-btn" style="width:30px;height:30px" data-act="tourend" aria-label="End tour">${ic('x', 'sm')}</button></div>
+    <h3>${esc(st.t)}</h3><p class="small">${esc(st.say)}</p>
+    <div class="row between"><div class="tour-dots">${TOUR.map((_, k) => `<i class="${k === i ? 'on' : ''}"></i>`).join('')}</div><div class="row"><button class="btn sm" data-act="tourstep" data-v="-1" ${i === 0 ? 'disabled' : ''}>${ic('back', 'sm')}Back</button><button class="btn primary sm" data-act="tourstep" data-v="1">${i === TOUR.length - 1 ? 'Finish' : 'Next'} ${i === TOUR.length - 1 ? '' : ic('chev', 'sm')}</button></div></div></div>`;
+}
+window.addEventListener('message', e => {
+  const m = e.data || {};
+  if (m.type === 'tour' && TOUR[m.i]) applyStep(m.i);
+  if (m.type === 'annotate') { S.annotate = !!m.on; render(); }
+});
 
 /* ---------- Chrome ---------- */
 function demoBar() {
@@ -1054,6 +1125,8 @@ function demoBar() {
     <span class="spacer"></span>
     ${S.role ? `<label>Viewing as <select data-change="persona" aria-label="Switch persona">${PERSONAS.map(p => `<option value="${p.id}" ${p.id === S.role ? 'selected' : ''}>${esc(name(p.id))} · ${esc(p.label)}</option>`).join('')}</select></label>` : ''}
     <label><input type="checkbox" data-change="annotate" ${S.annotate ? 'checked' : ''}> ${REV ? 'Show changes' : 'Show proposal refs'}</label>
+    <button data-act="tourstart">${ic('activity', 'sm')} Present</button>
+    <a class="btnlink" href="compare.html">Side by side</a>
     <button data-act="${REV ? 'changes' : 'map'}">${REV ? 'What changed?' : 'Proposal map'}</button>
     <a class="btnlink" href="${REV ? 'proposal-as-written.html' : 'with-suggested-changes.html'}">${REV ? '← Proposal as written' : 'Revised version →'}</a>
     <button data-act="reset" title="Clear everything you changed in this demo">Reset</button>
@@ -1851,6 +1924,9 @@ function changesModal() {
 ================================================================== */
 const ACT = {
   close: closeOverlays,
+  tourstart: () => applyStep(0),
+  tourend: () => { S.tour = null; highlight(null); render(); },
+  tourstep: el => { const n = S.tour + +el.dataset.v; if (n >= TOUR.length) ACT.tourend(); else applyStep(Math.max(0, n)); },
   side: () => { const open = document.body.classList.toggle('side-open'); $('#scrim').classList.toggle('open', open); },
   persona: el => { S.role = el.dataset.id; save(); go('home'); },
   signout: () => { S.role = null; save(); location.hash = ''; render(); },
@@ -2039,6 +2115,7 @@ document.addEventListener('click', e => {
 });
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') closeOverlays();
+  if (S.tour != null && !e.target.closest('input, textarea, select') && (e.key === 'ArrowRight' || e.key === 'ArrowLeft')) ACT.tourstep({ dataset: { v: e.key === 'ArrowRight' ? 1 : -1 } });
   if (e.key === 'Enter' && e.target.matches('article[data-act]')) ACT[e.target.dataset.act](e.target, e);
 });
 document.addEventListener('change', e => {

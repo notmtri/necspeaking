@@ -435,3 +435,17 @@ a.list-item:hover .li-title { color: var(--navy-700); }
   .demo-bar { font-size: 11.5px; gap: 8px; }
   .fab { right: 14px; bottom: 14px; padding: 10px 14px; }
 }
+
+/* ---------- Presenter tour ---------- */
+.tour { position: fixed; left: 20px; bottom: 20px; z-index: 70; width: min(420px, calc(100vw - 32px)); background: var(--surface); border: 1px solid var(--line); border-top: 4px solid var(--red); border-radius: 14px; box-shadow: var(--shadow-lg); padding: 16px 18px; display: flex; flex-direction: column; gap: 8px; }
+.tour h3 { font-family: var(--serif); font-size: 21px; color: var(--navy-900); font-weight: 600; }
+.tour p { margin: 0; color: var(--ink-2); line-height: 1.55; }
+.tour-dots { display: flex; gap: 5px; }
+.tour-dots i { width: 7px; height: 7px; border-radius: 50%; background: var(--line); }
+.tour-dots i.on { background: var(--red); width: 18px; border-radius: 99px; }
+.tour-hl { outline: 3px solid var(--red) !important; outline-offset: 4px; animation: hlpulse 1.4s ease 2; }
+@keyframes hlpulse { 50% { outline-color: rgba(200, 16, 46, .25); } }
+body.embed .demo-bar, body.embed .fab { display: none !important; }
+body.embed .shell, body.embed .signin { min-height: 100vh; }
+body.embed .side { top: 0; height: 100vh; }
+body.embed .top { top: 0; }
