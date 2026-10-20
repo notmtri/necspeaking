@@ -504,7 +504,7 @@ function homeFaculty() {
   } else {
     const greet = p.isNew ? `Welcome to Hanoi, ${p.first}.` : `Good morning, ${p.first}.`;
     const sub = p.isNew ? `You joined ${collegeName(p.college)} ${ago(p.joined)}. Here’s where to start.` : `${S.threads.filter(t => monthsSince(t.date) < .25).length} new conversations this week and ${upcomingEvents(100).length} events coming up.`;
-    hero = `<section class="hero ph ${p.isNew ? 'ph-statues' : 'ph-lawn'}"><h1>${greet}</h1><p>${sub}</p>
+    hero = `<section class="hero ph ${p.isNew ? 'ph-fountain' : 'ph-lawn'}"><h1>${greet}</h1><p>${sub}</p>
       <div class="hero-stats"><div><b>${intl}</b><span>international faculty</span></div><div><b>${S.faculty.filter(f => f.buddy.available).length}</b><span>volunteer buddies</span></div><div><b>${S.threads.length}</b><span>conversations</span></div><div><b>${upcomingEvents(100, e => e.date <= addDays(TODAY_ISO, 30)).length}</b><span>events in the next 30 days</span></div></div></section>`;
   }
   let extra = '';
