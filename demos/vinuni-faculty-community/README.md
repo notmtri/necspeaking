@@ -14,6 +14,10 @@ or build step is needed.
 Keep all three files in the same folder; the side-by-side view loads the
 other two.
 
+Everything, including fonts, logo and photos, is embedded, so the pages work
+without an internet connection. Starting the tour resets the demo to a clean
+state. Chrome or Edge is recommended.
+
 Switch persona from the top bar: a new faculty member (Sofia), an
 established one (James), a partner (Erik) and the administrator (Linh).
 Actions carry across personas. For example, request a buddy as Sofia,

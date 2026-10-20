@@ -25,12 +25,12 @@ def embed_assets(text: str) -> str:
         path = SRC / "assets" / match.group(1)
         mime = mimetypes.guess_type(path.name)[0]
         return f"data:{mime};base64," + base64.b64encode(path.read_bytes()).decode()
-    return re.sub(r"\{\{ASSET:([\w.-]+)\}\}", data_uri, text)
+    return re.sub(r"\{\{ASSET:([\w./-]+)\}\}", data_uri, text)
 
 
 def main() -> None:
     shell = (SRC / "shell.html").read_text(encoding="utf-8")
-    css = (SRC / "styles.css").read_text(encoding="utf-8")
+    css = (SRC / "fonts.css").read_text(encoding="utf-8") + (SRC / "styles.css").read_text(encoding="utf-8")
     data = (SRC / "data.js").read_text(encoding="utf-8")
     app = (SRC / "app.js").read_text(encoding="utf-8")
     tour = (SRC / "tour.js").read_text(encoding="utf-8")

@@ -286,6 +286,7 @@ function after() {
 /* ---------- Presenter tour ---------- */
 function applyStep(i) {
   const s = TOUR[i][REV ? 'R' : 'P'];
+  if (i === 0) { const annotate = S.annotate; S = fresh(); S.annotate = annotate; }
   closeOverlays(); S.tour = EMBED ? null : i; S.role = s.who; save();
   if (!s.who) { if (location.hash) location.hash = ''; else render(); }
   else go(s.go || 'home');
@@ -1307,6 +1308,7 @@ document.addEventListener('click', e => {
 });
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') closeOverlays();
+  if (EMBED && !e.target.closest('input, textarea, select') && ['ArrowRight', 'ArrowLeft', 'PageDown', 'PageUp'].includes(e.key)) { window.parent.postMessage({ type: 'key', key: e.key }, '*'); e.preventDefault(); }
   if (S.tour != null && !e.target.closest('input, textarea, select') && (e.key === 'ArrowRight' || e.key === 'ArrowLeft')) ACT.tourstep({ dataset: { v: e.key === 'ArrowRight' ? 1 : -1 } });
   if (e.key === 'Enter' && e.target.matches('article[data-act]')) ACT[e.target.dataset.act](e.target, e);
 });
