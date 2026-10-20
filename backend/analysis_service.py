@@ -1,14 +1,17 @@
 import base64
+import contextlib
 import io
 import json
 import mimetypes
 import os
 import re
+import shutil
+import subprocess
 import time
+import wave
 from datetime import datetime
 
 import httpx
-from pydub import AudioSegment
 from werkzeug.utils import secure_filename
 
 from speech_metrics import build_speech_metrics, describe_metrics_for_prompt, normalise_words
@@ -83,16 +86,80 @@ def cleanup_old_files(upload_folder):
         print(f"Cleanup error: {error}")
 
 
+# Recordings longer than this are rejected (the speaking test is 5 minutes;
+# the extra 20 s is grace for the closing line).
+MAX_AUDIO_SECONDS = 320
+TRANSCODE_TIMEOUT_SECONDS = 180
+
+
+class AudioDecodeError(RuntimeError):
+    """ffmpeg could not read the uploaded file as audio."""
+
+
+def _ffmpeg():
+    return shutil.which('ffmpeg') or 'ffmpeg'
+
+
+def wav_duration(path):
+    """Seconds of a PCM WAV file, read from its header -- nothing is decoded."""
+    with contextlib.closing(wave.open(str(path), 'rb')) as handle:
+        return handle.getnframes() / float(handle.getframerate())
+
+
+def transcode_for_analysis(input_path, output_path, max_seconds=MAX_AUDIO_SECONDS):
+    """Write 16 kHz mono 16-bit WAV and return its duration in seconds.
+
+    The previous pipeline decoded the whole upload into Python memory twice
+    (once just to measure it, once to convert it). Measured: 81 MB for a
+    normal 5-minute recording, 483 MB for a 30-minute one -- past the 512 MB
+    instance limit before the 5-minute check even ran. The server was
+    OOM-killed 10 times between Sep 20 and Oct 13, each time taking every
+    in-flight request down with it and stranding the job.
+
+    The ffmpeg CLI streams instead, with near-constant memory outside Python,
+    and stops reading after max_seconds + 1. An over-long recording therefore
+    comes back as a max_seconds + 1 file, which the caller rejects, without
+    the rest of it ever being read.
+    """
+    command = [
+        _ffmpeg(), '-nostdin', '-hide_banner', '-loglevel', 'error', '-y',
+        '-i', str(input_path),
+        '-vn', '-t', str(max_seconds + 1),
+        '-ac', '1', '-ar', '16000', '-c:a', 'pcm_s16le',
+        str(output_path),
+    ]
+    try:
+        result = subprocess.run(command, capture_output=True, text=True,
+                                timeout=TRANSCODE_TIMEOUT_SECONDS, check=False)
+    except subprocess.TimeoutExpired as error:
+        raise AudioDecodeError('Audio conversion timed out.') from error
+    if result.returncode != 0 or not os.path.exists(output_path):
+        raise AudioDecodeError((result.stderr or 'ffmpeg failed').strip()[-500:])
+    try:
+        return wav_duration(output_path)
+    except (wave.Error, EOFError) as error:
+        raise AudioDecodeError(f'Converted audio is unreadable: {error}') from error
+
+
 def get_audio_duration(file_path):
-    audio = AudioSegment.from_file(file_path)
-    return len(audio) / 1000.0
+    """Seconds of any audio file without decoding it into Python memory.
 
-
-def convert_to_wav(input_path, output_path):
-    audio = AudioSegment.from_file(input_path)
-    audio = audio.set_frame_rate(16000).set_channels(1)
-    audio.export(output_path, format="wav")
-    return output_path
+    WAV is read from its header; anything else is transcoded to a temporary
+    capped WAV first, so even a very long file costs almost nothing. Used for
+    admin sample metadata, where the cap is generous.
+    """
+    path = str(file_path)
+    if path.lower().endswith('.wav'):
+        try:
+            return wav_duration(path)
+        except (wave.Error, EOFError):
+            pass
+    probe = f"{path}.duration-probe.wav"
+    try:
+        return transcode_for_analysis(path, probe, max_seconds=24 * 3600)
+    finally:
+        if os.path.exists(probe):
+            os.remove(probe)
 
 
 def transcribe_audio(groq_client, file_path):
@@ -125,7 +192,7 @@ def transcribe_audio(groq_client, file_path):
             response_format="json",
         )
 
-    duration = get_audio_duration(file_path)
+    duration = wav_duration(file_path)
     transcript_text = transcription.text if hasattr(transcription, 'text') else str(transcription)
 
     return {

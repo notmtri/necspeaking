@@ -430,5 +430,73 @@ class GeminiModelChainTests(unittest.TestCase):
         self.assertEqual(result['grader'], 'groq-fallback')
 
 
+
+def _write_silence(path, seconds, rate=8000):
+    import struct
+    import wave
+    with wave.open(str(path), 'wb') as handle:
+        handle.setnchannels(1)
+        handle.setsampwidth(2)
+        handle.setframerate(rate)
+        chunk = struct.pack('<h', 0) * rate
+        for _ in range(int(seconds)):
+            handle.writeframes(chunk)
+
+
+class TranscodeForAnalysisTests(unittest.TestCase):
+    """The pipeline used to decode whole uploads into Python memory: 483 MB for
+    a 30-minute recording, past the 512 MB instance limit, so the server was
+    OOM-killed before the 5-minute check ever ran."""
+
+    WORK = BACKEND_DIR / 'tests' / '_transcode_work'
+
+    def setUp(self):
+        self.WORK.mkdir(exist_ok=True)
+
+    def tearDown(self):
+        for item in self.WORK.iterdir():
+            item.unlink()
+        self.WORK.rmdir()
+
+    def test_writes_16khz_mono_pcm_and_reports_its_length(self):
+        import wave
+        source, target = self.WORK / 'in.wav', self.WORK / 'out.wav'
+        _write_silence(source, 7, rate=44100)
+
+        duration = analysis_service.transcode_for_analysis(source, target)
+
+        self.assertAlmostEqual(duration, 7.0, delta=0.1)
+        with wave.open(str(target), 'rb') as handle:
+            self.assertEqual((handle.getframerate(), handle.getnchannels(), handle.getsampwidth()), (16000, 1, 2))
+
+    def test_a_long_recording_is_capped_without_holding_it_in_memory(self):
+        import tracemalloc
+        source, target = self.WORK / 'long.wav', self.WORK / 'out.wav'
+        _write_silence(source, 30 * 60)  # 30 minutes
+
+        tracemalloc.start()
+        try:
+            duration = analysis_service.transcode_for_analysis(source, target)
+            _, peak = tracemalloc.get_traced_memory()
+        finally:
+            tracemalloc.stop()
+
+        self.assertGreater(duration, analysis_service.MAX_AUDIO_SECONDS)
+        self.assertLess(duration, analysis_service.MAX_AUDIO_SECONDS + 2, 'reading stops just past the limit')
+        self.assertLess(peak, 5 * 1024 * 1024, f'peak Python memory {peak / 1e6:.1f} MB')
+
+    def test_unreadable_input_raises_a_decode_error(self):
+        source, target = self.WORK / 'junk.mp3', self.WORK / 'out.wav'
+        source.write_bytes(b'this is not audio at all')
+
+        with self.assertRaises(analysis_service.AudioDecodeError):
+            analysis_service.transcode_for_analysis(source, target)
+
+    def test_duration_of_any_file_without_decoding_it(self):
+        source = self.WORK / 'clip.wav'
+        _write_silence(source, 12)
+        self.assertAlmostEqual(analysis_service.get_audio_duration(source), 12.0, delta=0.1)
+
+
 if __name__ == '__main__':
     unittest.main()

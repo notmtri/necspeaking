@@ -5,7 +5,14 @@ from datetime import datetime, timedelta
 
 import cloudinary.uploader
 
-from analysis_service import convert_to_wav, generate_docx, get_audio_duration, grade_speech, transcribe_audio
+from analysis_service import (
+    MAX_AUDIO_SECONDS,
+    AudioDecodeError,
+    generate_docx,
+    grade_speech,
+    transcode_for_analysis,
+    transcribe_audio,
+)
 from speech_metrics import build_speech_metrics
 from database import AnalysisJob, User, db, utcnow
 from user_progress import create_practice_session
@@ -39,7 +46,7 @@ def student_facing_error(error):
         return str(error)
     if isinstance(error, FileNotFoundError):
         return AUDIO_MISSING_MESSAGE
-    if type(error).__name__ == 'CouldntDecodeError':
+    if isinstance(error, AudioDecodeError) or type(error).__name__ == 'CouldntDecodeError':
         return AUDIO_UNREADABLE_MESSAGE
     return GRADING_FAILED_MESSAGE
 
@@ -115,15 +122,16 @@ class AnalysisWorker:
                 if not filepath or not os.path.exists(filepath):
                     raise FileNotFoundError(filepath or 'no stored audio path')
 
-                duration = get_audio_duration(filepath)
-                if duration > 320:
-                    raise AnalysisInputError("This recording is longer than the 5 minute limit. Please trim it and try again.")
-
+                # One streaming ffmpeg pass, capped just past the limit, so a
+                # long upload is rejected without ever being held in memory
+                # (see transcode_for_analysis).
                 wav_filepath = filepath.rsplit('.', 1)[0] + '_compressed.wav'
-                convert_to_wav(filepath, wav_filepath)
+                duration = transcode_for_analysis(filepath, wav_filepath)
                 if filepath != wav_filepath and os.path.exists(filepath):
                     os.remove(filepath)
                 filepath = wav_filepath
+                if duration > MAX_AUDIO_SECONDS:
+                    raise AnalysisInputError("This recording is longer than the 5 minute limit. Please trim it and try again.")
 
                 file_size_mb = os.path.getsize(filepath) / (1024 * 1024)
                 if file_size_mb > 20:

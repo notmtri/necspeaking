@@ -243,9 +243,9 @@ class FeedbackIsKeptTests(unittest.TestCase):
         audio.parent.mkdir(parents=True, exist_ok=True)
         audio.write_bytes(b'stub')
 
-        def fake_convert(src, dst):
+        def fake_transcode(src, dst):
             Path(dst).write_bytes(b'wav')
-            return dst
+            return 60.0
 
         with app_module.app.app_context():
             user = User(email='keep@example.com', username='keeper', name='Keeper',
@@ -258,8 +258,13 @@ class FeedbackIsKeptTests(unittest.TestCase):
             db.session.commit()
             job_id = job.id
 
-        with mock.patch.object(job_worker, 'get_audio_duration', return_value=60.0),                 mock.patch.object(job_worker, 'convert_to_wav', side_effect=fake_convert),                 mock.patch.object(job_worker, 'transcribe_audio',
-                                  return_value={'text': 'my answer', 'words': [], 'duration': 60.0}),                 mock.patch.object(job_worker, 'grade_speech', return_value=dict(self.GRADE)),                 mock.patch.object(self.worker, 'cloudinary_report_upload_enabled', return_value=False):
+        with (
+            mock.patch.object(job_worker, 'transcode_for_analysis', side_effect=fake_transcode),
+            mock.patch.object(job_worker, 'transcribe_audio',
+                              return_value={'text': 'my answer', 'words': [], 'duration': 60.0}),
+            mock.patch.object(job_worker, 'grade_speech', return_value=dict(self.GRADE)),
+            mock.patch.object(self.worker, 'cloudinary_report_upload_enabled', return_value=False),
+        ):
             self.worker.process_next_job()
 
         with app_module.app.app_context():
@@ -274,6 +279,58 @@ class FeedbackIsKeptTests(unittest.TestCase):
             doc = Path(job.document_path)
         if doc.exists():
             doc.unlink()
+
+
+class OverLongRecordingTests(unittest.TestCase):
+    """A 30-minute upload used to OOM-kill the server before the 5-minute
+    check. Now it is rejected from a capped transcode, with the student told
+    why, and nothing else on the server is affected."""
+
+    @classmethod
+    def setUpClass(cls):
+        app_module.app.config.update(TESTING=True)
+        cls.worker = AnalysisWorker(app_module.app, lambda: None, str(BACKEND_DIR / 'uploads'))
+
+    def setUp(self):
+        with app_module.app.app_context():
+            db.drop_all()
+            db.create_all()
+
+    @classmethod
+    def tearDownClass(cls):
+        with app_module.app.app_context():
+            db.session.remove()
+            db.engine.dispose()
+        if TEST_DB_PATH.exists():
+            TEST_DB_PATH.unlink()
+
+    def test_recording_over_five_minutes_fails_with_the_limit_message(self):
+        import struct
+        import wave
+        audio = BACKEND_DIR / 'uploads' / 'jobs' / 'too-long.wav'
+        audio.parent.mkdir(parents=True, exist_ok=True)
+        with wave.open(str(audio), 'wb') as handle:
+            handle.setnchannels(1)
+            handle.setsampwidth(2)
+            handle.setframerate(8000)
+            second = struct.pack('<h', 0) * 8000
+            for _ in range(30 * 60):
+                handle.writeframes(second)
+
+        with app_module.app.app_context():
+            job = make_job('pending')
+            job.stored_audio_path = str(audio)
+            db.session.commit()
+            job_id = job.id
+
+            self.worker.process_next_job()
+            db.session.expire_all()
+            job = db.session.get(AnalysisJob, job_id)
+            self.assertEqual(job.status, 'failed')
+            self.assertIn('5 minute limit', job.error_message)
+
+        leftovers = list((BACKEND_DIR / 'uploads' / 'jobs').glob('too-long*'))
+        self.assertEqual(leftovers, [], 'upload and converted file are cleaned up')
 
 
 if __name__ == '__main__':
