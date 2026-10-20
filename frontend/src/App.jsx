@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo, lazy, Suspense } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef, lazy, Suspense } from 'react';
 import { Analytics } from '@vercel/analytics/react';
 import { Loader } from 'lucide-react';
 import { AdminLoginModal, ToastViewport } from './components/AppOverlays';
@@ -29,17 +29,22 @@ function PageFallback() {
   );
 }
 
+// Longer than a warm health check (~0.2-1.7 s observed) and far shorter than
+// a cold start (20-45 s).
+const BACKEND_SLOW_MS = 2000;
+
 export default function SpeakUpApp() {
   const [currentPage, setCurrentPage] = useState(() => pageFromLocation(window.location));
   const [showAdminPanel, setShowAdminPanel] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [isWarmingBackend, setIsWarmingBackend] = useState(true);
+  const [isWarmingBackend, setIsWarmingBackend] = useState(false);
   const [authMode, setAuthMode] = useState('login');
   const [authError, setAuthError] = useState('');
   const [authSubmitting, setAuthSubmitting] = useState(false);
   const [authChecking, setAuthChecking] = useState(true);
   const [passwordSubmitting, setPasswordSubmitting] = useState(false);
-  const [communityLoading, setCommunityLoading] = useState(false);
+  const [communityLoading, setCommunityLoading] = useState(true);
+  const communityLoadedRef = useRef(false);
   const [practiceHistory, setPracticeHistory] = useState([]);
   const [guestMode, setGuestMode] = useState(readGuestModePreference);
   const [guestModeBannerVisible, setGuestModeBannerVisible] = useState(true);
@@ -142,6 +147,7 @@ export default function SpeakUpApp() {
     try {
       const data = await apiFetch('/api/auth/community', { signal: options.signal });
       if (Array.isArray(data.profiles)) setPublicProfiles(data.profiles);
+      communityLoadedRef.current = true;
     } catch (error) {
       if (isAbortError(error)) return;
       setPublicProfiles([]);
@@ -170,25 +176,44 @@ export default function SpeakUpApp() {
     }
   }, []);
 
+  // The community list is ~200 KB from the slowest endpoint and only the
+  // Community page uses it. It used to load on every page view and hold the
+  // "Connecting analysis service..." banner up for ~3 s after the page was
+  // already usable (~0.6 s). Load it when Community is first opened; later
+  // refreshes (after login or an analysis) only run once it has been loaded.
+  const refreshCommunityProfiles = useCallback(
+    () => (communityLoadedRef.current ? loadCommunityProfiles() : Promise.resolve()),
+    [loadCommunityProfiles],
+  );
+
+  useEffect(() => {
+    if (currentPage !== 'community' || communityLoadedRef.current) return undefined;
+    const controller = new AbortController();
+    loadCommunityProfiles({ signal: controller.signal });
+    return () => controller.abort();
+  }, [currentPage, loadCommunityProfiles]);
+
   useEffect(() => {
     const controller = new AbortController();
-    const warmBackend = async () => {
-      try {
-        await Promise.all([
-          apiFetch('/api/health', { method: 'GET', signal: controller.signal }),
-          loadAnnouncement({ signal: controller.signal }),
-          loadCommunityProfiles({ signal: controller.signal }),
-        ]);
-      } catch (error) {
-        if (isAbortError(error)) return;
-        // Best-effort warmup only.
-      } finally {
+    // The banner means what it says: only the analysis service's own health
+    // check counts, and only a slow answer -- the free-tier server waking up,
+    // which takes 20-45 s -- shows it. A warm server answers in well under the
+    // threshold and the banner never appears.
+    const slowTimer = window.setTimeout(() => setIsWarmingBackend(true), BACKEND_SLOW_MS);
+    apiFetch('/api/health', { method: 'GET', signal: controller.signal })
+      .catch(() => {
+        // Reachability problems surface on the action that needs the server.
+      })
+      .finally(() => {
+        window.clearTimeout(slowTimer);
         if (!controller.signal.aborted) setIsWarmingBackend(false);
-      }
+      });
+    loadAnnouncement({ signal: controller.signal });
+    return () => {
+      controller.abort();
+      window.clearTimeout(slowTimer);
     };
-    warmBackend();
-    return () => controller.abort();
-  }, [loadAnnouncement, loadCommunityProfiles]);
+  }, [loadAnnouncement]);
 
   useEffect(() => {
     writeGuestModePreference(guestMode);
@@ -358,7 +383,7 @@ export default function SpeakUpApp() {
       setGuestMode(false);
       setSelectedProfileId(data.user.id);
       await loadPracticeHistory();
-      await loadCommunityProfiles();
+      await refreshCommunityProfiles();
       navTo('profile');
       return true;
     } catch (error) {
@@ -367,7 +392,7 @@ export default function SpeakUpApp() {
     } finally {
       setAuthSubmitting(false);
     }
-  }, [loadCommunityProfiles, loadPracticeHistory, navTo]);
+  }, [refreshCommunityProfiles, loadPracticeHistory, navTo]);
 
   const handleProfileSave = useCallback(async (updates) => {
     setAuthError('');
@@ -381,13 +406,13 @@ export default function SpeakUpApp() {
 
       setCurrentUser(data.user);
       setSelectedProfileId(data.user.id);
-      await loadCommunityProfiles();
+      await refreshCommunityProfiles();
       return true;
     } catch (error) {
       setAuthError(error.message || 'Could not save profile changes.');
       return false;
     }
-  }, [loadCommunityProfiles]);
+  }, [refreshCommunityProfiles]);
 
   const handlePasswordUpdate = useCallback(async ({ currentPassword, newPassword }) => {
     setPasswordSubmitting(true);
@@ -415,8 +440,8 @@ export default function SpeakUpApp() {
     setCurrentUser(user);
     setSelectedProfileId(user.id);
     await loadPracticeHistory();
-    await loadCommunityProfiles();
-  }, [loadCommunityProfiles, loadPracticeHistory]);
+    await refreshCommunityProfiles();
+  }, [loadPracticeHistory, refreshCommunityProfiles]);
 
   const handleLogout = useCallback(async () => {
     try {
@@ -430,8 +455,8 @@ export default function SpeakUpApp() {
     setPracticeHistory([]);
     setSelectedProfileId(null);
     navTo('home');
-    loadCommunityProfiles();
-  }, [loadCommunityProfiles, navTo]);
+    refreshCommunityProfiles();
+  }, [refreshCommunityProfiles, navTo]);
 
   const handleDeleteAccount = useCallback(async () => {
     try {
@@ -446,9 +471,9 @@ export default function SpeakUpApp() {
     setPracticeHistory([]);
     setSelectedProfileId(null);
     navTo('home');
-    loadCommunityProfiles();
+    refreshCommunityProfiles();
     return true;
-  }, [loadCommunityProfiles, navTo]);
+  }, [refreshCommunityProfiles, navTo]);
 
   const selectedProfile = useMemo(
     () => publicProfiles.find((profile) => profile.id === selectedProfileId) || null,

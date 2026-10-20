@@ -23,7 +23,11 @@ const createFetchResponse = (payload) => ({
 const createFetchMock = (overrides = {}) => vi.fn(async (url) => {
   const target = String(url);
 
-  if (target.includes('/api/health')) return createFetchResponse({ status: 'healthy' });
+  if (target.includes('/api/health')) {
+    // A server waking from sleep: the health check does not answer yet.
+    if (overrides.healthPending) return new Promise(() => {});
+    return createFetchResponse({ status: 'healthy' });
+  }
   if (target.includes('/api/site/announcement')) return createFetchResponse({ announcement: defaultAnnouncement });
   if (target.includes('/api/auth/me')) return createFetchResponse({ authenticated: false, user: null });
   if (target.includes('/api/admin/check')) return createFetchResponse({ authenticated: false });
@@ -187,5 +191,41 @@ describe('App', () => {
     await renderApp('/community');
 
     expect(container.textContent).toContain('Log in to post in the community');
+  });
+
+  const communityRequests = () => global.fetch.mock.calls
+    .filter(([url]) => String(url).includes('/api/auth/community')).length;
+
+  it('does not download the community list on pages that do not show it', async () => {
+    // ~200 KB from the slowest endpoint, previously fetched on every page.
+    for (const path of ['/', '/analyze', '/simulation', '/samples']) {
+      // eslint-disable-next-line no-await-in-loop
+      await renderApp(path, { samples: [sampleFixture], questions: [questionFixture] });
+      expect(communityRequests(), path).toBe(0);
+    }
+  });
+
+  it('loads the community list when the Community page opens', async () => {
+    await renderApp('/community', {
+      profiles: [{ id: 'user-1', name: 'Ada Learner', username: 'ada', stats: { practices: 3, avgScore: 1.4 } }],
+    });
+
+    expect(communityRequests()).toBe(1);
+    expect(container.textContent).toContain('Ada Learner');
+  });
+
+  it('shows no connecting banner when the analysis service answers promptly', async () => {
+    await renderApp('/analyze');
+
+    expect(container.textContent).not.toContain('Connecting analysis service');
+  });
+
+  it('shows the connecting banner only while a slow server wakes up', async () => {
+    await renderApp('/analyze', { healthPending: true });
+    expect(container.textContent).toContain('Record or upload a response');
+    expect(container.textContent).not.toContain('Connecting analysis service');
+
+    await act(async () => { await new Promise((resolve) => setTimeout(resolve, 2100)); });
+    expect(container.textContent).toContain('Connecting analysis service');
   });
 });
