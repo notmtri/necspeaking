@@ -7,6 +7,7 @@ import os
 import sys
 import warnings
 import secrets
+import traceback
 from functools import wraps
 from datetime import datetime, timedelta
 
@@ -20,7 +21,7 @@ import re
 import random
 from sqlalchemy import inspect
 from sqlalchemy.engine import make_url
-from sqlalchemy.orm import defer
+from sqlalchemy.orm import configure_mappers, defer
 
 from analysis_service import allowed_file, build_job_storage_path, cleanup_old_files, generate_docx, get_audio_duration
 from database import MAX_AVATAR_CHARS, AnalysisJob, AppAnnouncement, CommunityPost, Question, RateLimitEntry, Sample, User, UserPracticeSession, avatar_from_name, build_prompt_key, db, utcnow
@@ -30,6 +31,15 @@ import cloudinary
 import cloudinary.uploader
 
 load_dotenv()
+
+# Render reads stdout through a pipe, where Python block-buffers print().
+# Whatever the process printed in the minutes before an out-of-memory kill was
+# lost with the buffer: the logs went silent right before every crash.
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(line_buffering=True)
+    except (AttributeError, ValueError):
+        pass
 
 # The React app is deployed separately (see vercel.json); this process is API-only.
 #
@@ -163,6 +173,14 @@ def redact_database_url(url):
 print(f"[DB] Connecting to: {redact_database_url(database_url)}")
 
 db.init_app(app)
+
+# Configure every model now, on the importing thread, before the analysis
+# worker thread or any request thread exists. SQLAlchemy otherwise configures
+# lazily on the first query -- at boot that is a race between the worker's
+# first query and the first requests. Production saw freshly booted instances
+# where queries hit half-configured models ("strategy" / "'NoneType' object
+# has no attribute 'set'") until the instance was replaced.
+configure_mappers()
 
 
 ALEMBIC_CLI_COMMANDS = {
@@ -374,12 +392,16 @@ def handle_http_exception(e):
 def handle_unexpected_exception(e):
     if isinstance(e, HTTPException):
         return handle_http_exception(e)
+    # Type and traceback included: a bare str(e) logged only "strategy" for an
+    # incident, which was not enough to identify the failure.
     logger.error(json.dumps({
         "requestId": getattr(g, 'request_id', ''),
         "event": "unhandled_exception",
+        "errorType": type(e).__name__,
         "error": str(e),
         "path": request.path,
         "method": request.method,
+        "traceback": traceback.format_exc(limit=20),
     }))
     if wants_json_response():
         return jsonify({"error": "Internal server error."}), 500
@@ -1099,7 +1121,7 @@ def analyze_speech():
 
     except Exception as e:
         db.session.rollback()
-        print(f"[ANALYZE] Queueing error: {str(e)}")
+        print(f"[ANALYZE] Queueing error: {type(e).__name__}: {e}" + chr(10) + traceback.format_exc(limit=20))
         if 'filepath' in locals() and os.path.exists(filepath):
             os.remove(filepath)
         return jsonify({"error": "Could not queue analysis job."}), 500

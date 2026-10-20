@@ -679,6 +679,32 @@ class ApiSmokeTests(unittest.TestCase):
         self.assertEqual(Path(lines[0][len('INSTANCE='):]), BACKEND_DIR / 'instance')
         (BACKEND_DIR / 'instance' / 'script-probe.db').unlink(missing_ok=True)
 
+    def test_models_are_configured_at_import_before_any_thread_starts(self):
+        """Lazy configuration on the first query raced the worker thread
+        against the first requests on freshly booted instances."""
+        from database import AnalysisJob, AppAnnouncement, Question, Sample, UserPracticeSession
+        for model in (User, AnalysisJob, AppAnnouncement, Question, Sample, UserPracticeSession, CommunityPost):
+            self.assertTrue(model.__mapper__.configured, model.__name__)
+
+    def test_unexpected_errors_are_logged_with_type_and_traceback(self):
+        import json as json_module
+
+        from unittest import mock
+
+        app_module.app.config['TESTING'] = False
+        self.addCleanup(app_module.app.config.update, TESTING=True)
+
+        with (
+            mock.patch.object(app_module, 'get_or_create_announcement', side_effect=KeyError('strategy')),
+            self.assertLogs('necs.backend', level='ERROR') as logs,
+        ):
+            response = self.client.get('/api/site/announcement')
+
+        self.assertEqual(response.status_code, 500)
+        entry = json_module.loads(next(line.split(':', 2)[2] for line in logs.output if 'unhandled_exception' in line))
+        self.assertEqual(entry['errorType'], 'KeyError')
+        self.assertIn('get_site_announcement', entry['traceback'])
+
     def test_boot_log_never_contains_the_database_password(self):
         redacted = app_module.redact_database_url(
             'postgresql://postgres.ref:SuperSecret123@aws-0.pooler.supabase.com:6543/postgres')
