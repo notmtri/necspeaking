@@ -103,10 +103,10 @@ jobs:
           ADMIN_PASSWORD_HASH: ci-placeholder
           DATABASE_URL: sqlite:///ci-verify.db
           PORT: '8765'
+        # Both with and without --preload: a host can set it through
+        # GUNICORN_CMD_ARGS, and the analysis worker must still run in the
+        # process that serves requests (see post_fork in gunicorn.conf.py).
         run: |
           gunicorn --check-config app:app
-          gunicorn app:app > gunicorn.log 2>&1 &
-          for i in $(seq 1 30); do curl -sf http://127.0.0.1:8765/api/health && break; sleep 1; done
-          grep -E "Using worker: gthread" gunicorn.log
-          python ../.github/scripts/check_concurrency.py http://127.0.0.1:8765
-          kill %1
+          bash ../.github/scripts/check_gunicorn_boot.sh plain
+          bash ../.github/scripts/check_gunicorn_boot.sh preload

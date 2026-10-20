@@ -986,8 +986,27 @@ def resolve_storage_path(path):
     return candidates[0]
 
 
-if analysis_worker:
-    analysis_worker.start()
+def start_embedded_worker():
+    """Start the analysis-worker thread in this process (no-op if running).
+
+    Under gunicorn this must happen in the forked process that serves
+    requests, so gunicorn.conf.py calls it from post_fork and sets
+    NECS_START_WORKER_AFTER_FORK to stop it starting here at import. If the
+    app is preloaded, an import-time start would put the thread in the
+    master process -- threads do not survive fork -- while the serving
+    process inherits a worker object with no thread behind it.
+    """
+    if analysis_worker:
+        analysis_worker.start()
+
+
+def embedded_worker_running():
+    thread = getattr(analysis_worker, 'thread', None)
+    return bool(thread and thread.is_alive())
+
+
+if os.getenv('NECS_START_WORKER_AFTER_FORK') != '1':
+    start_embedded_worker()
 
 @app.route('/')
 @app.route('/api', methods=['GET'])
@@ -1008,6 +1027,9 @@ def health_check():
         "status": "healthy",
         "rateLimiter": "redis" if rate_limiter.using_redis else "database",
         "embeddedWorker": bool(analysis_worker),
+        # Whether the analysis thread is alive in the process answering this
+        # request -- configured is not the same as running.
+        "embeddedWorkerRunning": embedded_worker_running(),
     })
 
 

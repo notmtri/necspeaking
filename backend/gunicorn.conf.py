@@ -13,6 +13,7 @@ Requests here spend nearly all their time waiting (on the database across
 regions, on uploads), so threads fix this without more memory.
 """
 import os
+import sys
 
 # One process only: the embedded analysis worker is a thread inside the web
 # process (ENABLE_EMBEDDED_WORKER), so each extra process would start another.
@@ -31,3 +32,29 @@ timeout = int(os.getenv('GUNICORN_TIMEOUT', '120'))
 
 # No bind setting: gunicorn binds to $PORT on its own, which is how Render
 # routes traffic to it.
+
+# The app must not start its analysis-worker thread when it is imported:
+# with preload (gunicorn --preload, which a host can set through
+# GUNICORN_CMD_ARGS) the import happens in the master process, and the
+# thread would be left behind in the master when the worker is forked.
+# post_fork below starts it in the process that actually serves requests.
+os.environ.setdefault('NECS_START_WORKER_AFTER_FORK', '1')
+
+
+def post_fork(server, worker):
+    """Runs in the new worker process right after the fork."""
+    preloaded = 'app' in sys.modules
+    import app as application  # already loaded if preloaded; loads it otherwise
+
+    if preloaded:
+        # Pooled database connections opened in the master were copied by the
+        # fork; two processes sharing one Postgres socket corrupts both.
+        # Drop the child's references without closing the master's sockets.
+        with application.app.app_context():
+            application.db.engine.dispose(close=False)
+
+    application.start_embedded_worker()
+    server.log.info(
+        "post_fork: worker pid=%s app_preloaded=%s embedded_worker_running=%s",
+        worker.pid, preloaded, application.embedded_worker_running(),
+    )
