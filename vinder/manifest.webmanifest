@@ -1,0 +1,18 @@
+{
+  "name": "Vinder",
+  "short_name": "Vinder",
+  "description": "Dating for the VinUni community, with VinCupid, an AI wingmate. Student prototype, not an official VinUniversity service.",
+  "id": "./",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0A1834",
+  "theme_color": "#FBF7F9",
+  "categories": ["social", "lifestyle"],
+  "icons": [
+    { "src": "assets/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "assets/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "assets/icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

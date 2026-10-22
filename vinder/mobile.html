@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en" data-platform="mobile">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+<meta name="theme-color" content="#FBF7F9">
+<meta name="color-scheme" content="light dark">
+<meta name="description" content="Vinder: dating for the VinUni community, with VinCupid, an AI wingmate. Student prototype.">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Vinder">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="format-detection" content="telephone=no">
+<title>Vinder</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="assets/icons/icon-192.png">
+<link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png">
+<link rel="stylesheet" href="src/styles.css">
+<link rel="stylesheet" href="src/mobile.css">
+</head>
+<body>
+<div class="app" id="app">
+  <div id="view"></div>
+  <div id="layer"></div>
+  <div class="toasts" id="toasts" role="status" aria-live="polite"></div>
+</div>
+<div class="splash" id="splash" aria-hidden="true"></div>
+<noscript><p style="padding:24px;font-family:sans-serif">Vinder needs JavaScript to run.</p></noscript>
+<script src="src/logic.js"></script>
+<script src="src/data.js"></script>
+<script src="src/kit.js"></script>
+<script src="src/core.js"></script>
+<script src="src/app.js"></script>
+<script src="src/mobile.js"></script>
+</body>
+</html>

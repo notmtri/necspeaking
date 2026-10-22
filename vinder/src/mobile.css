@@ -1,0 +1,112 @@
+/* Vinder mobile: native-feel layer on top of styles.css (loaded by mobile.html only). */
+
+/* ---------- frame: the app owns the screen; the keyboard shrinks it ---------- */
+html, body { height: 100%; overflow: hidden; overscroll-behavior: none; }
+body { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+.app { position: fixed; left: 0; right: 0; top: var(--app-top, 0px); height: var(--app-h, 100dvh); max-width: 520px; margin: 0 auto; }
+@media (min-width: 560px) {
+  body { background: var(--surface-2); }
+  .app { box-shadow: 0 0 0 1px var(--line), 0 24px 60px rgba(16, 24, 40, .1); }
+}
+#view { position: relative; flex: 1; min-height: 0; display: flex; flex-direction: column; background: var(--bg); }
+#view.dragging { box-shadow: -12px 0 32px rgba(0, 0, 0, .18); }
+.app::before { content: ""; position: absolute; inset: 0; background: rgba(10, 24, 52, .18); opacity: var(--edge, 0); pointer-events: none; }
+
+/* No accidental zoom on focus (iOS zooms inputs under 16px), no callouts on UI chrome. */
+.input, input, select, textarea { font-size: 16px; }
+.tabs, .top, .chat-head, .actions, .dbar, .sc, .bars, .btn, .chip, .opt, .tab { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+img { -webkit-user-drag: none; -webkit-touch-callout: none; }
+
+/* ---------- safe areas ---------- */
+.top, .chat-head { padding-top: calc(10px + env(safe-area-inset-top)); }
+.ob-top { padding-top: calc(12px + env(safe-area-inset-top)); }
+.welcome { padding-top: calc(18px + env(safe-area-inset-top)); padding-bottom: calc(20px + env(safe-area-inset-bottom)); }
+.vouch-top { padding-top: calc(22px + env(safe-area-inset-top)); }
+.hero-photo .bars { top: calc(10px + env(safe-area-inset-top)); }
+.float-btn { top: calc(22px + env(safe-area-inset-top)); }
+.toasts { top: calc(64px + env(safe-area-inset-top)); }
+.match { padding-top: calc(28px + env(safe-area-inset-top)); padding-bottom: calc(24px + env(safe-area-inset-bottom)); }
+.page { padding-left: max(16px, env(safe-area-inset-left)); padding-right: max(16px, env(safe-area-inset-right)); }
+
+/* ---------- touch targets ---------- */
+.icon-btn { width: 44px; height: 44px; }
+.btn.sm { min-height: 40px; }
+button.chip { min-height: 36px; }
+.menu a, .menu button { min-height: 56px; }
+.check { padding: 14px 0; }
+
+/* ---------- tab bar: active pill, like native bottom navigation ---------- */
+.tabs { padding: 4px 4px calc(4px + env(safe-area-inset-bottom)); }
+.tab { padding: 6px 0 6px; gap: 4px; font-size: 11.5px; }
+.tab .ti { width: 58px; height: 32px; border-radius: 16px; transition: background .2s ease; }
+.tab.on .ti { background: var(--rose-50); }
+.tab .ti:active { transform: scale(.92); }
+.tab.on .face { box-shadow: none; }
+.ti .badge { top: -3px; left: calc(50% + 8px); }
+
+/* ---------- discover: edge-to-edge card, buttons over it ---------- */
+.dbar { padding: 8px 14px 0; }
+.main.fill { position: relative; }
+.deck { margin: 8px 8px 10px; }
+.sc { border-radius: 26px; touch-action: none; }
+.sc .info { padding-bottom: 104px; }
+.sc .more { bottom: 112px; }
+.actions { position: absolute; left: 0; right: 0; bottom: 22px; z-index: 6; padding: 0; gap: 16px; pointer-events: none; }
+.actions .act { pointer-events: auto; box-shadow: 0 10px 26px rgba(0, 0, 0, .3); }
+.actions .act.pass, .actions .act.small { background: rgba(255, 255, 255, .96); }
+.actions .act .lk { border-color: #fff; }
+/* These buttons always sit on white over the photo, so their colours don't follow the theme. */
+.actions .act.rw { color: #A87C22; } .actions .act.info { color: #1B427B; } .actions .act.pass { color: #E5484D; }
+.sticky-acts { padding-bottom: calc(14px + env(safe-area-inset-bottom)); }
+
+/* ---------- chat ---------- */
+.composer { align-items: flex-end; }
+.composer textarea.input { min-height: 44px; max-height: 120px; resize: none; line-height: 1.35; padding: 11px 16px; overflow-y: auto; }
+.composer .send, .composer .ideas { margin-bottom: 0; }
+.b { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; transition: transform .15s ease; }
+.b.pressed { transform: scale(.96); }
+
+/* ---------- sheets: a handle you can drag down ---------- */
+.sheet { padding-left: max(18px, env(safe-area-inset-left)); padding-right: max(18px, env(safe-area-inset-right)); overscroll-behavior: contain; }
+.sheet .grab { position: relative; width: 100%; height: 26px; margin: -6px 0 6px; background: none; border-radius: 0; touch-action: none; cursor: grab; }
+.sheet .grab::before { content: ""; position: absolute; left: 50%; top: 10px; width: 42px; height: 5px; margin-left: -21px; border-radius: 3px; background: var(--line); }
+.sheet.dragging { transition: none !important; }
+.sheet.closing { transition: transform .22s ease-in; transform: translateY(105%) !important; }
+
+/* ---------- screen transitions ---------- */
+.v-push { animation: vpush .3s cubic-bezier(.2, .8, .2, 1); }
+.v-pop { animation: vpop .3s cubic-bezier(.2, .8, .2, 1); }
+.v-fade { animation: vfade .18s ease-out; }
+.v-out { transition: transform .2s ease-in; transform: translateX(100%) !important; }
+.v-back { transition: transform .25s cubic-bezier(.2, .8, .2, 1); }
+@keyframes vpush { from { transform: translateX(28%); opacity: .3; } }
+@keyframes vpop { from { transform: translateX(-20%); opacity: .3; } }
+@keyframes vfade { from { opacity: .35; } }
+
+/* ---------- launch screen ---------- */
+.splash { position: fixed; inset: 0; z-index: 300; display: grid; place-items: center; background: radial-gradient(circle at 50% 36%, #3a1d44 0%, var(--navy-950) 68%); transition: opacity .45s ease, visibility .45s; }
+.splash.out { opacity: 0; visibility: hidden; }
+.splash .sp { display: flex; flex-direction: column; align-items: center; gap: 12px; animation: pop .6s cubic-bezier(.2, .9, .3, 1.2) both; }
+.splash .sp img { width: 160px; filter: drop-shadow(0 16px 30px rgba(240, 81, 122, .35)); animation: bob 2.4s ease-in-out infinite; }
+.splash .row { gap: 10px; }
+.splash .word { color: #fff; font-size: 42px; }
+.splash .word b { color: #FF8FAB; }
+.splash .vlogo { width: 44px; height: 44px; border-radius: 13px; }
+.splash .vlogo svg { width: 24px; height: 24px; }
+.splash small { color: #93A1C2; font-size: 12.5px; letter-spacing: .04em; }
+
+/* ---------- install card ---------- */
+.install { display: flex; gap: 12px; align-items: center; margin-top: 12px; background: linear-gradient(135deg, var(--rose-50), var(--navy-50)); border-color: transparent; }
+.install .ii { width: 44px; height: 44px; border-radius: 13px; background: var(--grad); color: #fff; display: grid; place-items: center; flex: none; box-shadow: 0 6px 14px rgba(226, 61, 109, .3); }
+.steps { margin: 12px 0 0; padding: 0; list-style: none; display: grid; gap: 10px; counter-reset: s; }
+.steps li { display: flex; gap: 12px; align-items: center; padding: 12px; border-radius: 14px; background: var(--surface); border: 1px solid var(--line); counter-increment: s; }
+.steps li::before { content: counter(s); width: 26px; height: 26px; border-radius: 50%; background: var(--grad); color: #fff; font-weight: 800; font-size: 13px; display: grid; place-items: center; flex: none; }
+
+/* Landscape phones: a short card, so keep only the essentials on it. */
+@media (orientation: landscape) and (max-height: 500px) {
+  .dbar, .sc .panel, .sc .phd .ini, .sc .more { display: none; }
+  .deck { margin-top: 6px; }
+  .sc .info { padding-bottom: 80px; }
+  .actions { bottom: 12px; }
+  .act { width: 52px; height: 52px; } .act.like { width: 58px; height: 58px; } .act.small { width: 42px; height: 42px; }
+}
