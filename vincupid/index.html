@@ -1,0 +1,1223 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>VinCupid</title>
+<meta name="description" content="VinCupid — a dating app prototype for the VinUni community, with an AI safety agent.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f6efeb; --surface:#ffffff; --sunken:#f8f1ee; --line:#ecdfd9;
+  --ink:#2a1a1f; --muted:#6c565c; --subtle:#857077;
+  --brand:#d93a55; --brand-2:#f2765b; --brand-ink:#ffffff; --brand-soft:#fde6ea;
+  --navy:#1f2d5c;
+  --green:#18794e; --green-soft:#e3f4eb; --red:#b83232; --red-soft:#fbe7e5;
+  --amber:#8f5600; --amber-soft:#fcf0d9; --gold:#b8860b; --gold-soft:#fbf1d6;
+  --r-sm:10px; --r:16px; --r-lg:24px;
+  --shadow:0 12px 32px rgba(70,20,35,.12);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#120c0e; --surface:#1d1416; --sunken:#171012; --line:#36262b;
+    --ink:#f8edf0; --muted:#cdb7bd; --subtle:#a8929a;
+    --brand:#ff6680; --brand-2:#ff8a6b; --brand-ink:#22080e; --brand-soft:#3b1b23;
+    --navy:#aab8ff;
+    --green:#62d69f; --green-soft:#132b22; --red:#ff8080; --red-soft:#381818;
+    --amber:#f2b552; --amber-soft:#33260e; --gold:#f0c24b; --gold-soft:#2f2610;
+    --shadow:0 12px 32px rgba(0,0,0,.45);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#120c0e; --surface:#1d1416; --sunken:#171012; --line:#36262b;
+  --ink:#f8edf0; --muted:#cdb7bd; --subtle:#a8929a;
+  --brand:#ff6680; --brand-2:#ff8a6b; --brand-ink:#22080e; --brand-soft:#3b1b23;
+  --navy:#aab8ff;
+  --green:#62d69f; --green-soft:#132b22; --red:#ff8080; --red-soft:#381818;
+  --amber:#f2b552; --amber-soft:#33260e; --gold:#f0c24b; --gold-soft:#2f2610;
+  --shadow:0 12px 32px rgba(0,0,0,.45);
+}
+*,*::before,*::after{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:'Nunito Sans',ui-sans-serif,system-ui,sans-serif;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+button,input,textarea,select{font:inherit;color:inherit}
+a{color:var(--brand)}
+.phone{max-width:440px;margin:0 auto;min-height:100dvh;background:var(--surface);position:relative;display:flex;flex-direction:column;box-shadow:0 0 0 1px var(--line)}
+header.top{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:8px;padding:12px 16px;background:color-mix(in srgb,var(--surface) 88%,transparent);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+.logo{font-weight:900;font-size:20px;letter-spacing:-.02em;display:flex;align-items:center;gap:6px;color:var(--ink);text-decoration:none}
+.logo b{color:var(--brand)}
+.spacer{flex:1}
+.pill{display:inline-flex;align-items:center;gap:5px;padding:5px 10px;border-radius:999px;font-size:12px;font-weight:800;border:1px solid var(--line);background:var(--sunken);color:var(--muted);cursor:pointer;white-space:nowrap}
+.pill.on{background:var(--green-soft);color:var(--green);border-color:transparent}
+.pill.gold{background:var(--gold-soft);color:var(--gold);border-color:transparent}
+main{flex:1;padding:16px 16px 96px}
+nav.bottom{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:440px;display:grid;grid-template-columns:repeat(4,1fr);background:var(--surface);border-top:1px solid var(--line);padding:6px 4px calc(6px + env(safe-area-inset-bottom));z-index:30}
+nav.bottom button{background:none;border:0;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:11px;font-weight:700;color:var(--subtle);padding:6px 0;cursor:pointer;position:relative}
+nav.bottom button .ic{font-size:20px;line-height:1}
+nav.bottom button.active{color:var(--brand)}
+nav.bottom .badge{position:absolute;top:2px;right:calc(50% - 22px);background:var(--brand);color:var(--brand-ink);font-size:10px;border-radius:999px;padding:1px 5px}
+h1{font-size:26px;line-height:1.15;margin:4px 0 6px;letter-spacing:-.02em}
+h2{font-size:18px;margin:20px 0 8px}
+h3{font-size:15px;margin:14px 0 6px}
+p{line-height:1.5;margin:6px 0}
+.muted{color:var(--muted)} .subtle{color:var(--subtle);font-size:13px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:0;border-radius:999px;padding:13px 20px;font-weight:800;cursor:pointer;background:var(--sunken);color:var(--ink);border:1px solid var(--line);text-decoration:none;font-size:15px}
+.btn.primary{background:linear-gradient(135deg,var(--brand),var(--brand-2));color:var(--brand-ink);border:0}
+.btn.gold{background:linear-gradient(135deg,#d9a520,#f3c94f);color:#2b1d00;border:0}
+.btn.danger{background:var(--red-soft);color:var(--red);border-color:transparent}
+.btn.ghost{background:none;border-color:transparent;color:var(--muted)}
+.btn.sm{padding:8px 14px;font-size:13px}
+.btn.block{width:100%}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn:focus-visible,.chip:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible,nav.bottom button:focus-visible,.choice:focus-visible{outline:3px solid color-mix(in srgb,var(--brand) 55%,transparent);outline-offset:2px}
+.stack{display:flex;flex-direction:column;gap:10px}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px}
+.sunk{background:var(--sunken);border-radius:var(--r);padding:14px}
+label.f{display:flex;flex-direction:column;gap:6px;font-weight:700;font-size:13px;color:var(--muted)}
+input[type=text],input[type=email],input[type=password],input[type=url],input[type=number],input[type=date],textarea,select{width:100%;padding:12px 14px;border-radius:var(--r-sm);border:1px solid var(--line);background:var(--sunken);font-size:15px;color:var(--ink)}
+textarea{min-height:96px;resize:vertical;line-height:1.45}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{border:1px solid var(--line);background:var(--sunken);border-radius:999px;padding:8px 14px;font-weight:700;font-size:14px;cursor:pointer;color:var(--ink)}
+.chip.sel{background:var(--brand-soft);border-color:var(--brand);color:var(--brand)}
+.choice{display:flex;gap:12px;align-items:center;text-align:left;width:100%;padding:16px;border-radius:var(--r);border:2px solid var(--line);background:var(--sunken);cursor:pointer}
+.choice.sel{border-color:var(--brand);background:var(--brand-soft)}
+.choice .em{font-size:30px}
+.choice b{display:block;font-size:16px}
+.choice span{color:var(--muted);font-size:13px}
+.err{color:var(--red);font-weight:700;font-size:14px;min-height:1em}
+.tag{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:999px;font-size:12px;font-weight:800;background:var(--sunken);color:var(--muted)}
+.tag.green{background:var(--green-soft);color:var(--green)} .tag.red{background:var(--red-soft);color:var(--red)}
+.tag.navy{background:color-mix(in srgb,var(--navy) 14%,transparent);color:var(--navy)}
+.tag.brand{background:var(--brand-soft);color:var(--brand)}
+.flags{display:grid;gap:6px}
+.flag{display:flex;gap:8px;align-items:flex-start;padding:8px 10px;border-radius:12px;font-size:14px;font-weight:600;line-height:1.35}
+.flag.g{background:var(--green-soft);color:var(--green)} .flag.r{background:var(--red-soft);color:var(--red)}
+
+/* photos */
+.ph{position:relative;overflow:hidden;background:hsl(var(--h) 70% 82%);border-radius:var(--r)}
+.ph .fb{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:linear-gradient(150deg,hsl(var(--h) 75% 78%),hsl(calc(var(--h) + 40) 70% 62%));color:#fff;text-shadow:0 2px 10px rgba(0,0,0,.2)}
+.ph .fb span{font-size:56px;font-weight:900;letter-spacing:-.03em}
+.ph .fb small{font-weight:800;opacity:.85}
+.ph img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.ph.blur img,.ph.blur .fb{filter:blur(22px) saturate(1.2);transform:scale(1.15)}
+.ph .lock{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;color:#fff;font-weight:900;text-shadow:0 2px 8px rgba(0,0,0,.4);text-align:center;padding:10px}
+
+/* discover card */
+.deck{position:relative;height:min(620px,calc(100dvh - 240px));min-height:460px}
+.swipe{position:absolute;inset:0;border-radius:var(--r-lg);overflow:hidden;box-shadow:var(--shadow);background:var(--surface);touch-action:pan-y;user-select:none;transition:transform .25s ease}
+.swipe.dragging{transition:none}
+.swipe .ph{position:absolute;inset:0;border-radius:0}
+.swipe .bars{position:absolute;top:10px;left:10px;right:10px;display:flex;gap:4px;z-index:3}
+.swipe .bars i{flex:1;height:4px;border-radius:4px;background:rgba(255,255,255,.45)}
+.swipe .bars i.on{background:#fff}
+.swipe .tapl,.swipe .tapr{position:absolute;top:0;bottom:45%;width:40%;z-index:2;background:none;border:0;cursor:pointer}
+.swipe .tapl{left:0}.swipe .tapr{right:0}
+.swipe .info{position:absolute;left:0;right:0;bottom:0;z-index:3;padding:70px 16px 16px;color:#fff;background:linear-gradient(transparent,rgba(20,5,10,.82) 45%)}
+.swipe .info h2{margin:0;font-size:26px;color:#fff}
+.swipe .info .tag{background:rgba(255,255,255,.18);color:#fff;backdrop-filter:blur(4px)}
+.swipe .info .tag.green{background:rgba(40,190,120,.35)}.swipe .info .tag.red{background:rgba(230,70,70,.38)}
+.stamp{position:absolute;top:40px;z-index:4;font-size:30px;font-weight:900;padding:4px 14px;border:4px solid;border-radius:12px;opacity:0;transform:rotate(-14deg)}
+.stamp.like{left:20px;color:#3ddc97;border-color:#3ddc97}
+.stamp.nope{right:20px;color:#ff5d73;border-color:#ff5d73;transform:rotate(14deg)}
+.actions{display:flex;justify-content:center;align-items:center;gap:14px;margin-top:14px}
+.round{width:58px;height:58px;border-radius:50%;border:1px solid var(--line);background:var(--surface);box-shadow:var(--shadow);font-size:24px;cursor:pointer;display:flex;align-items:center;justify-content:center;position:relative}
+.round.big{width:68px;height:68px;font-size:30px}
+.round.sm{width:46px;height:46px;font-size:18px}
+.round .mini{position:absolute;bottom:-4px;right:-4px;font-size:12px;background:var(--gold-soft);border-radius:999px;padding:1px 4px}
+.counter{text-align:center;font-size:13px;color:var(--subtle);margin-top:10px;font-weight:700}
+
+/* guide */
+.guide{display:flex;gap:10px;align-items:flex-start;background:var(--brand-soft);border-radius:var(--r);padding:12px 14px;margin:10px 0 16px}
+.guide .av{flex:none;width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,var(--brand),var(--brand-2));display:flex;align-items:center;justify-content:center;font-size:20px}
+.guide p{margin:0;font-size:14px;color:var(--ink)}
+.guide b{color:var(--brand)}
+.progress{height:6px;background:var(--sunken);border-radius:6px;overflow:hidden;margin:4px 0 6px}
+.progress i{display:block;height:100%;background:linear-gradient(90deg,var(--brand),var(--brand-2))}
+
+/* chat */
+.chat{display:flex;flex-direction:column;gap:8px;padding-bottom:140px}
+.msg{max-width:80%;padding:10px 14px;border-radius:18px;line-height:1.4;font-size:15px;word-wrap:break-word}
+.msg.me{align-self:flex-end;background:linear-gradient(135deg,var(--brand),var(--brand-2));color:var(--brand-ink);border-bottom-right-radius:6px}
+.msg.them{align-self:flex-start;background:var(--sunken);border-bottom-left-radius:6px}
+.msg.flagged{outline:2px solid var(--red)}
+.msg time{display:block;font-size:11px;opacity:.7;margin-top:3px}
+.sys{align-self:center;max-width:92%;font-size:13px;padding:8px 12px;border-radius:12px;background:var(--amber-soft);color:var(--amber);font-weight:700;text-align:center}
+.sys.red{background:var(--red-soft);color:var(--red)}
+.compose{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:440px;background:var(--surface);border-top:1px solid var(--line);padding:10px 12px calc(10px + env(safe-area-inset-bottom));z-index:30}
+.compose .row{flex-wrap:nowrap}
+.compose input{flex:1;border-radius:999px}
+.alert{border-radius:var(--r);padding:12px 14px;margin-bottom:10px;font-size:14px}
+.alert.red{background:var(--red-soft);color:var(--red)}
+.alert.amber{background:var(--amber-soft);color:var(--amber)}
+.alert.green{background:var(--green-soft);color:var(--green)}
+.alert b{display:block;margin-bottom:2px}
+
+/* list */
+.li{display:flex;gap:12px;align-items:center;padding:10px;border-radius:var(--r);cursor:pointer;border:0;background:none;width:100%;text-align:left}
+.li:hover{background:var(--sunken)}
+.li .ph{width:56px;height:56px;border-radius:50%;flex:none}
+.li .ph .fb span{font-size:20px}.li .ph .fb small{display:none}
+.li .t{flex:1;min-width:0}
+.li .t b{display:block}
+.li .t span{display:block;color:var(--muted);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.likes{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.likes .ph{aspect-ratio:3/4}
+.likes .ph .fb span{font-size:28px}.likes .ph .fb small{display:none}
+.likes button{padding:0;border:0;background:none;cursor:pointer;position:relative}
+.likes .nm{position:absolute;left:6px;bottom:6px;color:#fff;font-weight:800;font-size:13px;text-shadow:0 1px 6px rgba(0,0,0,.5);z-index:2}
+
+/* profile */
+.gallery{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+.gallery .ph{aspect-ratio:3/4}
+.gallery .ph:first-child{grid-column:1/-1;aspect-ratio:4/5}
+.facts{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.fact{background:var(--sunken);border-radius:12px;padding:10px 12px}
+.fact small{display:block;color:var(--subtle);font-size:12px;font-weight:700}
+.fact b{font-size:15px}
+.slots{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.slot{aspect-ratio:3/4;border:2px dashed var(--line);border-radius:var(--r);display:flex;align-items:center;justify-content:center;flex-direction:column;cursor:pointer;color:var(--subtle);font-weight:800;font-size:13px;position:relative;overflow:hidden;background:var(--sunken)}
+.slot img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.slot input{position:absolute;opacity:0;inset:0;cursor:pointer}
+.slot .n{position:absolute;top:6px;left:6px;background:rgba(0,0,0,.55);color:#fff;border-radius:999px;font-size:11px;padding:1px 7px;z-index:2}
+table.cmp{width:100%;border-collapse:collapse;font-size:14px}
+table.cmp td,table.cmp th{padding:10px 6px;border-bottom:1px solid var(--line);text-align:left}
+table.cmp th:not(:first-child),table.cmp td:not(:first-child){text-align:center;width:80px}
+.stars{display:flex;gap:4px}
+.stars button{font-size:32px;background:none;border:0;cursor:pointer;color:var(--line);padding:0}
+.stars button.on{color:var(--gold)}
+
+/* overlay */
+.scrim{position:fixed;inset:0;background:rgba(15,5,8,.55);z-index:50;display:flex;align-items:flex-end;justify-content:center;animation:fade .15s ease}
+.sheet{background:var(--surface);width:100%;max-width:440px;border-radius:24px 24px 0 0;padding:20px 16px calc(20px + env(safe-area-inset-bottom));max-height:88dvh;overflow:auto;animation:up .2s ease}
+.sheet.center{text-align:center}
+@keyframes fade{from{opacity:0}}@keyframes up{from{transform:translateY(30px);opacity:.4}}
+.toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:var(--ink);color:var(--surface);padding:10px 16px;border-radius:999px;font-weight:700;font-size:14px;z-index:60;max-width:calc(100% - 32px);text-align:center;animation:up .2s ease}
+.hero-signin{padding:28px 4px 10px;text-align:center}
+.hero-signin .big{font-size:64px}
+.match-hearts{font-size:56px}
+.loading{display:inline-block;width:14px;height:14px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:spin .7s linear infinite;vertical-align:-2px}
+@keyframes spin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div class="phone" id="app"></div>
+<div id="overlay"></div>
+<script>
+'use strict';
+/* =========================================================
+   Constants
+   ========================================================= */
+const TODAY = new Date();
+const FREE_SWIPES = 5;          // per day, free tier
+const FREE_CLEAR_PHOTOS = 2;    // photos 1–2 are clear, 3–5 blurred for free users
+const STORE = 'vincupid.v1';
+const COLLEGES = {
+  CECS: 'Engineering & Computer Science',
+  CBM: 'Business & Management',
+  CHS: 'Health Sciences',
+  CAS: 'Arts & Sciences',
+};
+const MAJORS = {
+  CECS: ['Computer Science', 'Data Science', 'Electrical Engineering', 'Mechanical Engineering', 'Robotics'],
+  CBM: ['Business Administration', 'Marketing', 'Finance', 'Hospitality Management'],
+  CHS: ['Medicine', 'Nursing', 'Pharmacy'],
+  CAS: ['Psychology', 'Communication', 'Linguistics', 'Mathematics'],
+};
+const GOALS = { long: '💞 Long-term relationship', casual: '☕ Casual dating', friends: '🤝 New friends', study: '📚 Study buddy' };
+const FACULTY_ROLES = ['TA', 'Lecturer', 'Researcher', 'Staff'];
+const INTEREST = { male: 'Men', female: 'Women', everyone: 'Open to everyone' };
+const ZODIAC = [['Capricorn','♑'],['Aquarius','♒'],['Pisces','♓'],['Aries','♈'],['Taurus','♉'],['Gemini','♊'],['Cancer','♋'],['Leo','♌'],['Virgo','♍'],['Libra','♎'],['Scorpio','♏'],['Sagittarius','♐']];
+// Last day of the sign that a month starts in (Jan 1–19 Capricorn, …).
+const CUSP = [19,18,20,19,20,20,22,22,22,22,21,21];
+
+/* =========================================================
+   Mock users — 4 students, 4 faculty
+   ========================================================= */
+const MOCK = [
+  { id:'minh-tri', name:'Nguyen Hoang Minh Tri', short:'Minh Tri', mode:'student', gender:'male', dob:'2008-01-04',
+    college:'CECS', major:'Data Science', heightCm:168, interestedIn:'everyone', goal:'long',
+    favorites:['Badminton at the sports hall','Late-night bánh mì runs','Kaggle competitions','City-pop playlists','Phở on rainy days'],
+    bio:"Data Science kid who will absolutely make a chart about our first date. Usually found lounging on classroom ledges or arguing that phở beats bún chả. Looking for someone to explore Hanoi cafés with — I'll bring the playlist.",
+    green:['Replies within the hour','Remembers your coffee order','Hypes up your side projects'],
+    red:['Turns arguments into regression models','"5 more minutes" is never 5','Too many open tabs, literally and emotionally'],
+    socials:[{label:'Facebook', url:'facebook.com/notmtri'}],
+    linkedin:{ url:'linkedin.com/in/nguyen-hoang-minh-tri-vinuni', headline:'Data Science student @ VinUniversity',
+      experience:['Builder — web & AI side projects','Student volunteer — VinUni Open Day'], education:['VinUniversity — B.Sc. Data Science (2026–2030)'] },
+    photos:[1,2,3,4,5].map(i => `photos/minh-tri/${i}.jpg`),
+    vouchContacts:[{rel:'Best friend', name:'Huy'}], likes:[] },
+  { id:'bao-anh', name:'Le Bao Anh', short:'Bao Anh', mode:'student', gender:'female', dob:'2007-03-15',
+    college:'CHS', major:'Nursing', heightCm:160, interestedIn:'male', goal:'long',
+    favorites:['Sunrise jogs around the lake','Film cameras','Cooking canh chua','Taylor Swift eras','Volunteering at clinics'],
+    bio:'Future nurse, current coffee addict. I will patch you up and then lecture you about sleep hygiene. Swipe right if you can keep up on a 6am jog.',
+    green:['Checks in when you are sick','Plans picnics','Laughs at bad puns'],
+    red:['Will diagnose you from one cough','Takes 200 photos of one sunset','Competitive at board games'],
+    socials:[{label:'Instagram', url:'instagram.com/baoanh.film'}],
+    linkedin:{ url:'linkedin.com/in/le-bao-anh-nursing', headline:'Nursing student @ VinUni CHS', experience:['Volunteer — community health day'], education:['VinUniversity — B.Sc. Nursing'] },
+    vouchContacts:[{rel:'Best friend', name:'Trang'}], likes:['minh-tri'] },
+  { id:'gia-huy', name:'Pham Gia Huy', short:'Gia Huy', mode:'student', gender:'male', dob:'2006-08-22',
+    college:'CBM', major:'Business Administration', heightCm:175, interestedIn:'everyone', goal:'friends',
+    favorites:['Pickleball','Startup podcasts','Spicy hotpot','Basketball','Vinyl records'],
+    bio:'Running three clubs and a dropshipping store that made 40k VND. Looking for friends who want to build things, play pickleball and eat hotpot way too spicy.',
+    green:['Brings snacks to group projects','Introduces you to everyone','Always on time'],
+    red:['Pitches you his startup on date one','Too many group chats','Thinks hotpot is a personality'],
+    socials:[{label:'Instagram', url:'instagram.com/giahuy.builds'}],
+    linkedin:{ url:'linkedin.com/in/pham-gia-huy', headline:'BBA student & club president', experience:['President — VinUni Entrepreneurship Club'], education:['VinUniversity — BBA'] },
+    vouchContacts:[{rel:'Ex', name:'Vy'}], likes:[] },
+  { id:'khanh-linh', name:'Do Khanh Linh', short:'Khanh Linh', mode:'student', gender:'female', dob:'2005-11-02',
+    college:'CAS', major:'Psychology', heightCm:163, interestedIn:'everyone', goal:'casual',
+    favorites:['Personality quizzes','Indie bookstores','Bouldering','Ghibli movies','Bubble tea (50% sugar)'],
+    bio:'Psych major — yes I am analysing your texts, no I will not tell you what I found. Bouldering on weekends, Ghibli marathons on weeknights.',
+    green:['Asks follow-up questions','Gives great advice','Respects your alone time'],
+    red:['Will psychoanalyse your Spotify Wrapped','Rearranges your bookshelf','Says "interesting…" ominously'],
+    socials:[{label:'Instagram', url:'instagram.com/linh.reads'}],
+    linkedin:{ url:'linkedin.com/in/do-khanh-linh-psy', headline:'Psychology student @ VinUni CAS', experience:['Research assistant — wellbeing lab'], education:['VinUniversity — B.A. Psychology'] },
+    vouchContacts:[{rel:'Best friend', name:'Ngoc'},{rel:'Ex', name:'Duy'}], likes:['minh-tri'] },
+
+  { id:'thanh-ngan', name:'Tran Thi Thanh Ngan', short:'Thanh Ngan', mode:'faculty', facultyRole:'TA', gender:'female', dob:'2000-07-01',
+    college:'CBM', major:'Marketing', heightCm:null, interestedIn:'everyone', goal:'long',
+    favorites:['Matcha lattes','Brand storytelling','Weekend trips to Ninh Bình','K-dramas','Pilates'],
+    bio:'Marketing TA by day, unofficial campus café critic by night. I grade case studies and judge latte art with the same seriousness. Looking for someone kind, curious and good at planning surprise weekend trips.',
+    green:['Plans dates with a mood board','Always shares her fries','A great listener — it is literally her job'],
+    red:['Will A/B test your texts',"Can't walk past a bookstore",'Cries at every K-drama finale'],
+    socials:[{label:'Instagram', url:'instagram.com/ngan.brandstories'},{label:'TikTok', url:'tiktok.com/@nganmarketing'}],
+    linkedin:{ url:'linkedin.com/in/tran-thi-thanh-ngan-mkt', headline:'Teaching Assistant, Marketing @ VinUni CBM',
+      experience:['Teaching Assistant — VinUni College of Business & Management','Brand Executive — consumer-goods agency (2022–2024)'], education:['M.Sc. Marketing (2024)','B.A. Business Administration (2022)'] },
+    vouchContacts:[{rel:'Best friend', name:'Mai'},{rel:'Ex', name:'Long'}], likes:[] },
+  { id:'duc-minh', name:'Hoang Duc Minh', short:'Duc Minh', mode:'faculty', facultyRole:'Lecturer', gender:'male', dob:'1991-04-18',
+    college:'CECS', major:'Computer Science', heightCm:178, interestedIn:'female', goal:'long',
+    favorites:['Trail running','Mechanical keyboards','Hanoi street food tours','Chess','Jazz bars'],
+    bio:'CS lecturer who debugs code and sourdough with equal patience. Ask me about my keyboard collection at your own risk.',
+    green:['Cooks for you','Patient explainer','Remembers small details'],
+    red:['Owns 9 keyboards','Speaks in Big-O notation','Plays chess against himself'],
+    socials:[{label:'GitHub', url:'github.com/ducminh-lab'}],
+    linkedin:{ url:'linkedin.com/in/hoang-duc-minh-cs', headline:'Lecturer, Computer Science @ VinUni CECS', experience:['Lecturer — VinUni CECS','Software engineer (2014–2019)'], education:['Ph.D. Computer Science'] },
+    vouchContacts:[{rel:'Best friend', name:'Khoa'}], likes:['thanh-ngan'] },
+  { id:'phuong-thao', name:'Vu Phuong Thao', short:'Phuong Thao', mode:'faculty', facultyRole:'Researcher', gender:'female', dob:'1996-09-30',
+    college:'CHS', major:'Medicine', heightCm:165, interestedIn:'everyone', goal:'casual',
+    favorites:['Pottery classes','Rooftop cafés','Sci-fi novels','Salsa dancing','Mango sticky rice'],
+    bio:'Medical researcher, part-time potter, full-time mango enthusiast. Looking for a dance partner who does not step on toes (too often).',
+    green:['Spontaneous weekend plans','Honest and direct','Makes you handmade gifts'],
+    red:['Talks about lab results at dinner','Steals your hoodie','Always 10 minutes late'],
+    socials:[{label:'Instagram', url:'instagram.com/thao.claystudio'}],
+    linkedin:{ url:'linkedin.com/in/vu-phuong-thao-md', headline:'Research Fellow @ VinUni CHS', experience:['Research Fellow — VinUni CHS'], education:['M.D.','M.Sc. Public Health'] },
+    vouchContacts:[{rel:'Best friend', name:'Lan'}], likes:[] },
+  { id:'quoc-bao', name:'Nguyen Quoc Bao', short:'Quoc Bao', mode:'faculty', facultyRole:'Lecturer', gender:'male', dob:'1993-12-12',
+    college:'CAS', major:'Linguistics', heightCm:172, interestedIn:'female', goal:'long',
+    favorites:['Learning Japanese','Calligraphy','Hiking Tam Đảo','Board game nights','Egg coffee'],
+    bio:'Linguistics lecturer fluent in four languages and one dialect of sarcasm. Board game nights host. Will correct your grammar only if asked.',
+    green:['Writes handwritten notes','Great at meeting your friends','Always keeps promises'],
+    red:['Knows the etymology of everything','Brings a board game to every hangout','Very serious about egg coffee'],
+    socials:[{label:'Instagram', url:'instagram.com/bao.words'}],
+    linkedin:{ url:'linkedin.com/in/nguyen-quoc-bao-ling', headline:'Lecturer, Linguistics @ VinUni CAS', experience:['Lecturer — VinUni CAS'], education:['Ph.D. Linguistics'] },
+    vouchContacts:[{rel:'Ex', name:'Hanh'}], likes:['thanh-ngan'] },
+];
+const SEED_VOUCHES = {
+  'thanh-ngan': [{ rel:'Best friend', name:'Mai', stars:5, note:'She will remember your birthday before you do. The A/B testing thing is real though.', at:'2026-10-01' }],
+  'minh-tri': [{ rel:'Best friend', name:'Huy', stars:4.5, note:'Genuinely the most loyal guy I know. The "5 more minutes" red flag is 100% accurate.', at:'2026-10-10' }],
+};
+
+/* =========================================================
+   State
+   ========================================================= */
+const DEFAULT_STATE = { userId:null, users:{}, swipes:{}, history:{}, matches:{}, chats:{}, premium:{}, swipeLog:{},
+  apiKey:'', model:'gemini-3.5-flash', vouches:{}, draft:null, step:0, blocked:{}, reports:[] };
+let S = load();
+function load(){
+  try { return Object.assign(structuredClone(DEFAULT_STATE), JSON.parse(localStorage.getItem(STORE) || '{}')); }
+  catch { return structuredClone(DEFAULT_STATE); }
+}
+function save(){ try { localStorage.setItem(STORE, JSON.stringify(S)); } catch (e) { toast('Storage is full — try smaller photos'); } }
+
+/* =========================================================
+   Helpers
+   ========================================================= */
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const hash = s => { let h = 0; for (const c of String(s)) h = (h * 31 + c.charCodeAt(0)) | 0; return Math.abs(h); };
+const initials = n => n.split(/\s+/).filter(Boolean).slice(-2).map(w => w[0]).join('').toUpperCase();
+function starSign(iso){ const [, m, d] = iso.split('-').map(Number); return ZODIAC[d <= CUSP[m-1] ? m-1 : m % 12]; }
+function ageOf(iso){
+  const [y, m, d] = iso.split('-').map(Number);
+  let a = TODAY.getFullYear() - y; const mm = TODAY.getMonth() + 1, dd = TODAY.getDate();
+  if (mm < m || (mm === m && dd < d)) a--; return a;
+}
+const todayKey = () => TODAY.toISOString().slice(0, 10);
+const fmtTime = t => new Date(t).toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' });
+const roleLabel = u => u.mode === 'faculty' ? `Faculty · ${u.facultyRole || 'Staff'}` : 'Student';
+const heightLabel = u => u.heightCm ? `${u.heightCm} cm` : 'Prefers not to say';
+const href = u => /^https?:\/\//.test(u) ? u : 'https://' + u;
+
+function allUsers(){
+  const merged = MOCK.map(u => S.users[u.id] ? { ...u, ...S.users[u.id] } : u);
+  return merged.concat(Object.values(S.users).filter(u => !MOCK.some(m => m.id === u.id)));
+}
+const userById = id => allUsers().find(u => u.id === id);
+const me = () => S.userId ? userById(S.userId) : null;
+const isPremium = () => !!S.premium[S.userId];
+const aiOn = () => !!S.apiKey;
+
+/* =========================================================
+   Matching
+   ========================================================= */
+const wants = (a, b) => a.interestedIn === 'everyone' || a.interestedIn === b.gender;
+function deckFor(u){
+  const sw = S.swipes[u.id] || {}, bl = S.blocked[u.id] || {};
+  return allUsers().filter(x => x.id !== u.id && x.mode === u.mode && wants(u, x) && wants(x, u) && !sw[x.id] && !bl[x.id]);
+}
+function compat(a, b){
+  let s = 52;
+  if (a.college === b.college) s += 10;
+  if (a.goal === b.goal) s += 14;
+  const words = u => new Set(u.favorites.join(' ').toLowerCase().match(/[a-zà-ỹđ]{4,}/g) || []);
+  const wa = words(a); let shared = 0; words(b).forEach(w => wa.has(w) && shared++);
+  s += Math.min(18, shared * 6) + (hash(a.id + b.id) % 7);
+  return Math.min(98, s);
+}
+function likesMe(other, u){ return (other.likes || []).includes(u.id) || (!MOCK.some(m => m.id === u.id) && hash(u.id + other.id) % 2 === 0); }
+function swipesLeft(){
+  if (isPremium()) return Infinity;
+  const log = S.swipeLog[S.userId];
+  return FREE_SWIPES - (log && log.day === todayKey() ? log.count : 0);
+}
+function countSwipe(){
+  const log = S.swipeLog[S.userId];
+  S.swipeLog[S.userId] = log && log.day === todayKey() ? { day:log.day, count:log.count + 1 } : { day:todayKey(), count:1 };
+}
+const chatKey = (a, b) => [a, b].sort().join('|');
+const myMatches = () => (S.matches[S.userId] || []).map(userById).filter(Boolean);
+
+/* =========================================================
+   Gemini
+   ========================================================= */
+async function gemini(prompt, { json = true, timeout = 20000 } = {}){
+  if (!S.apiKey) throw new Error('No API key');
+  const ctrl = new AbortController(); const timer = setTimeout(() => ctrl.abort(), timeout);
+  try {
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(S.model)}:generateContent`, {
+      method:'POST', signal:ctrl.signal,
+      headers:{ 'Content-Type':'application/json', 'x-goog-api-key':S.apiKey },
+      body: JSON.stringify({ contents:[{ role:'user', parts:[{ text:prompt }] }],
+        generationConfig: json ? { responseMimeType:'application/json', temperature:0.7 } : { temperature:0.8 } }),
+    });
+    if (!res.ok) { let m = res.status + ''; try { m = (await res.json()).error.message; } catch {} throw new Error(m); }
+    const data = await res.json();
+    const text = (data.candidates?.[0]?.content?.parts || []).map(p => p.text || '').join('');
+    return json ? JSON.parse(text.replace(/^```json|```$/g, '').trim()) : text.trim();
+  } finally { clearTimeout(timer); }
+}
+
+/* =========================================================
+   VinCupid — safety & coaching agent
+   ========================================================= */
+const SEVERITY = { ok:0, coach:1, warn:2, block:3 };
+const RULES = [
+  { verdict:'block', category:'harassment', reason:'Sexual or harassing content. VinCupid has zero tolerance for this.',
+    re:/\b(nudes?|send (me )?(pics|photos)|sexy pics?|horny|sex|dick|boobs|body pics?|bed tonight|hook ?up tonight|slut|whore|bitch|ugly|fatso|kill you)\b/i },
+  { verdict:'warn', category:'scam', reason:'Money request — a classic romance-scam signal. Never send money to someone you have not met.',
+    re:/\b(send|transfer|lend|loan|borrow|chuyển khoản|wire)\b[^.!?]{0,40}\b(money|vnd|usd|dollars?|million|triệu|tiền|bank|momo|\$)/i },
+  { verdict:'warn', category:'scam', reason:'Gift cards, crypto or "investment" talk is a common scam pattern.',
+    re:/\b(gift ?cards?|crypto|bitcoin|usdt|forex|investment opportunity|double your money)\b/i },
+  { verdict:'warn', category:'trafficking', reason:'Asking for passport/ID details or offering jobs, modelling or travel abroad are trafficking red flags.',
+    re:/\b(passport|id card|cccd|cmnd|job offer|modell?ing (job|gig)|work abroad|overseas job|high[- ]paying job|cambodia|myanmar|plane ticket for you)\b/i },
+  { verdict:'warn', category:'scam', reason:'Rushing to move the chat off VinCupid removes your safety net.',
+    re:/\b(telegram|whatsapp|wechat|signal app|line app|kakao)\b/i },
+  { verdict:'warn', category:'ill_intent', reason:'Secrecy, isolation or pressure is a warning sign.',
+    re:/\b(come alone|don'?t tell (anyone|your friends)|keep (this|it) (a )?secret|my place tonight|hotel room|or else|you owe me)\b/i },
+  { verdict:'warn', category:'ill_intent', reason:'Using grades or academic status as leverage is never OK on VinCupid.',
+    re:/\b(your grades?|extra credit|i can help you pass|i grade|recommendation letter|pass (the|my) (course|class))\b/i },
+];
+const BORING = /^(hi+|hey+|hello+|helo|yo+|sup|wyd|hru|chào|chao|xin chào|alo|hm+|ok(ay)?|k|lol|haha|😊|👋|:\))[\s!.?]*$/i;
+
+function openers(u){
+  const f = u?.favorites || ['coffee'];
+  return [
+    `Okay, "${f[0]}" — what got you into that?`,
+    `Hot take: ${f[1] || f[0]} is overrated. Change my mind 😄`,
+    `If we grabbed a drink at the campus café, what would you order — and what does it say about you?`,
+  ];
+}
+function heuristic(text, other){
+  const t = text.trim();
+  for (const r of RULES) if (r.re.test(t)) return { verdict:r.verdict, category:r.category, reason:r.reason, suggestion:'' , source:'rules' };
+  if (BORING.test(t) || t.length < 4) return { verdict:'coach', category:'boring',
+    reason:'"' + t + '" is the #1 most-ignored opener. Try something about their profile.', suggestions:openers(other), source:'rules' };
+  return { verdict:'ok', category:'ok', reason:'', source:'rules' };
+}
+async function analyzeMessage(text, { sender, receiver }){
+  const h = heuristic(text, receiver);
+  if (h.verdict === 'block' || !aiOn()) return h;
+  try {
+    const ai = await gemini(`You are VinCupid, the safety and coaching agent of a VinUniversity campus dating app (students date students, faculty date faculty).
+Classify the chat message below. Return ONLY JSON:
+{"verdict":"ok|coach|warn|block","category":"ok|harassment|scam|trafficking|ill_intent|boring","reason":"one short sentence","suggestion":"a better message to send instead, or empty"}
+- block: sexual harassment, explicit requests, slurs, insults, threats.
+- warn: scam or trafficking signals (money, crypto, gift cards, passport/ID, job/modelling/overseas offers, pushing to Telegram/WhatsApp/Zalo, meeting alone somewhere private), manipulation, coercion, secrecy, or using grades/academic power as leverage.
+- coach: low-effort or boring messages ("hi", "hey", "wyd", one-word replies).
+- ok: everything else.
+Sender: ${sender.short} (${roleLabel(sender)}). Receiver: ${receiver.short}, favorites: ${receiver.favorites.join(', ')}.
+Message: """${text}"""`);
+    const v = SEVERITY[ai.verdict] >= SEVERITY[h.verdict] ? { ...ai, source:'gemini' } : h;
+    if (v.verdict === 'coach') v.suggestions = [ai.suggestion, ...openers(receiver)].filter(Boolean).slice(0, 3);
+    return v;
+  } catch (e) { console.warn('Gemini moderation failed, using rules', e); return h; }
+}
+
+/* =========================================================
+   Router & render
+   ========================================================= */
+let modal = '';
+const go = r => { if (location.hash === '#/' + r) render(); else location.hash = '#/' + r; };
+window.addEventListener('hashchange', () => { modal = ''; render(); window.scrollTo(0, 0); });
+
+function route(){ const [name = '', arg = ''] = location.hash.replace(/^#\/?/, '').split('/'); return { name, arg: decodeURIComponent(arg) }; }
+
+function render(){
+  const { name, arg } = route();
+  if (name === 'vouch') return paint(VouchPage(arg), { chrome:false });
+  if (!S.userId && name !== 'onboard') return paint(SignIn(), { chrome:false });
+  if (name === 'onboard') return paint(Onboarding(), { chrome:false });
+  const views = { discover:Discover, matches:Matches, chat:Chat, profile:ProfileView, me:MyProfile, premium:Premium, settings:Settings };
+  const View = views[name] || Discover;
+  paint(View(arg), { chrome:true, tab:name || 'discover', compose: name === 'chat' });
+}
+function paint(html, { chrome, tab, compose }){
+  const app = document.getElementById('app');
+  app.innerHTML = (chrome ? Header() : '') + `<main>${html}</main>` + (chrome && !compose ? Nav(tab) : '');
+  document.getElementById('overlay').innerHTML = modal;
+  afterRender();
+}
+function openModal(html){ modal = `<div class="scrim" data-act="closeModal" data-self="1"><div class="sheet" role="dialog" aria-modal="true">${html}</div></div>`; document.getElementById('overlay').innerHTML = modal; }
+function closeModal(){ modal = ''; document.getElementById('overlay').innerHTML = ''; }
+let toastTimer;
+function toast(t){
+  document.querySelector('.toast')?.remove(); clearTimeout(toastTimer);
+  const el = document.createElement('div'); el.className = 'toast'; el.setAttribute('role', 'status'); el.textContent = t; document.body.appendChild(el);
+  toastTimer = setTimeout(() => el.remove(), 2800);
+}
+
+/* ---------- chrome ---------- */
+function Header(){
+  return `<header class="top">
+    <a class="logo" href="#/discover" aria-label="VinCupid home">💘 Vin<b>Cupid</b></a>
+    <span class="spacer"></span>
+    <button class="pill ${aiOn() ? 'on' : ''}" data-act="nav" data-arg="settings" title="Gemini API key">${aiOn() ? '✦ AI on' : '🔑 AI off'}</button>
+    <button class="pill ${isPremium() ? 'gold' : ''}" data-act="nav" data-arg="premium">${isPremium() ? '👑 Premium' : '👑 Go Premium'}</button>
+  </header>`;
+}
+function Nav(tab){
+  const unread = myMatches().filter(u => { const c = S.chats[chatKey(S.userId, u.id)]; return !c || !c.length; }).length;
+  const item = (id, ic, label, extra = '') => `<button class="${tab === id ? 'active' : ''}" data-act="nav" data-arg="${id}" aria-current="${tab === id ? 'page' : 'false'}"><span class="ic">${ic}</span>${label}${extra}</button>`;
+  return `<nav class="bottom" aria-label="Main">
+    ${item('discover', '🔥', 'Discover')}
+    ${item('matches', '💬', 'Matches', unread ? `<span class="badge">${unread}</span>` : '')}
+    ${item('me', '🙂', 'Profile')}
+    ${item('settings', '⚙️', 'Settings')}
+  </nav>`;
+}
+function Guide(text){ return `<div class="guide"><div class="av" aria-hidden="true">💘</div><p><b>VinCupid:</b> ${text}</p></div>`; }
+function Photo(u, i, { blur = false, cls = '', lockText = 'Premium unblurs' } = {}){
+  const src = u.photos?.[i]; const hue = (hash(u.id) + i * 37) % 360;
+  return `<div class="ph ${blur ? 'blur' : ''} ${cls}" style="--h:${hue}">
+    <div class="fb"><span>${esc(initials(u.name))}</span><small>Photo ${i + 1}</small></div>
+    ${src ? `<img src="${esc(src)}" alt="${esc(u.short)}, photo ${i + 1}" onerror="this.remove()" draggable="false">` : ''}
+    ${blur ? `<div class="lock"><span style="font-size:28px">🔒</span>${lockText}</div>` : ''}
+  </div>`;
+}
+const photoLocked = i => !isPremium() && i >= FREE_CLEAR_PHOTOS;
+function Flags(u){
+  return `<div class="flags">${u.green.map(f => `<div class="flag g">🟢 <span>${esc(f)}</span></div>`).join('')}${u.red.map(f => `<div class="flag r">🚩 <span>${esc(f)}</span></div>`).join('')}</div>`;
+}
+
+/* =========================================================
+   Sign in
+   ========================================================= */
+let signin = { email:'', sent:false, err:'' };
+function SignIn(){
+  return `<div class="hero-signin">
+      <div class="big" aria-hidden="true">💘</div>
+      <h1>Vin<span style="color:var(--brand)">Cupid</span></h1>
+      <p class="muted">Dating for the VinUni community — students meet students, faculty meet faculty. Guarded by an AI cupid.</p>
+    </div>
+    <div class="card stack">
+      <label class="f">VinUni email
+        <input type="email" id="email" placeholder="yourname@vinuni.edu.vn" value="${esc(signin.email)}" autocomplete="email" ${signin.sent ? 'disabled' : ''}>
+      </label>
+      ${signin.sent ? `<label class="f">6-digit code <input type="text" id="otp" inputmode="numeric" maxlength="6" placeholder="Demo code: 123456" autocomplete="one-time-code"></label>
+        <button class="btn primary block" data-act="verifyOtp">Verify & continue</button>
+        <button class="btn ghost sm" data-act="resetSignin">Use a different email</button>`
+      : `<button class="btn primary block" data-act="sendOtp">Send sign-in code</button>`}
+      <div class="err" role="alert">${esc(signin.err)}</div>
+    </div>
+    <h2>Or try a demo account</h2>
+    <div class="stack">
+      ${['minh-tri', 'thanh-ngan'].map(id => { const u = userById(id); return `<button class="li card" data-act="demo" data-arg="${id}">
+        ${Photo(u, 0)}<div class="t"><b>${esc(u.name)}</b><span>${roleLabel(u)} · ${u.college} · ${esc(u.major)}</span></div><span aria-hidden="true">→</span></button>`; }).join('')}
+    </div>
+    <p class="subtle" style="margin-top:16px;text-align:center">Prototype — no real accounts, payments or messages. Data stays in this browser.</p>`;
+}
+
+/* =========================================================
+   Onboarding (10 steps, VinCupid guides)
+   ========================================================= */
+const STEPS = [
+  { title:'Who are you at VinUni?', tip:"Hi, I'm <b>VinCupid</b> — your guide and bodyguard here. First: student or faculty? I keep the two pools <b>separate</b>, so students only meet students and faculty only meet faculty." },
+  { title:'Your college & major', tip:'Pick your college and major. People bond fast over the same late-night labs and group projects.' },
+  { title:'What are you looking for?', tip:'Set your goal. Being honest here means better matches and fewer awkward chats. You can change it any time.' },
+  { title:'The basics', tip:'Your age and star sign are worked out from your birthday, so nobody can fudge them. VinCupid is <b>18+ only</b>. Height is optional.' },
+  { title:'5 hobbies & favorites', tip:"Five favorites = five conversation starters. I'll use them to rescue anyone who only texts \"hi\"." },
+  { title:'Write your bio', tip:'Short and specific wins. "I love food" is boring; "I will fight you over the best bánh mì near campus" is a date.' },
+  { title:'3 green flags, 3 red flags', tip:'Self-awareness is attractive. Your best friend (or ex 👀) can confirm these later with a review.' },
+  { title:'Add 5 photos', tip:'Free members see your first 2 photos clearly; the rest unlock with Premium. Make photo #1 just you — no group shots!' },
+  { title:'Socials & LinkedIn CV', tip:"Link your socials and import your CV from LinkedIn — it shows matches you're a real person." },
+  { title:'Safety pledge', tip:"Last step. I read along to block harassment and flag scams or trafficking signals — and I'll nudge you if a chat goes cold or gets boring." },
+];
+function blankDraft(){
+  return { mode:'', facultyRole:'', college:'', major:'', goal:'', name:'', dob:'', gender:'', interestedIn:'', heightCm:'', hideHeight:false,
+    favorites:['', '', '', '', ''], bio:'', green:['', '', ''], red:['', '', ''], photos:[null, null, null, null, null],
+    socials:[{ label:'Facebook', url:'' }, { label:'Instagram', url:'' }], linkedin:{ url:'' }, pledge:[false, false, false], email:'' };
+}
+function sel(field, value, label){ const on = S.draft[field] === value; return `<button class="chip ${on ? 'sel' : ''}" aria-pressed="${on}" data-act="set" data-arg="${field}:${value}">${label}</button>`; }
+let obErr = '';
+function Onboarding(){
+  if (!S.draft) S.draft = blankDraft();
+  const d = S.draft, i = S.step, st = STEPS[i];
+  let body = '';
+  if (i === 0) body = `<div class="stack">
+      ${[['student', '🎓', 'Student', 'Undergraduate or graduate student'], ['faculty', '🧑‍🏫', 'Faculty', 'TA, lecturer, researcher or staff']].map(([v, em, b, s]) =>
+        `<button class="choice ${d.mode === v ? 'sel' : ''}" aria-pressed="${d.mode === v}" data-act="set" data-arg="mode:${v}"><span class="em">${em}</span><span><b>${b}</b><span>${s}</span></span></button>`).join('')}
+      ${d.mode === 'faculty' ? `<h3>Your role</h3><div class="chips">${FACULTY_ROLES.map(r => sel('facultyRole', r, r)).join('')}</div>` : ''}
+    </div>`;
+  if (i === 1) body = `<div class="stack">
+      <div class="stack">${Object.entries(COLLEGES).map(([k, v]) => `<button class="choice ${d.college === k ? 'sel' : ''}" aria-pressed="${d.college === k}" data-act="set" data-arg="college:${k}"><span class="em" style="font-size:16px;font-weight:900;min-width:48px">${k}</span><span><b>${v}</b></span></button>`).join('')}</div>
+      ${d.college ? `<label class="f">Major<select data-field="major"><option value="">Choose your major</option>${MAJORS[d.college].map(m => `<option ${d.major === m ? 'selected' : ''}>${m}</option>`).join('')}</select></label>` : ''}
+    </div>`;
+  if (i === 2) body = `<div class="stack">${Object.entries(GOALS).map(([k, v]) => `<button class="choice ${d.goal === k ? 'sel' : ''}" aria-pressed="${d.goal === k}" data-act="set" data-arg="goal:${k}"><span><b>${v}</b></span></button>`).join('')}</div>`;
+  if (i === 3) body = `<div class="stack">
+      <label class="f">Full name<input type="text" data-field="name" value="${esc(d.name)}" placeholder="Nguyen Van A" autocomplete="name"></label>
+      <label class="f">Date of birth<input type="date" data-field="dob" value="${esc(d.dob)}" max="${todayKey()}"></label>
+      <div class="sunk" id="dobInfo">${dobInfo(d.dob)}</div>
+      <div><h3>I am</h3><div class="chips">${sel('gender', 'male', 'Male')}${sel('gender', 'female', 'Female')}${sel('gender', 'nonbinary', 'Non-binary')}</div></div>
+      <div><h3>Interested in</h3><div class="chips">${sel('interestedIn', 'male', 'Men')}${sel('interestedIn', 'female', 'Women')}${sel('interestedIn', 'everyone', 'Open to everyone')}</div></div>
+      <label class="f">Height (cm)<input type="number" data-field="heightCm" value="${esc(d.heightCm)}" min="120" max="230" placeholder="e.g. 168" ${d.hideHeight ? 'disabled' : ''}></label>
+      <label class="row" style="font-weight:700;font-size:14px"><input type="checkbox" data-field="hideHeight" ${d.hideHeight ? 'checked' : ''}> Not willing to say</label>
+    </div>`;
+  if (i === 4) body = `<div class="stack">${d.favorites.map((f, k) => `<label class="f">Favorite #${k + 1}<input type="text" data-field="favorites.${k}" value="${esc(f)}" maxlength="40" placeholder="${['Badminton', 'Egg coffee', 'K-dramas', 'Hiking Ba Vì', 'Film photography'][k]}"></label>`).join('')}
+      <button class="btn sm" data-act="suggestFavs">🎲 Suggest some</button></div>`;
+  if (i === 5) body = `<div class="stack"><label class="f">Bio <textarea data-field="bio" maxlength="300" placeholder="Something only you would say…">${esc(d.bio)}</textarea></label>
+      <div class="row"><span class="subtle" id="bioCount">${d.bio.length}/300</span><span class="spacer"></span><button class="btn sm" data-act="aiBio">✦ Write with VinCupid</button></div></div>`;
+  if (i === 6) body = `<div class="stack">
+      <h3>🟢 Green flags</h3>${d.green.map((f, k) => `<input type="text" data-field="green.${k}" value="${esc(f)}" maxlength="60" placeholder="${['Replies fast', 'Great listener', 'Shares food'][k]}" aria-label="Green flag ${k + 1}">`).join('')}
+      <h3>🚩 Red flags</h3>${d.red.map((f, k) => `<input type="text" data-field="red.${k}" value="${esc(f)}" maxlength="60" placeholder="${['Always late', 'Steals hoodies', 'Too competitive'][k]}" aria-label="Red flag ${k + 1}">`).join('')}
+      <button class="btn sm" data-act="suggestFlags">🎲 Suggest some</button></div>`;
+  if (i === 7) body = `<div class="slots">${d.photos.map((p, k) => `<label class="slot"><span class="n">${k + 1}${k >= FREE_CLEAR_PHOTOS ? ' · 🔒' : ''}</span>
+      ${p ? `<img src="${p}" alt="Your photo ${k + 1}">` : '<span style="font-size:26px">＋</span>Add'}
+      <input type="file" accept="image/*" data-photo="${k}" aria-label="Upload photo ${k + 1}"></label>`).join('')}</div>
+      <p class="subtle">🔒 = blurred for free members until they go Premium. You can skip and add photos later.</p>`;
+  if (i === 8) body = `<div class="stack">
+      ${d.socials.map((s, k) => `<label class="f">${s.label}<input type="text" data-field="socials.${k}.url" value="${esc(s.url)}" placeholder="${s.label.toLowerCase()}.com/yourname"></label>`).join('')}
+      <h3>Import CV from LinkedIn</h3>
+      <div class="row" style="flex-wrap:nowrap"><input type="url" data-field="linkedin.url" value="${esc(d.linkedin.url)}" placeholder="linkedin.com/in/your-name"><button class="btn sm" data-act="importLinkedin" style="flex:none">Import</button></div>
+      <div id="liCard">${d.linkedin.headline ? LinkedInCard(d.linkedin) : ''}</div>
+      <details><summary class="subtle" style="cursor:pointer">…or paste your CV text and let VinCupid AI parse it</summary>
+        <div class="stack" style="margin-top:8px"><textarea id="cvText" placeholder="Paste CV / résumé text here"></textarea><button class="btn sm" data-act="parseCv">✦ Parse with Gemini</button></div></details>
+      <p class="subtle">Demo import — LinkedIn has no public profile API, so this prototype simulates the import.</p></div>`;
+  if (i === 9) body = `<div class="stack">${['I will treat everyone with respect — no harassment, ever.', 'I will never ask for money, ID documents or try to move people off VinCupid quickly.', 'I understand VinCupid AI screens messages and may block, warn or coach me.'].map((t, k) =>
+      `<label class="card row" style="flex-wrap:nowrap;align-items:flex-start;cursor:pointer"><input type="checkbox" data-field="pledge.${k}" ${d.pledge[k] ? 'checked' : ''} style="margin-top:4px;width:20px;height:20px;flex:none"><span>${t}</span></label>`).join('')}</div>`;
+
+  return `<div class="row" style="margin-bottom:6px"><button class="btn ghost sm" data-act="obBack">← ${i === 0 ? (S.draft._editing ? 'Cancel' : 'Sign out') : 'Back'}</button><span class="spacer"></span><span class="subtle">Step ${i + 1} of ${STEPS.length}</span></div>
+    <div class="progress" aria-hidden="true"><i style="width:${(i + 1) / STEPS.length * 100}%"></i></div>
+    <h1>${st.title}</h1>
+    ${Guide(st.tip)}
+    ${body}
+    <div class="err" role="alert" style="margin:12px 0">${esc(obErr)}</div>
+    <button class="btn primary block" data-act="obNext">${i === STEPS.length - 1 ? (S.draft._editing ? 'Save profile' : 'Start matching 💘') : 'Continue'}</button>`;
+}
+function dobInfo(dob){
+  if (!dob) return '<span class="subtle">Enter your birthday to see your age & star sign</span>';
+  const a = ageOf(dob), [s, e] = starSign(dob);
+  return `<b>${a}</b> years old · <b>${e} ${s}</b>${a < 18 ? ' <span class="tag red">Under 18 — not allowed</span>' : ''}`;
+}
+function validateStep(i, d){
+  if (i === 0 && !d.mode) return 'Choose student or faculty.';
+  if (i === 0 && d.mode === 'faculty' && !d.facultyRole) return 'Choose your faculty role.';
+  if (i === 1 && (!d.college || !d.major)) return 'Choose your college and major.';
+  if (i === 2 && !d.goal) return 'Choose a goal.';
+  if (i === 3){
+    if (d.name.trim().split(/\s+/).length < 2) return 'Enter your full name.';
+    if (!d.dob) return 'Enter your date of birth.';
+    if (ageOf(d.dob) < 18) return 'VinCupid is only for people aged 18 and over.';
+    if (!d.gender || !d.interestedIn) return 'Tell us who you are and who you are interested in.';
+    if (!d.hideHeight && d.heightCm && (d.heightCm < 120 || d.heightCm > 230)) return 'Height looks off — use cm, or choose "Not willing to say".';
+  }
+  if (i === 4 && d.favorites.filter(f => f.trim()).length < 5) return 'Add all 5 favorites.';
+  if (i === 5 && d.bio.trim().length < 20) return 'Write at least a sentence or two.';
+  if (i === 6 && [...d.green, ...d.red].some(f => !f.trim())) return 'Fill in all 3 green and 3 red flags.';
+  if (i === 9 && d.pledge.some(p => !p)) return 'Please accept all three to continue.';
+  return '';
+}
+function finishOnboarding(){
+  const d = S.draft, editing = d._editing;
+  const id = editing || 'u-' + Date.now().toString(36);
+  const prev = editing ? userById(editing) : {};
+  const u = { ...prev, id, name:d.name.trim(), short:d.name.trim().split(/\s+/).slice(-2).join(' '), mode:d.mode, facultyRole:d.mode === 'faculty' ? d.facultyRole : undefined,
+    gender:d.gender, dob:d.dob, college:d.college, major:d.major, heightCm:d.hideHeight || !d.heightCm ? null : Number(d.heightCm), interestedIn:d.interestedIn,
+    goal:d.goal, favorites:d.favorites.map(s => s.trim()), bio:d.bio.trim(), green:d.green.map(s => s.trim()), red:d.red.map(s => s.trim()),
+    photos:d.photos.some(Boolean) ? d.photos.map((p, k) => p || prev.photos?.[k] || null) : (prev.photos || []), socials:d.socials.filter(s => s.url.trim()),
+    linkedin:d.linkedin, vouchContacts:prev.vouchContacts || [{ rel:'Best friend', name:'Bestie' }], likes:prev.likes || [], email:d.email || prev.email };
+  S.users[id] = u; S.userId = id; S.draft = null; S.step = 0; save();
+  toast(editing ? 'Profile saved' : `Welcome, ${u.short}! VinCupid has your back 💘`);
+  go(editing ? 'me' : 'discover');
+}
+function draftFrom(u){
+  return { ...blankDraft(), ...structuredClone(u), _editing:u.id, heightCm:u.heightCm || '', hideHeight:!u.heightCm,
+    photos:[0, 1, 2, 3, 4].map(k => (u.photos?.[k] || '').startsWith('data:') ? u.photos[k] : null),
+    socials:[0, 1].map(k => u.socials?.[k] || { label:['Facebook', 'Instagram'][k], url:'' }), linkedin:u.linkedin || { url:'' }, pledge:[true, true, true], facultyRole:u.facultyRole || '' };
+}
+function LinkedInCard(li){
+  return `<div class="card"><div class="row"><span class="tag navy">in</span><b>${esc(li.headline)}</b></div>
+    ${li.experience?.length ? `<h3>Experience</h3><ul style="margin:0;padding-left:18px">${li.experience.map(x => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}
+    ${li.education?.length ? `<h3>Education</h3><ul style="margin:0;padding-left:18px">${li.education.map(x => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}
+    ${li.url ? `<p class="subtle" style="margin-top:8px"><a href="${esc(href(li.url))}" target="_blank" rel="noopener">${esc(li.url)}</a></p>` : ''}</div>`;
+}
+
+/* =========================================================
+   Discover
+   ========================================================= */
+let photoIdx = 0;
+function Discover(){
+  const u = me(), deck = deckFor(u), left = swipesLeft();
+  const poolNote = `<p class="subtle" style="margin:0 0 10px">${u.mode === 'faculty' ? '🧑‍🏫 Faculty pool' : '🎓 Student pool'} · ${INTEREST[u.interestedIn]} · ${deck.length} nearby</p>`;
+  if (left <= 0) return poolNote + `<div class="card" style="text-align:center;padding:28px 16px">
+      <div style="font-size:48px">⏳</div><h2>That's your ${FREE_SWIPES} free swipes for today</h2>
+      <p class="muted">Free members get ${FREE_SWIPES} swipes a day. Come back tomorrow, or go Premium for unlimited swipes, back-swipe and unblurred photos.</p>
+      <button class="btn gold block" data-act="nav" data-arg="premium">👑 See Premium</button></div>`;
+  if (!deck.length) return poolNote + `<div class="card" style="text-align:center;padding:28px 16px">
+      <div style="font-size:48px">🌙</div><h2>You've seen everyone in your pool</h2>
+      <p class="muted">VinUni is small — new people join every week. You can give passed profiles a second look.</p>
+      <button class="btn primary block" data-act="restartDeck">Review passed profiles</button>
+      ${canRewind() ? '<button class="btn block" style="margin-top:8px" data-act="rewind">↩ Undo last swipe</button>' : ''}</div>`;
+  const c = deck[0]; if (photoIdx > 4) photoIdx = 0;
+  const [sign, emo] = starSign(c.dob);
+  return poolNote + `<div class="deck">
+      <article class="swipe" id="card" data-id="${c.id}" aria-label="${esc(c.short)}'s profile card">
+        ${Photo(c, photoIdx, { blur:photoLocked(photoIdx) })}
+        <div class="bars" aria-hidden="true">${[0, 1, 2, 3, 4].map(k => `<i class="${k === photoIdx ? 'on' : ''}"></i>`).join('')}</div>
+        <button class="tapl" data-act="photo" data-arg="-1" aria-label="Previous photo"></button>
+        <button class="tapr" data-act="photo" data-arg="1" aria-label="Next photo"></button>
+        <div class="stamp like">LIKE</div><div class="stamp nope">NOPE</div>
+        <div class="info">
+          <div class="row" style="margin-bottom:6px"><span class="tag">${c.mode === 'faculty' ? '🧑‍🏫 ' + c.facultyRole : '🎓 Student'}</span><span class="tag">${compat(u, c)}% match</span></div>
+          <h2>${esc(c.short)}, ${ageOf(c.dob)}</h2>
+          <p style="margin:2px 0 8px;opacity:.92">${c.college} · ${esc(c.major)} · ${emo} ${sign} · ${heightLabel(c)}</p>
+          <div class="row" style="gap:6px">${c.green.slice(0, 2).map(f => `<span class="tag green">🟢 ${esc(f)}</span>`).join('')}<span class="tag red">🚩 ${esc(c.red[0])}</span></div>
+          <button class="btn sm" style="margin-top:10px;background:rgba(255,255,255,.18);color:#fff;border:0" data-act="nav" data-arg="profile/${c.id}">View full profile ↑</button>
+        </div>
+      </article>
+    </div>
+    <div class="actions">
+      <button class="round sm" data-act="rewind" aria-label="Back-swipe (Premium)" title="Back-swipe">↩${isPremium() ? '' : '<span class="mini">👑</span>'}</button>
+      <button class="round big" data-act="swipe" data-arg="pass" aria-label="Pass">✕</button>
+      <button class="round big" data-act="swipe" data-arg="like" aria-label="Like" style="color:var(--brand)">♥</button>
+      <button class="round sm" data-act="nav" data-arg="profile/${c.id}" aria-label="View profile">ℹ</button>
+    </div>
+    <div class="counter">${isPremium() ? '👑 Unlimited swipes' : `${left} of ${FREE_SWIPES} free swipes left today`}</div>`;
+}
+const canRewind = () => (S.history[S.userId] || []).length > 0;
+function doSwipe(dir){
+  const u = me(), c = deckFor(u)[0]; if (!c) return;
+  if (swipesLeft() <= 0) return render();
+  S.swipes[u.id] = S.swipes[u.id] || {}; S.swipes[u.id][c.id] = dir;
+  (S.history[u.id] = S.history[u.id] || []).push(c.id);
+  countSwipe(); photoIdx = 0;
+  let matched = false;
+  if (dir === 'like' && likesMe(c, u)){
+    matched = true; (S.matches[u.id] = S.matches[u.id] || []).push(c.id);
+    (S.matches[c.id] = S.matches[c.id] || []).includes(u.id) || S.matches[c.id].push(u.id);
+  }
+  save(); render();
+  if (matched) openModal(`<div class="center" style="text-align:center">
+      <div class="match-hearts">💘</div><h1>It's a match!</h1>
+      <p class="muted">You and <b>${esc(c.short)}</b> liked each other.</p>
+      <div class="row" style="justify-content:center;gap:12px;margin:14px 0">
+        <div style="width:90px;aspect-ratio:3/4">${Photo(u, 0, { cls:'' })}</div><div style="width:90px;aspect-ratio:3/4">${Photo(c, 0)}</div></div>
+      ${Guide(`Skip the "hi". Try: <i>${esc(openers(c)[0])}</i>`)}
+      <button class="btn primary block" data-act="nav" data-arg="chat/${c.id}">Send a message</button>
+      <button class="btn ghost block" data-act="closeModal">Keep swiping</button></div>`);
+  else if (dir === 'like') toast(`Liked ${c.short} — they'll see you in "Likes you"`);
+}
+function bindSwipe(){
+  const card = document.getElementById('card'); if (!card) return;
+  let x0 = null, dx = 0, id = null;
+  const like = card.querySelector('.stamp.like'), nope = card.querySelector('.stamp.nope');
+  card.addEventListener('pointerdown', e => { if (e.target.closest('button')) return; x0 = e.clientX; dx = 0; id = e.pointerId; card.setPointerCapture(id); card.classList.add('dragging'); });
+  card.addEventListener('pointermove', e => {
+    if (x0 === null) return; dx = e.clientX - x0;
+    card.style.transform = `translateX(${dx}px) rotate(${dx / 18}deg)`;
+    like.style.opacity = Math.max(0, dx / 100); nope.style.opacity = Math.max(0, -dx / 100);
+  });
+  const end = () => {
+    if (x0 === null) return; card.classList.remove('dragging'); x0 = null;
+    if (Math.abs(dx) > 110){ card.style.transform = `translateX(${dx > 0 ? 600 : -600}px) rotate(${dx / 8}deg)`; setTimeout(() => doSwipe(dx > 0 ? 'like' : 'pass'), 180); }
+    else { card.style.transform = ''; like.style.opacity = 0; nope.style.opacity = 0; }
+  };
+  card.addEventListener('pointerup', end); card.addEventListener('pointercancel', end);
+}
+
+/* =========================================================
+   Matches
+   ========================================================= */
+function Matches(){
+  const u = me(), matches = myMatches();
+  const sw = S.swipes[u.id] || {};
+  const likers = allUsers().filter(x => x.mode === u.mode && x.id !== u.id && (x.likes || []).includes(u.id) && sw[x.id] !== 'like' && !(S.blocked[u.id] || {})[x.id]);
+  const locked = !isPremium();
+  return `<h1>Matches</h1>
+    <h2>Likes you <span class="tag brand">${likers.length}</span></h2>
+    ${likers.length ? `<div class="likes">${likers.map(x => `<button data-act="${locked ? 'nav' : 'nav'}" data-arg="${locked ? 'premium' : 'profile/' + x.id}" aria-label="${locked ? 'Someone likes you — unlock with Premium' : esc(x.short)}">
+        ${Photo(x, 0, { blur:locked, lockText:'' })}${locked ? '' : `<span class="nm">${esc(x.short)}</span>`}</button>`).join('')}</div>
+      ${locked ? `<button class="btn gold block" style="margin-top:10px" data-act="nav" data-arg="premium">👑 Unblur who likes you</button>` : ''}`
+      : '<p class="subtle">No new likes yet — keep your profile fresh.</p>'}
+    <h2>Conversations</h2>
+    ${matches.length ? matches.map(x => {
+      const msgs = S.chats[chatKey(u.id, x.id)] || [], last = msgs.filter(m => m.from !== 'sys').at(-1);
+      const cold = last && Date.now() - last.t > 48 * 3600e3;
+      return `<button class="li" data-act="nav" data-arg="chat/${x.id}">${Photo(x, 0)}<div class="t"><b>${esc(x.short)} ${cold ? '<span class="tag" style="background:var(--amber-soft);color:var(--amber)">🧊 gone cold</span>' : ''}</b>
+        <span>${last ? esc((last.from === u.id ? 'You: ' : '') + last.text) : '✨ New match — say something not boring'}</span></div></button>`; }).join('')
+      : `<div class="sunk"><p class="muted" style="margin:0">No matches yet. Head to Discover — tip: ${u.id === 'minh-tri' ? 'Bao Anh and Khanh Linh already like you 👀' : u.id === 'thanh-ngan' ? 'Duc Minh and Quoc Bao already like you 👀' : 'like a few people to get started'}.</p></div>`}`;
+}
+
+/* =========================================================
+   Chat
+   ========================================================= */
+let pendingCheck = false;
+function Chat(id){
+  const u = me(), x = userById(id);
+  if (!x || !(S.matches[u.id] || []).includes(id)) return `<p>Match not found.</p><button class="btn" data-act="nav" data-arg="matches">Back</button>`;
+  const msgs = S.chats[chatKey(u.id, id)] || [];
+  const real = msgs.filter(m => m.from !== 'sys'), last = real.at(-1);
+  const flaggedIn = msgs.find(m => m.from === id && m.flag && !m.dismissed);
+  let banner = '';
+  if (flaggedIn) banner = `<div class="alert red" role="alert"><b>🛡️ VinCupid safety alert</b>${esc(flaggedIn.flag.reason)} Never send money, ID documents or move to another app with someone you haven't met.
+      <div class="row" style="margin-top:8px"><button class="btn danger sm" data-act="report" data-arg="${id}">Report</button><button class="btn danger sm" data-act="block" data-arg="${id}">Block</button><button class="btn ghost sm" data-act="dismissFlag" data-arg="${id}">I feel safe</button></div></div>`;
+  else if (last && Date.now() - last.t > 48 * 3600e3) banner = last.from === u.id
+    ? `<div class="alert amber"><b>🧊 This chat has gone cold</b>${esc(x.short)} hasn't replied in 2+ days. Send one fresh opener — or let it go gracefully.</div>`
+    : `<div class="alert amber"><b>⏰ Don't burn the process</b>You've left ${esc(x.short)} on read for 2+ days. Reply, or unmatch kindly so they aren't left waiting.</div>`;
+  else if (!real.length) banner = Guide(`You matched with <b>${esc(x.short)}</b>! They love <i>${esc(x.favorites[0])}</i> and <i>${esc(x.favorites[2])}</i>. Lead with that — not "hi".`);
+  return `<div class="row" style="margin-bottom:10px;flex-wrap:nowrap">
+      <button class="btn ghost sm" data-act="nav" data-arg="matches" aria-label="Back">←</button>
+      <button class="li" style="padding:4px;flex:1" data-act="nav" data-arg="profile/${id}">${Photo(x, 0)}<div class="t"><b>${esc(x.short)}</b><span>${roleLabel(x)} · ${x.college}</span></div></button>
+      <button class="btn sm" data-act="chatMenu" data-arg="${id}" aria-label="Chat options">•••</button>
+    </div>
+    ${banner}
+    <div class="chat" id="chatLog" aria-live="polite">
+      ${msgs.map(m => m.from === 'sys' ? `<div class="sys ${m.red ? 'red' : ''}">🛡️ ${esc(m.text)}</div>`
+        : `<div class="msg ${m.from === u.id ? 'me' : 'them'} ${m.flag ? 'flagged' : ''}">${esc(m.text)}<time>${fmtTime(m.t)}${m.flag ? ' · ⚠ flagged' : ''}</time></div>`).join('')}
+      ${typing === id ? `<div class="msg them"><span class="loading"></span> ${esc(x.short)} is typing…</div>` : ''}
+    </div>
+    <div class="compose"><div class="row">
+      <input type="text" id="msgInput" placeholder="Message ${esc(x.short)}…" maxlength="500" aria-label="Message" value="${esc(draftMsg)}">
+      <button class="btn primary" data-act="send" data-arg="${id}" ${pendingCheck ? 'disabled' : ''}>${pendingCheck ? '<span class="loading"></span>' : 'Send'}</button>
+    </div><p class="subtle" style="margin:6px 4px 0">🛡️ VinCupid ${aiOn() ? 'AI (Gemini)' : 'safety rules'} screen every message</p></div>`;
+}
+let typing = null, draftMsg = '';
+function pushMsg(a, b, m){ const k = chatKey(a, b); (S.chats[k] = S.chats[k] || []).push(m); save(); }
+async function sendMessage(id, text, { skipCheck = false } = {}){
+  const u = me(), x = userById(id); text = text.trim(); if (!text) return;
+  if (!skipCheck){
+    pendingCheck = true; draftMsg = text; render();
+    const v = await analyzeMessage(text, { sender:u, receiver:x });
+    pendingCheck = false;
+    if (v.verdict === 'block'){ render(); return openModal(`<div style="text-align:center;font-size:44px">🛑</div><h2 style="text-align:center">VinCupid stopped this message</h2>
+        <div class="alert red">${esc(v.reason)}</div><p class="muted">Repeated violations lead to a ban and may be reported to VinUni. Be kind — there's a person on the other side.</p>
+        <button class="btn primary block" data-act="closeModal">Edit my message</button>`); }
+    if (v.verdict === 'coach'){ render(); return openModal(`<h2>💘 VinCupid coaching</h2><div class="alert amber">${esc(v.reason)}</div>
+        <h3>Try one of these</h3><div class="stack">${(v.suggestions || openers(x)).map(s => `<button class="choice" data-act="useSuggestion" data-arg="${esc(s)}"><span>${esc(s)}</span></button>`).join('')}</div>
+        <button class="btn ghost block" style="margin-top:10px" data-act="sendAnyway" data-arg="${id}">Send "${esc(text)}" anyway</button>`); }
+    if (v.verdict === 'warn'){ render(); return openModal(`<h2>⚠️ Think twice</h2><div class="alert amber">${esc(v.reason)}</div>
+        <p class="muted">If you send this, ${esc(x.short)} will see a VinCupid safety notice next to it.</p>
+        <button class="btn primary block" data-act="closeModal">Edit my message</button>
+        <button class="btn ghost block" style="margin-top:8px" data-act="sendFlagged" data-arg="${id}">Send anyway</button>`); }
+  }
+  draftMsg = '';
+  pushMsg(u.id, id, { from:u.id, text, t:Date.now() });
+  render(); scrollChat();
+  mockReply(id);
+}
+async function mockReply(id){
+  const u = me(), x = userById(id), msgs = S.chats[chatKey(u.id, id)];
+  typing = id; render(); scrollChat();
+  let reply = null;
+  if (aiOn()){
+    try {
+      const r = await gemini(`Role-play ${x.name} (${ageOf(x.dob)}, ${roleLabel(x)} at VinUniversity, ${x.college} ${x.major}) on the campus dating app VinCupid.
+Bio: ${x.bio}. Favorites: ${x.favorites.join(', ')}. Green flags: ${x.green.join(', ')}. Red flags: ${x.red.join(', ')}.
+Reply to the latest message in 1–2 short, warm, casual sentences, in the language the other person used. Set firm boundaries if they are rude or suspicious. Return JSON {"reply":"..."}.
+Chat so far:\n${msgs.filter(m => m.from !== 'sys').slice(-10).map(m => (m.from === u.id ? u.short : x.short) + ': ' + m.text).join('\n')}`);
+      reply = r.reply;
+    } catch (e) { console.warn('Gemini reply failed', e); }
+  }
+  if (!reply){
+    const canned = [`Haha okay, I like where this is going 😄`, `Wait, you're into that too? Tell me more!`, `Honestly ${x.favorites[0].toLowerCase()} is my whole personality right now.`,
+      `I'm free after my Thursday afternoon class — coffee at the campus café?`, `Tell me something about you that's not on your profile 👀`];
+    reply = canned[msgs.filter(m => m.from === id).length % canned.length];
+    await new Promise(r => setTimeout(r, 900));
+  }
+  typing = null;
+  pushMsg(u.id, id, { from:id, text:reply, t:Date.now() });
+  if (route().name === 'chat') { render(); scrollChat(); }
+}
+const scrollChat = () => window.scrollTo(0, document.body.scrollHeight);
+
+/* =========================================================
+   Profile view (incl. ex / best friend review)
+   ========================================================= */
+function ProfileView(id){
+  const u = me(), x = userById(id); if (!x) return '<p>Profile not found.</p>';
+  const [sign, emo] = starSign(x.dob), matched = (S.matches[u.id] || []).includes(id);
+  const vouches = (SEED_VOUCHES[id] || []).concat(S.vouches[id] || []);
+  const avg = vouches.length ? (vouches.reduce((a, v) => a + v.stars, 0) / vouches.length).toFixed(1) : null;
+  const self = id === u.id;
+  return `<div class="row" style="margin-bottom:8px"><button class="btn ghost sm" data-act="back">← Back</button><span class="spacer"></span>
+      ${matched ? `<button class="btn primary sm" data-act="nav" data-arg="chat/${id}">💬 Chat</button>` : ''}</div>
+    <div class="gallery">${[0, 1, 2, 3, 4].map(k => Photo(x, k, { blur:!self && photoLocked(k) })).join('')}</div>
+    ${!self && !isPremium() ? `<button class="btn gold block sm" style="margin-top:8px" data-act="nav" data-arg="premium">👑 Unblur all 5 photos</button>` : ''}
+    <h1 style="margin-top:16px">${esc(x.name)}, ${ageOf(x.dob)}</h1>
+    <div class="row"><span class="tag navy">${roleLabel(x)}</span><span class="tag brand">${GOALS[x.goal]}</span>${!self ? `<span class="tag">${compat(u, x)}% match</span>` : ''}${avg ? `<span class="tag" style="background:var(--gold-soft);color:var(--gold)">★ ${avg} vouched</span>` : ''}</div>
+    <p style="margin-top:12px">${esc(x.bio)}</p>
+    <div class="facts" style="margin-top:12px">
+      <div class="fact"><small>College</small><b>${x.college}</b> <span class="subtle">${COLLEGES[x.college]}</span></div>
+      <div class="fact"><small>Major</small><b>${esc(x.major)}</b></div>
+      <div class="fact"><small>Birthday</small><b>${new Date(x.dob + 'T00:00').toLocaleDateString('en-GB')}</b></div>
+      <div class="fact"><small>Star sign</small><b>${emo} ${sign}</b></div>
+      <div class="fact"><small>Height</small><b>${heightLabel(x)}</b></div>
+      <div class="fact"><small>Interested in</small><b>${INTEREST[x.interestedIn]}</b></div>
+    </div>
+    <h2>Green & red flags</h2>${Flags(x)}
+    <h2>Hobbies & favorites</h2><div class="chips">${x.favorites.map(f => `<span class="tag" style="font-size:14px;padding:7px 12px">${esc(f)}</span>`).join('')}</div>
+    ${x.linkedin?.headline ? `<h2>CV (imported from LinkedIn)</h2>${LinkedInCard(x.linkedin)}` : ''}
+    ${x.socials?.length ? `<h2>Socials</h2><div class="chips">${x.socials.map(s => `<a class="chip" href="${esc(href(s.url))}" target="_blank" rel="noopener">${esc(s.label)} ↗</a>`).join('')}</div>` : ''}
+    <h2>What their people say</h2>
+    ${vouches.length ? `<div class="stack">${vouches.map(v => `<div class="card"><div class="row"><b>${esc(v.name)}</b><span class="tag">${esc(v.rel)}</span><span class="spacer"></span><span style="color:var(--gold);font-weight:900">★ ${v.stars}</span></div>
+        <p style="margin:6px 0 0">“${esc(v.note)}”</p>${v.confirmed ? `<p class="subtle">Confirmed ${v.confirmed.green}/3 green flags · ${v.confirmed.red}/3 red flags</p>` : ''}</div>`).join('')}</div>` : '<p class="subtle">No reviews yet.</p>'}
+    ${!self ? `<div class="sunk" style="margin-top:10px"><b>💌 Ask someone who knows them</b><p class="muted" style="margin:4px 0 10px">Send ${esc(x.short)}'s best friend or ex a link to review them. Only contacts ${esc(x.short)} opted in are shown.</p>
+      <div class="stack">${(x.vouchContacts || []).map((c, k) => `<button class="btn block" data-act="askVouch" data-arg="${id}:${k}">Ask their ${esc(c.rel.toLowerCase())} (${esc(c.name)})</button>`).join('')}</div></div>
+      <div class="row" style="margin-top:14px"><button class="btn danger sm" data-act="report" data-arg="${id}">Report</button><button class="btn danger sm" data-act="block" data-arg="${id}">Block</button></div>` : ''}`;
+}
+const b64 = o => btoa(unescape(encodeURIComponent(JSON.stringify(o)))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+const unb64 = s => JSON.parse(decodeURIComponent(escape(atob(s.replace(/-/g, '+').replace(/_/g, '/')))));
+function vouchLink(token){ return location.href.split('#')[0] + '#/vouch/' + token; }
+
+function VouchPage(token){
+  let req; try { req = unb64(token); } catch { return '<h1>Invalid link</h1><p class="muted">This review link is broken or expired.</p>'; }
+  const x = userById(req.u), asker = userById(req.by), c = x?.vouchContacts?.[req.c];
+  if (!x || !c) return '<h1>Invalid link</h1>';
+  if (vouchDone) return `<div style="text-align:center;padding-top:40px"><div style="font-size:56px">💌</div><h1>Thank you, ${esc(c.name)}!</h1>
+      <p class="muted">Your review now appears on ${esc(x.short)}'s profile. You're a great ${esc(c.rel.toLowerCase())}.</p>
+      <button class="btn primary" data-act="vouchHome">Open VinCupid</button></div>`;
+  return `<div class="logo" style="margin:4px 0 14px">💘 Vin<b>Cupid</b></div>
+    <h1>Hi ${esc(c.name)}! Vouch for ${esc(x.short)}?</h1>
+    <p class="muted">${esc(asker?.short || 'Someone')} matched with ${esc(x.short)} on VinCupid and wants an honest take from their <b>${esc(c.rel.toLowerCase())}</b>. It takes 1 minute.</p>
+    <div style="width:120px;aspect-ratio:3/4;margin:10px 0">${Photo(x, 0)}</div>
+    <h2>Overall rating</h2>
+    <div class="stars" role="radiogroup" aria-label="Rating">${[1, 2, 3, 4, 5].map(n => `<button role="radio" aria-checked="${vouchForm.stars === n}" aria-label="${n} stars" class="${vouchForm.stars >= n ? 'on' : ''}" data-act="vStar" data-arg="${n}">★</button>`).join('')}</div>
+    <h2>Are these green flags true?</h2>
+    ${x.green.map((f, k) => `<label class="flag g" style="cursor:pointer"><input type="checkbox" data-vg="${k}" ${vouchForm.g[k] ? 'checked' : ''}> ${esc(f)}</label>`).join('')}
+    <h2>And the red flags? 👀</h2>
+    ${x.red.map((f, k) => `<label class="flag r" style="cursor:pointer;margin-top:6px"><input type="checkbox" data-vr="${k}" ${vouchForm.r[k] ? 'checked' : ''}> ${esc(f)}</label>`).join('')}
+    <h2>One line for their future date</h2>
+    <textarea id="vNote" maxlength="200" placeholder="e.g. Loyal, funny, terrible at directions.">${esc(vouchForm.note)}</textarea>
+    <div class="err" role="alert" style="margin:10px 0">${esc(vouchForm.err)}</div>
+    <button class="btn primary block" data-act="vSubmit" data-arg="${esc(token)}">${vouchForm.busy ? '<span class="loading"></span> VinCupid is checking…' : 'Submit review'}</button>
+    <p class="subtle">VinCupid screens reviews for harassment before they're shown. Prototype: reviews are saved in this browser.</p>`;
+}
+let vouchForm = { stars:0, g:[false, false, false], r:[false, false, false], note:'', err:'', busy:false }, vouchDone = false;
+
+/* =========================================================
+   My profile, Premium, Settings
+   ========================================================= */
+function MyProfile(){
+  const u = me();
+  return `<div class="row"><h1 style="flex:1">My profile</h1><button class="btn sm" data-act="editProfile">✏️ Edit</button></div>
+    ${Guide(`Profiles with 5 photos and all flags filled get <b>3× more matches</b>. ${u.photos?.filter(Boolean).length < 5 ? 'Add more photos!' : 'Yours looks great.'}`)}
+    ${ProfileView(u.id).replace(/<div class="row" style="margin-bottom:8px">[\s\S]*?<\/div>/, '')}
+    <h2>Account</h2>
+    <div class="stack">
+      <button class="btn block" data-act="nav" data-arg="premium">${isPremium() ? '👑 Manage Premium' : '👑 Go Premium'}</button>
+      <button class="btn block" data-act="signOut">Sign out</button>
+      <button class="btn danger block" data-act="resetAll">Reset prototype data</button>
+    </div>`;
+}
+function Premium(){
+  const p = isPremium();
+  const rows = [['See photos 3–5 unblurred', '2 of 5', '✓'], ['See who likes you (unblur matches)', 'Blurred', '✓'], ['Swipes per day', String(FREE_SWIPES), '∞'], ['Back-swipe (undo)', '—', '✓'], ['VinCupid safety AI', '✓', '✓'], ['Ex/best-friend reviews', '✓', '✓']];
+  return `<div style="text-align:center;padding:10px 0"><div style="font-size:56px">👑</div><h1>VinCupid Premium</h1>
+      <p class="muted">${p ? "You're Premium. Enjoy the clear view 😎" : 'See everyone clearly, swipe without limits, and undo that accidental pass.'}</p></div>
+    <div class="card"><table class="cmp"><thead><tr><th></th><th>Free</th><th>Premium</th></tr></thead>
+      <tbody>${rows.map(r => `<tr><td>${r[0]}</td><td class="muted">${r[1]}</td><td style="color:var(--gold);font-weight:900">${r[2]}</td></tr>`).join('')}</tbody></table></div>
+    <p style="text-align:center;margin:16px 0 8px"><b style="font-size:22px">49,000₫</b><span class="muted"> / month · student price</span></p>
+    <button class="btn ${p ? '' : 'gold'} block" data-act="togglePremium">${p ? 'Cancel Premium (demo)' : 'Upgrade now (demo — no payment)'}</button>
+    <p class="subtle" style="text-align:center">Mock checkout for the prototype. Nothing is charged.</p>`;
+}
+function Settings(){
+  return `<h1>Settings</h1>
+    <h2>✦ AI — Gemini API key</h2>
+    <div class="card stack">
+      <p class="muted" style="margin:0">VinCupid uses Google Gemini for message screening, chat coaching, mock replies, bio writing and CV parsing. Without a key it falls back to built-in safety rules.</p>
+      <label class="f">API key
+        <div class="row" style="flex-wrap:nowrap"><input type="password" id="apiKey" value="${esc(S.apiKey)}" placeholder="AIza…" autocomplete="off" spellcheck="false"><button class="btn sm" data-act="toggleKey" style="flex:none">Show</button></div></label>
+      <label class="f">Model<input type="text" id="model" value="${esc(S.model)}" spellcheck="false"></label>
+      <div class="row"><button class="btn primary sm" data-act="saveKey">Save</button><button class="btn sm" data-act="testKey">Test connection</button><button class="btn ghost sm" data-act="clearKey">Clear</button></div>
+      <p class="subtle" style="margin:0">Get a key at <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a>. The key is stored only in this browser and sent only to Google — fine for a prototype, never for production.</p>
+      <div id="keyStatus" role="status"></div>
+    </div>
+    <h2>🛡️ Try VinCupid</h2>
+    <div class="card stack"><p class="muted" style="margin:0">Type any message to see how VinCupid classifies it.</p>
+      <input type="text" id="tryMsg" placeholder='e.g. "hi" or "can you lend me 2 million VND?"'>
+      <button class="btn sm" data-act="tryVinCupid">Analyze</button><div id="tryOut"></div></div>
+    <h2>Appearance</h2>
+    <div class="chips">${['system', 'light', 'dark'].map(t => `<button class="chip ${(localTheme() || 'system') === t ? 'sel' : ''}" data-act="theme" data-arg="${t}">${t[0].toUpperCase() + t.slice(1)}</button>`).join('')}</div>
+    <h2>Safety</h2><p class="muted">If you ever feel unsafe, block and report the person, tell someone you trust, and contact VinUni Campus Security or call <b>113</b> (police) in an emergency.</p>`;
+}
+function localTheme(){ try { return localStorage.getItem('vincupid.theme'); } catch { return null; } }
+function applyTheme(){ const t = localTheme(); if (t && t !== 'system') document.documentElement.dataset.theme = t; else delete document.documentElement.dataset.theme; }
+
+/* =========================================================
+   After-render bindings
+   ========================================================= */
+function afterRender(){
+  bindSwipe();
+  const msg = document.getElementById('msgInput');
+  if (msg){ msg.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.isComposing){ e.preventDefault(); A.send(route().arg); } }); msg.addEventListener('input', () => draftMsg = msg.value); if (!pendingCheck) msg.focus({ preventScroll:true }); }
+  if (route().name === 'chat') scrollChat();
+}
+// Draft field binding (onboarding)
+document.addEventListener('input', e => {
+  const el = e.target;
+  if (el.dataset.vg !== undefined){ vouchForm.g[el.dataset.vg] = el.checked; return; }
+  if (el.dataset.vr !== undefined){ vouchForm.r[el.dataset.vr] = el.checked; return; }
+  if (el.id === 'vNote'){ vouchForm.note = el.value; return; }
+  const f = el.dataset.field; if (!f || !S.draft) return;
+  const val = el.type === 'checkbox' ? el.checked : el.value;
+  const path = f.split('.'); let o = S.draft; for (const p of path.slice(0, -1)) o = o[p]; o[path.at(-1)] = val;
+  save();
+  if (f === 'dob') document.getElementById('dobInfo').innerHTML = dobInfo(val);
+  if (f === 'bio') document.getElementById('bioCount').textContent = val.length + '/300';
+  if (f === 'hideHeight') render();
+});
+document.addEventListener('change', e => {
+  const el = e.target;
+  if (el.tagName === 'SELECT' && el.dataset.field && S.draft){ S.draft[el.dataset.field] = el.value; save(); }
+  if (el.dataset.photo !== undefined && el.files?.[0]) resizeImage(el.files[0]).then(url => { S.draft.photos[el.dataset.photo] = url; save(); render(); });
+});
+function resizeImage(file){
+  return new Promise((res, rej) => {
+    const img = new Image(); img.onload = () => {
+      const w = Math.min(720, img.width), h = Math.round(img.height * w / img.width);
+      const c = document.createElement('canvas'); c.width = w; c.height = h; c.getContext('2d').drawImage(img, 0, 0, w, h);
+      res(c.toDataURL('image/jpeg', .78)); URL.revokeObjectURL(img.src);
+    }; img.onerror = rej; img.src = URL.createObjectURL(file);
+  });
+}
+
+/* =========================================================
+   Actions
+   ========================================================= */
+const FAV_POOL = ['Badminton', 'Egg coffee', 'K-dramas', 'Hiking Ba Vì', 'Film photography', 'Bún chả', 'Pickleball', 'Lo-fi beats', 'Board games', 'Night markets', 'Anime', 'Gym', 'Bubble tea', 'Karaoke', 'Ghibli movies'];
+const GREEN_POOL = ['Replies fast', 'Great listener', 'Shares food', 'Plans thoughtful dates', 'Remembers details', 'Hypes up your wins'];
+const RED_POOL = ['Always 5 minutes late', 'Steals hoodies', 'Too competitive at games', 'Sends 40 TikToks a day', 'Overthinks texts', 'Spends rent on bubble tea'];
+const pick = (arr, n) => [...arr].sort(() => Math.random() - .5).slice(0, n);
+const A = {
+  nav: r => go(r),
+  back: () => history.length > 1 ? history.back() : go('discover'),
+  closeModal: (_, el, e) => { if (el.dataset.self && e.target !== el) return; closeModal(); },
+  // sign in
+  sendOtp: () => {
+    const v = document.getElementById('email').value.trim().toLowerCase(); signin.email = v;
+    signin.err = /^[^@\s]+@vinuni\.edu\.vn$/.test(v) ? '' : 'Use your @vinuni.edu.vn email.';
+    if (!signin.err){ signin.sent = true; toast('Demo code sent: 123456'); } render();
+  },
+  verifyOtp: () => {
+    const code = document.getElementById('otp').value.trim();
+    if (!/^\d{6}$/.test(code)){ signin.err = 'Enter the 6-digit code (demo: 123456).'; return render(); }
+    const existing = Object.values(S.users).find(u => u.email === signin.email);
+    if (existing){ S.userId = existing.id; save(); signin = { email:'', sent:false, err:'' }; return go('discover'); }
+    S.draft = { ...blankDraft(), email:signin.email }; S.step = 0; save(); signin = { email:'', sent:false, err:'' }; go('onboard');
+  },
+  resetSignin: () => { signin = { email:'', sent:false, err:'' }; render(); },
+  demo: id => { S.userId = id; save(); toast(`Signed in as ${userById(id).short}`); go('discover'); },
+  // onboarding
+  set: arg => { const [f, v] = arg.split(':'); S.draft[f] = v; if (f === 'college') S.draft.major = ''; if (f === 'mode' && v === 'student') S.draft.facultyRole = ''; obErr = ''; save(); render(); },
+  obNext: () => {
+    obErr = validateStep(S.step, S.draft); if (obErr) return render();
+    if (S.step === STEPS.length - 1) return finishOnboarding();
+    S.step++; save(); render(); window.scrollTo(0, 0);
+  },
+  obBack: () => {
+    obErr = '';
+    if (S.step > 0){ S.step--; save(); return render(); }
+    const editing = S.draft?._editing; S.draft = null; save();
+    if (editing) go('me'); else { S.userId = null; save(); go(''); }
+  },
+  suggestFavs: () => { S.draft.favorites = pick(FAV_POOL, 5); save(); render(); },
+  suggestFlags: () => { S.draft.green = pick(GREEN_POOL, 3); S.draft.red = pick(RED_POOL, 3); save(); render(); },
+  aiBio: async (_, el) => {
+    const d = S.draft;
+    el.innerHTML = '<span class="loading"></span> Writing…'; el.disabled = true;
+    let bio = '';
+    if (aiOn()){
+      try { bio = (await gemini(`Write a fun, specific dating-app bio (max 280 characters, first person, no hashtags) for a ${d.mode} at VinUniversity studying ${d.major || 'something cool'}. Their favorites: ${d.favorites.filter(Boolean).join(', ') || 'unknown'}. Goal: ${GOALS[d.goal] || 'dating'}. Return JSON {"bio":"..."}`)).bio; }
+      catch (e) { toast('Gemini failed: ' + e.message); }
+    }
+    if (!bio){
+      const f = d.favorites.filter(Boolean);
+      bio = `${d.major || 'VinUni'} ${d.mode === 'faculty' ? d.facultyRole || 'faculty' : 'student'} who's way too into ${f[0] || 'coffee'}${f[1] ? ' and ' + f[1] : ''}. Looking for someone to ${d.goal === 'study' ? 'survive finals with' : 'explore Hanoi with'} — bonus points if you can beat me at ${f[2] || 'karaoke'}.`;
+      if (!aiOn()) toast('Add a Gemini key in Settings for AI-written bios');
+    }
+    S.draft.bio = bio.slice(0, 300); save(); render();
+  },
+  importLinkedin: async (_, el) => {
+    const url = S.draft.linkedin.url.trim().replace(/^https?:\/\/(www\.)?/, '');
+    if (!/^linkedin\.com\/in\/[\w-]{3,}\/?$/i.test(url)) return toast('Enter a URL like linkedin.com/in/your-name');
+    el.innerHTML = '<span class="loading"></span>'; el.disabled = true;
+    await new Promise(r => setTimeout(r, 1100));
+    const known = MOCK.find(m => m.linkedin.url.toLowerCase() === url.toLowerCase());
+    const d = S.draft;
+    S.draft.linkedin = known ? { ...known.linkedin } : { url, headline:`${d.major || 'Student'} ${d.mode === 'faculty' ? d.facultyRole || '' : 'student'} @ VinUniversity`.replace(/\s+/g, ' '),
+      experience:[d.mode === 'faculty' ? `${d.facultyRole || 'Faculty'} — VinUni ${d.college}` : 'Student member — VinUni clubs'], education:[`VinUniversity — ${d.major || 'Degree'}`] };
+    save(); render(); toast('CV imported from LinkedIn (demo)');
+  },
+  parseCv: async (_, el) => {
+    const text = document.getElementById('cvText').value.trim();
+    if (!text) return toast('Paste some CV text first');
+    if (!aiOn()) return toast('Add a Gemini API key in Settings to parse CVs');
+    el.innerHTML = '<span class="loading"></span> Parsing…'; el.disabled = true;
+    try {
+      const r = await gemini(`Extract a short dating-profile CV summary from this résumé. Return JSON {"headline":"...","experience":["up to 3 short lines"],"education":["up to 2 short lines"]}.\n\n${text.slice(0, 6000)}`);
+      S.draft.linkedin = { ...S.draft.linkedin, ...r }; save(); render(); toast('CV parsed by Gemini');
+    } catch (e) { toast('Gemini failed: ' + e.message); el.textContent = '✦ Parse with Gemini'; el.disabled = false; }
+  },
+  editProfile: () => { S.draft = draftFrom(me()); S.step = 0; save(); go('onboard'); },
+  // discover
+  photo: d => { photoIdx = (photoIdx + Number(d) + 5) % 5; render(); },
+  swipe: dir => {
+    const card = document.getElementById('card');
+    if (card && swipesLeft() > 0){ card.style.transform = `translateX(${dir === 'like' ? 600 : -600}px) rotate(${dir === 'like' ? 20 : -20}deg)`; setTimeout(() => doSwipe(dir), 200); }
+    else doSwipe(dir);
+  },
+  rewind: () => {
+    if (!isPremium()) return openModal(`<div style="text-align:center;font-size:44px">↩</div><h2 style="text-align:center">Back-swipe is Premium</h2>
+      <p class="muted" style="text-align:center">Accidentally passed on someone cute? Premium lets you undo any swipe.</p>
+      <button class="btn gold block" data-act="nav" data-arg="premium">👑 See Premium</button><button class="btn ghost block" data-act="closeModal">Not now</button>`);
+    const h = S.history[S.userId] || []; const last = h.pop(); if (!last) return toast('Nothing to undo');
+    delete S.swipes[S.userId][last];
+    S.matches[S.userId] = (S.matches[S.userId] || []).filter(x => x !== last);
+    save(); photoIdx = 0; render(); toast(`Brought back ${userById(last).short}`);
+  },
+  restartDeck: () => { const sw = S.swipes[S.userId] || {}; Object.keys(sw).forEach(k => sw[k] === 'pass' && delete sw[k]); save(); render(); },
+  // chat
+  send: id => { const v = document.getElementById('msgInput')?.value || ''; if (!pendingCheck) sendMessage(id, v); },
+  sendAnyway: id => { closeModal(); sendMessage(id, draftMsg, { skipCheck:true }); },
+  sendFlagged: id => {
+    closeModal(); const u = me(), text = draftMsg; draftMsg = '';
+    pushMsg(u.id, id, { from:u.id, text, t:Date.now(), flag:{ reason:'Flagged by VinCupid' } });
+    pushMsg(u.id, id, { from:'sys', text:`VinCupid flagged this message for ${userById(id).short}'s safety.`, t:Date.now(), red:true });
+    render(); mockReply(id);
+  },
+  useSuggestion: s => { closeModal(); draftMsg = s; render(); },
+  chatMenu: id => openModal(`<h2>Chat options</h2><div class="stack">
+      <button class="btn block" data-act="nav" data-arg="profile/${id}">View profile & ask for a review</button>
+      <button class="btn block" data-act="demoScam" data-arg="${id}">🧪 Demo: receive a suspicious message</button>
+      <button class="btn block" data-act="demoGhost" data-arg="${id}">🧪 Demo: fast-forward 2 days of silence</button>
+      <button class="btn danger block" data-act="report" data-arg="${id}">Report</button>
+      <button class="btn danger block" data-act="block" data-arg="${id}">Block & unmatch</button>
+      <button class="btn ghost block" data-act="closeModal">Close</button></div>`),
+  demoScam: async id => {
+    closeModal(); const u = me();
+    const text = 'Hey! I got you a modeling job offer abroad, pays really well 💸 Can you send me a photo of your passport and add me on Telegram? Keep it secret for now.';
+    const v = await analyzeMessage(text, { sender:userById(id), receiver:u });
+    pushMsg(u.id, id, { from:id, text, t:Date.now(), flag:v.verdict === 'ok' || v.verdict === 'coach' ? null : v });
+    pushMsg(u.id, id, { from:'sys', text:`Safety alert: ${v.reason}`, t:Date.now(), red:true });
+    render();
+  },
+  demoGhost: id => { closeModal(); const k = chatKey(S.userId, id); (S.chats[k] || []).forEach(m => m.t -= 49 * 3600e3); if (!(S.chats[k] || []).length) pushMsg(S.userId, id, { from:id, text:'Hey! Loved your profile 😊', t:Date.now() - 50 * 3600e3 }); save(); render(); },
+  dismissFlag: id => { (S.chats[chatKey(S.userId, id)] || []).forEach(m => { if (m.flag) m.dismissed = true; }); save(); render(); },
+  report: id => openModal(`<h2>Report ${esc(userById(id).short)}</h2><p class="muted">Reports are confidential. VinCupid's team reviews them within 24 hours.</p>
+      <div class="stack">${['Harassment or sexual content', 'Scam or asking for money', 'Possible trafficking / job offers abroad', 'Fake profile', 'Ghosting after plans / disrespect', 'Abuse of academic position'].map(r => `<button class="choice" data-act="doReport" data-arg="${id}|${r}"><span>${r}</span></button>`).join('')}</div>
+      <button class="btn ghost block" style="margin-top:8px" data-act="closeModal">Cancel</button>`),
+  doReport: arg => { const [id, reason] = arg.split('|'); S.reports.push({ by:S.userId, id, reason, at:Date.now() }); save(); closeModal(); toast('Reported. Thank you for keeping VinUni safe 🛡️'); },
+  block: id => {
+    (S.blocked[S.userId] = S.blocked[S.userId] || {})[id] = true;
+    S.matches[S.userId] = (S.matches[S.userId] || []).filter(x => x !== id);
+    save(); closeModal(); toast(`${userById(id).short} is blocked`); go('matches');
+  },
+  // vouch
+  askVouch: arg => {
+    const [id, k] = arg.split(':'); const x = userById(id), c = x.vouchContacts[k];
+    const link = vouchLink(b64({ u:id, c:Number(k), by:S.userId, n:Math.random().toString(36).slice(2, 7) }));
+    const text = `Hi ${c.name}! ${me().short} matched with ${x.short} on VinCupid and would love an honest 1-minute review from their ${c.rel.toLowerCase()} 💘 ${link}`;
+    openModal(`<h2>💌 Ask ${esc(c.name)} (${esc(c.rel.toLowerCase())})</h2><p class="muted">Copy this message and send it to ${esc(c.name)}.</p>
+      <textarea readonly id="vouchMsg" style="min-height:130px">${esc(text)}</textarea>
+      <div class="stack" style="margin-top:10px"><button class="btn primary block" data-act="copyVouch">Copy message</button>
+      <a class="btn block" href="${esc(link)}" data-act="openVouch">Open the link (demo as ${esc(c.name)})</a>
+      <button class="btn ghost block" data-act="closeModal">Close</button></div>
+      <p class="subtle">Prototype: reviews are saved in the browser that opens the link.</p>`);
+  },
+  copyVouch: () => { const t = document.getElementById('vouchMsg'); navigator.clipboard?.writeText(t.value).then(() => toast('Copied!'), () => { t.select(); toast('Select & copy the text'); }); },
+  openVouch: (_, el) => { closeModal(); vouchForm = { stars:0, g:[false, false, false], r:[false, false, false], note:'', err:'', busy:false }; vouchDone = false; location.hash = el.getAttribute('href').split('#')[1]; },
+  vStar: n => { vouchForm.stars = Number(n); render(); },
+  vSubmit: async token => {
+    if (vouchForm.busy) return;
+    const req = unb64(token), x = userById(req.u), c = x.vouchContacts[req.c];
+    if (!vouchForm.stars){ vouchForm.err = 'Pick a star rating.'; return render(); }
+    if (vouchForm.note.trim().length < 5){ vouchForm.err = 'Write a short note.'; return render(); }
+    vouchForm.busy = true; vouchForm.err = ''; render();
+    const v = await analyzeMessage(vouchForm.note, { sender:{ short:c.name, mode:'student' }, receiver:x });
+    vouchForm.busy = false;
+    if (v.verdict === 'block' || v.verdict === 'warn'){ vouchForm.err = 'VinCupid can’t publish this: ' + v.reason; return render(); }
+    (S.vouches[x.id] = S.vouches[x.id] || []).push({ rel:c.rel, name:c.name, stars:vouchForm.stars, note:vouchForm.note.trim(), at:todayKey(),
+      confirmed:{ green:vouchForm.g.filter(Boolean).length, red:vouchForm.r.filter(Boolean).length } });
+    save(); vouchDone = true; render();
+  },
+  vouchHome: () => { vouchDone = false; go(S.userId ? 'discover' : ''); },
+  // premium & settings
+  togglePremium: () => { S.premium[S.userId] = !isPremium(); save(); render(); toast(isPremium() ? '👑 Welcome to Premium!' : 'Premium cancelled'); },
+  toggleKey: (_, el) => { const i = document.getElementById('apiKey'); i.type = i.type === 'password' ? 'text' : 'password'; el.textContent = i.type === 'password' ? 'Show' : 'Hide'; },
+  saveKey: () => { S.apiKey = document.getElementById('apiKey').value.trim(); S.model = document.getElementById('model').value.trim() || 'gemini-3.5-flash'; save(); render(); toast(S.apiKey ? 'API key saved — AI on ✦' : 'AI off'); },
+  clearKey: () => { S.apiKey = ''; save(); render(); toast('API key cleared'); },
+  testKey: async () => {
+    A.saveKey(); const out = document.getElementById('keyStatus');
+    if (!S.apiKey) return out.innerHTML = '<div class="alert amber">Enter a key first.</div>';
+    out.innerHTML = '<p class="subtle"><span class="loading"></span> Contacting Gemini…</p>';
+    try { const r = await gemini('Return JSON {"ok":true,"msg":"a 5-word cheerful greeting from VinCupid"}'); out.innerHTML = `<div class="alert green"><b>Connected ✓</b>${esc(r.msg || 'Gemini is ready.')}</div>`; }
+    catch (e) { out.innerHTML = `<div class="alert red"><b>Couldn't connect</b>${esc(e.message)}</div>`; }
+  },
+  tryVinCupid: async () => {
+    const t = document.getElementById('tryMsg').value; const out = document.getElementById('tryOut'); if (!t.trim()) return;
+    out.innerHTML = '<p class="subtle"><span class="loading"></span> Analyzing…</p>';
+    const demoMatch = allUsers().find(x => x.id !== S.userId && x.mode === me().mode);
+    const v = await analyzeMessage(t, { sender:me(), receiver:demoMatch });
+    const cls = { ok:'green', coach:'amber', warn:'amber', block:'red' }[v.verdict];
+    out.innerHTML = `<div class="alert ${cls}"><b>${{ ok:'✓ Looks good', coach:'💘 Coach', warn:'⚠️ Warn', block:'🛑 Block' }[v.verdict]} · ${esc(v.category)} · via ${v.source === 'gemini' ? 'Gemini' : 'rules'}</b>${esc(v.reason || 'Nothing concerning. Send it!')}
+      ${v.suggestions ? `<ul style="margin:6px 0 0;padding-left:18px">${v.suggestions.map(s => `<li>${esc(s)}</li>`).join('')}</ul>` : ''}</div>`;
+  },
+  theme: t => { try { localStorage.setItem('vincupid.theme', t); } catch {} applyTheme(); render(); },
+  signOut: () => { S.userId = null; save(); go(''); },
+  resetAll: () => { if (confirm('Reset all prototype data (matches, chats, profile edits)? Your API key is kept.')){ const k = S.apiKey, m = S.model; S = structuredClone(DEFAULT_STATE); S.apiKey = k; S.model = m; save(); go(''); } },
+};
+document.addEventListener('click', e => {
+  const t = e.target.closest('[data-act]'); if (!t) return;
+  const fn = A[t.dataset.act]; if (!fn) return;
+  if (t.dataset.self && e.target !== t) return; // clicks inside a sheet don't close it
+  if (t.tagName === 'A' || t.tagName === 'BUTTON') e.preventDefault();
+  fn(t.dataset.arg, t, e);
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && modal) closeModal(); });
+
+applyTheme();
+render();
+</script>
+</body>
+</html>
