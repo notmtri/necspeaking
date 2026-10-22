@@ -217,7 +217,9 @@
     if (UI.current().page === 'me') UI.render();
   });
   window.addEventListener('appinstalled', () => { deferred = null; UI.toast('Vinder is on your Home Screen.', true); });
-  UI.hooks.meExtra.push(() => (standalone() || !hosted) ? '' : `<div class="card pad install"><span class="ii">${ic('mobile')}</span>
+  // Only the hosted mobile/ build can be installed (it ships a manifest and service worker).
+  const installable = hosted && !!document.querySelector('link[rel="manifest"]');
+  UI.hooks.meExtra.push(() => (standalone() || !installable) ? '' : `<div class="card pad install"><span class="ii">${ic('mobile')}</span>
     <span class="grow"><b style="display:block">Add Vinder to your Home Screen</b><span class="small muted">Full screen, offline-ready, one tap away.</span></span>
     <button class="btn sm" id="inst">${deferred ? 'Install' : 'How'}</button></div>`);
   function bindInstall(page) {

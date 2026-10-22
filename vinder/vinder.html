@@ -779,7 +779,7 @@ button.chip:hover { border-color: var(--rose-100); }
 
 </script>
 <script>
-/* Vinder mock data. All people except Minh Tri and Thanh Ngan are fictional. */
+/* Vinder mock data. All people except Minh Tri and Thanh Ngan are fictional, and only Minh Tri's social links are real. */
 (function (root) {
   'use strict';
 
@@ -820,7 +820,6 @@ button.chip:hover { border-color: var(--rose-100); }
       bio: 'Future nurse. I will remind you to drink water and I will be right about it. Looking for someone who texts back and means it.',
       greenFlags: ['Caring without being asked', 'Always on time', 'Good at apologising'],
       redFlags: ['My cat outranks you', 'Asleep by 10:30', 'Spoils Netflix endings'],
-      socials: [{ kind: 'instagram', url: 'instagram.com/linh.nurses' }],
       vouchContacts: [{ name: 'Hà', rel: 'ex' }],
     },
     {
@@ -958,8 +957,6 @@ button.chip:hover { border-color: var(--rose-100); }
       bio: 'Marketing TA. I grade fairly, but I judge playlists harshly. Weekend plans: pilates, a long brunch, and a new campaign to obsess over.',
       greenFlags: ['Plans the whole trip', 'Great listener', 'Gives honest feedback'],
       redFlags: ['Colour-codes everything', 'Will A/B test your texts', 'Says "quick sync" on weekends'],
-      socials: [{ kind: 'instagram', url: 'instagram.com/ngan.markets' }],
-      linkedin: { url: 'linkedin.com/in/thanh-ngan-tran', headline: 'Teaching Assistant, Marketing · VinUniversity', experience: ['Teaching Assistant, CBM · VinUniversity', 'Brand intern · consumer goods company'], education: ['B.B.A. Marketing'] },
       vouchContacts: [{ name: 'Phương', rel: 'best friend' }],
     },
     {
@@ -1121,7 +1118,7 @@ button.chip:hover { border-color: var(--rose-100); }
         ['them', -3, 'Correct answer. Faculty mixer is Thursday, want to make it less awkward together?'],
       ],
       coldChat: [['them', -60, 'I loved your note about Hội An. Have you been to the old bookstore there?']],
-      scamChat: [['them', -2, 'Hi Ngan, I recruit lecturers for a paid modelling campaign in Phnom Penh. Contact me on WhatsApp, send a passport scan and a small deposit and the job is yours. Don\'t tell anyone yet 🤫']],
+      scamChat: [['them', -2, 'Hi there, I recruit lecturers for a paid modelling campaign in Phnom Penh. Contact me on WhatsApp, send a passport scan and a small deposit and the job is yours. Don\'t tell anyone yet 🤫']],
     },
   };
 
@@ -1888,8 +1885,8 @@ ${u.short}:`, { json: false });
               <button class="btn block" id="go">${ic('mail')} Send code</button>`}
             <div class="or">or try a demo account</div>
             <div class="opts two">
-              <button type="button" class="demo-btn" data-demo="minh-tri">${avatar(mt, 'sm')}<div><b>Minh Tri</b><span>Student · CECS</span></div></button>
-              <button type="button" class="demo-btn" data-demo="thanh-ngan">${avatar(tn, 'sm')}<div><b>Thanh Ngan</b><span>Faculty · TA</span></div></button>
+              <button type="button" class="demo-btn" data-demo="${mt.id}">${avatar(mt, 'sm')}<div><b>${esc(mt.short)}</b><span>Student · ${esc(mt.college)}</span></div></button>
+              <button type="button" class="demo-btn" data-demo="${tn.id}">${avatar(tn, 'sm')}<div><b>${esc(tn.short)}</b><span>Faculty · ${esc(tn.facultyRole)}</span></div></button>
             </div>
           </form>
           <p class="disclaimer"><img src="${A.logo}" alt="VinUniversity"><br>Student prototype for a VinUni design class. Not an official VinUniversity service.</p>

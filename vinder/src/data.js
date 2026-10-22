@@ -1,4 +1,4 @@
-/* Vinder mock data. All people except Minh Tri and Thanh Ngan are fictional. */
+/* Vinder mock data. All people except Minh Tri and Thanh Ngan are fictional, and only Minh Tri's social links are real. */
 (function (root) {
   'use strict';
 
@@ -39,7 +39,6 @@
       bio: 'Future nurse. I will remind you to drink water and I will be right about it. Looking for someone who texts back and means it.',
       greenFlags: ['Caring without being asked', 'Always on time', 'Good at apologising'],
       redFlags: ['My cat outranks you', 'Asleep by 10:30', 'Spoils Netflix endings'],
-      socials: [{ kind: 'instagram', url: 'instagram.com/linh.nurses' }],
       vouchContacts: [{ name: 'Hà', rel: 'ex' }],
     },
     {
@@ -177,8 +176,6 @@
       bio: 'Marketing TA. I grade fairly, but I judge playlists harshly. Weekend plans: pilates, a long brunch, and a new campaign to obsess over.',
       greenFlags: ['Plans the whole trip', 'Great listener', 'Gives honest feedback'],
       redFlags: ['Colour-codes everything', 'Will A/B test your texts', 'Says "quick sync" on weekends'],
-      socials: [{ kind: 'instagram', url: 'instagram.com/ngan.markets' }],
-      linkedin: { url: 'linkedin.com/in/thanh-ngan-tran', headline: 'Teaching Assistant, Marketing · VinUniversity', experience: ['Teaching Assistant, CBM · VinUniversity', 'Brand intern · consumer goods company'], education: ['B.B.A. Marketing'] },
       vouchContacts: [{ name: 'Phương', rel: 'best friend' }],
     },
     {
@@ -340,7 +337,7 @@
         ['them', -3, 'Correct answer. Faculty mixer is Thursday, want to make it less awkward together?'],
       ],
       coldChat: [['them', -60, 'I loved your note about Hội An. Have you been to the old bookstore there?']],
-      scamChat: [['them', -2, 'Hi Ngan, I recruit lecturers for a paid modelling campaign in Phnom Penh. Contact me on WhatsApp, send a passport scan and a small deposit and the job is yours. Don\'t tell anyone yet 🤫']],
+      scamChat: [['them', -2, 'Hi there, I recruit lecturers for a paid modelling campaign in Phnom Penh. Contact me on WhatsApp, send a passport scan and a small deposit and the job is yours. Don\'t tell anyone yet 🤫']],
     },
   };
 

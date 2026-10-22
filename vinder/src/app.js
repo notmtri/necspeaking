@@ -186,8 +186,8 @@
               <button class="btn block" id="go">${ic('mail')} Send code</button>`}
             <div class="or">or try a demo account</div>
             <div class="opts two">
-              <button type="button" class="demo-btn" data-demo="minh-tri">${avatar(mt, 'sm')}<div><b>Minh Tri</b><span>Student · CECS</span></div></button>
-              <button type="button" class="demo-btn" data-demo="thanh-ngan">${avatar(tn, 'sm')}<div><b>Thanh Ngan</b><span>Faculty · TA</span></div></button>
+              <button type="button" class="demo-btn" data-demo="${mt.id}">${avatar(mt, 'sm')}<div><b>${esc(mt.short)}</b><span>Student · ${esc(mt.college)}</span></div></button>
+              <button type="button" class="demo-btn" data-demo="${tn.id}">${avatar(tn, 'sm')}<div><b>${esc(tn.short)}</b><span>Faculty · ${esc(tn.facultyRole)}</span></div></button>
             </div>
           </form>
           <p class="disclaimer"><img src="${A.logo}" alt="VinUniversity"><br>Student prototype for a VinUni design class. Not an official VinUniversity service.</p>
