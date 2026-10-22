@@ -1857,9 +1857,11 @@ ${u.short}:`, { json: false });
     try { await navigator.clipboard.writeText(text); toast('Copied'); return true; } catch (e) { toast('Copy failed. Select the text and copy it.'); return false; }
   }
 
+  // "System" leaves the page alone, so a theme set by whatever hosts the page still applies.
   function applyTheme() {
     const r = document.documentElement;
-    if (C.S.theme === 'light' || C.S.theme === 'dark') r.dataset.theme = C.S.theme; else delete r.dataset.theme;
+    if (C.S.theme === 'light' || C.S.theme === 'dark') { r.dataset.theme = C.S.theme; r.dataset.vinderTheme = '1'; }
+    else if (r.dataset.vinderTheme) { delete r.dataset.theme; delete r.dataset.vinderTheme; }
   }
 
   function route() {
