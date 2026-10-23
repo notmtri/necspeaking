@@ -660,7 +660,7 @@ function guestProfile() {
   const p = me();
   return pageHead('My guest profile', 'Partners have a small profile so others know who is posting.', chg(2)) + `<div class="split"><section class="card card-pad">
     <div class="row mb16">${av(p.id, 'xl')}<div><div class="strong" style="font-size:18px">${esc(name(p.id))}</div><div class="muted">${esc(p.title)}</div><span class="badge mt8">Guest</span></div></div>
-    <dl class="kv"><dt>Email</dt><dd>${esc(p.email)}</dd><dt>Linked to</dt><dd>${esc(name(p.partnerOf))} (CCSE)</dd><dt>Interests</dt><dd>${(p.interests || []).map(i => `<span class="tag">${i}</span>`).join(' ')}</dd><dt>Languages</dt><dd>${(p.languages || []).join(', ')}</dd><dt>Access ends</dt><dd>Automatically when Sofia leaves VinUniversity, or if she removes you</dd></dl></section>
+    <dl class="kv"><dt>Email</dt><dd>${esc(p.email)}</dd><dt>Linked to</dt><dd>${esc(name(p.partnerOf))} (CECS)</dd><dt>Interests</dt><dd>${(p.interests || []).map(i => `<span class="tag">${i}</span>`).join(' ')}</dd><dt>Languages</dt><dd>${(p.languages || []).join(', ')}</dd><dt>Access ends</dt><dd>Automatically when Sofia leaves VinUniversity, or if she removes you</dd></dl></section>
     <aside class="card card-pad"><b>Privacy</b><p class="small muted mt8">You don’t appear in the faculty directory, and you can’t see faculty contact details. Your name shows on posts you write and events you join.</p><p class="small muted">Consent recorded ${fmt('2026-10-14')}.</p></aside></div>`;
 }
 
