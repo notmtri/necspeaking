@@ -534,6 +534,7 @@ body.embed .top { top: 0; }
 <div id="tourbox"></div>
 <script>
 const MODE = "proposal";
+const PUBLIC = false;
 /* ------------------------------------------------------------------
    Mock data. Every person, provider and school here is fictional.
    Neighbourhood names and public emergency numbers are real.
@@ -1106,7 +1107,16 @@ function openModal(html) { $('#modal').innerHTML = html; $('#modal').classList.a
 function openDrawer(html) { $('#drawer').innerHTML = html; $('#drawer').classList.add('open'); $('#scrim').classList.add('open'); }
 function closeOverlays() { $('#modal').classList.remove('open'); $('#drawer').classList.remove('open'); $('#scrim').classList.remove('open'); document.body.classList.remove('side-open'); }
 function download(filename, text, type = 'application/json') {
+  if (PUBLIC) {
+    openModal(modalShell(esc(filename), `<p class="small muted">Downloads are turned off in this online preview. Copy the contents instead.</p><textarea class="input" id="dl-text" readonly style="min-height:260px;font-family:ui-monospace,monospace;font-size:12px">${esc(text)}</textarea>`, `<button class="btn" data-act="close">Close</button><button class="btn primary" data-act="copytext">${ic('check', 'sm')}Copy</button>`));
+    return;
+  }
   const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], { type })); a.download = filename; document.body.appendChild(a); a.click(); a.remove();
+}
+let pendingConfirm = null;
+function askConfirm(title, msg, yes, onYes) {
+  pendingConfirm = onYes;
+  openModal(modalShell(esc(title), `<p>${esc(msg)}</p>`, `<button class="btn" data-act="close">Cancel</button><button class="btn red" data-act="confirmyes">${esc(yes)}</button>`));
 }
 const modalShell = (title, body, foot = '', sub = '') => `<div class="modal-h"><div><h2>${title}</h2>${sub ? `<div class="small muted mt8">${sub}</div>` : ''}</div><button class="icon-btn" data-act="close" aria-label="Close">${ic('x')}</button></div><div class="modal-b">${body}</div>${foot ? `<div class="modal-f">${foot}</div>` : ''}`;
 
@@ -1189,9 +1199,9 @@ function demoBar() {
     ${S.role ? `<label>Viewing as <select data-change="persona" aria-label="Switch persona">${PERSONAS.map(p => `<option value="${p.id}" ${p.id === S.role ? 'selected' : ''}>${esc(name(p.id))} · ${esc(p.label)}</option>`).join('')}</select></label>` : ''}
     <label><input type="checkbox" data-change="annotate" ${S.annotate ? 'checked' : ''}> Labels</label>
     <button data-act="tourstart">${ic('activity', 'sm')} Present</button>
-    <a class="btnlink" href="compare.html">Side by side</a>
+    ${PUBLIC ? '' : '<a class="btnlink" href="compare.html">Side by side</a>'}
     <button data-act="${REV ? 'changes' : 'map'}">${REV ? 'What changed?' : 'Proposal map'}</button>
-    <a class="btnlink" href="${REV ? 'proposal-as-written.html' : 'with-suggested-changes.html'}">${REV ? '← As written' : 'Revised →'}</a>
+    ${PUBLIC ? '' : `<a class="btnlink" href="${REV ? 'proposal-as-written.html' : 'with-suggested-changes.html'}">${REV ? '← As written' : 'Revised →'}</a>`}
     <button data-act="reset" title="Clear everything you changed in this demo">Reset</button>
   </div>`;
 }
@@ -1980,7 +1990,7 @@ function proposalMap() {
 }
 function changesModal() {
   return modalShell('What changed?', `<p class="small muted">This version keeps everything in the proposal and adds the eight suggestions from our feedback. Teal <span class="ann chg" style="cursor:default">Change</span> labels mark each one in the demo.</p>
-    ${CHANGES.map(c => `<div class="list-item" style="align-items:flex-start"><span class="badge" style="background:var(--chg-50);color:var(--chg)">${c.n}</span><div class="li-main"><span class="li-title">${esc(c.title)}</span><span class="li-sub" style="display:block;margin-top:2px">${esc(c.why)}</span></div><button class="btn sm" data-act="showme" data-who="${c.who}" data-go="${c.go}">Show me</button></div>`).join('')}`, `<a class="btn" href="proposal-as-written.html">Compare with the proposal as written</a>`, 'Revised concept with suggested changes');
+    ${CHANGES.map(c => `<div class="list-item" style="align-items:flex-start"><span class="badge" style="background:var(--chg-50);color:var(--chg)">${c.n}</span><div class="li-main"><span class="li-title">${esc(c.title)}</span><span class="li-sub" style="display:block;margin-top:2px">${esc(c.why)}</span></div><button class="btn sm" data-act="showme" data-who="${c.who}" data-go="${c.go}">Show me</button></div>`).join('')}`, PUBLIC ? '' : `<a class="btn" href="proposal-as-written.html">Compare with the proposal as written</a>`, 'Revised concept with suggested changes');
 }
 
 /* ==================================================================
@@ -1988,13 +1998,15 @@ function changesModal() {
 ================================================================== */
 const ACT = {
   close: closeOverlays,
+  copytext: () => { const t = $('#dl-text'); const done = () => toast('Copied'); try { navigator.clipboard.writeText(t.value).then(done, () => { t.select(); toast('Press Ctrl+C to copy'); }); } catch (e) { t.select(); toast('Press Ctrl+C to copy'); } },
   tourstart: () => applyStep(0),
   tourend: () => { S.tour = null; highlight(null); render(); },
   tourstep: el => { const n = S.tour + +el.dataset.v; if (n >= TOUR.length) ACT.tourend(); else applyStep(Math.max(0, n)); },
   side: () => { const open = document.body.classList.toggle('side-open'); $('#scrim').classList.toggle('open', open); },
   persona: el => { S.role = el.dataset.id; save(); go('home'); },
   signout: () => { S.role = null; save(); location.hash = ''; render(); },
-  reset: () => { if (confirm('Reset the demo? Everything you changed will be cleared.')) { try { localStorage.removeItem(KEY); } catch (e) { /* ignore */ } S = fresh(); location.hash = ''; render(); } },
+  reset: () => askConfirm('Reset the demo?', 'Everything you changed in this demo will be cleared.', 'Reset demo', () => { try { localStorage.removeItem(KEY); } catch (e) { /* ignore */ } S = fresh(); location.hash = ''; render(); }),
+  confirmyes: () => { const f = pendingConfirm; pendingConfirm = null; closeOverlays(); if (f) f(); },
   map: () => openModal(proposalMap()),
   changes: () => openModal(changesModal()),
   showme: el => { const w = el.dataset.who; if (w) S.role = w; save(); go(el.dataset.go); },
@@ -2047,7 +2059,7 @@ const ACT = {
   deltag: el => { S.tags = S.tags.filter(t => t !== el.dataset.v); audit(`Removed interest tag “${el.dataset.v}”`); render(); },
   exportconsent: () => download('consent-register.csv', 'person,data,purpose,given,status\n' + S.consents.map(c => [name(c.who), c.field, c.purpose, c.given, c.status].map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n'), 'text/csv'),
   mydata: () => { const p = me(); download(`my-data-${p.id}.json`, JSON.stringify({ profile: p, consents: S.consents.filter(c => c.who === p.id), posts: S.threads.filter(t => t.author === p.id).map(t => t.title), exported: TODAY_ISO }, null, 2)); },
-  wipe: () => { if (!confirm('Delete all your optional profile data? Your name, college, expertise and email stay.')) return; const p = me(); Object.assign(p, { phone: '', interests: [], wantsHelp: [], helpTopics: [], area: 'Undecided', photo: false, family: { partner: false, kids: [], vis: 'me' }, consent: {} }); p.complete = completeness(p); S.consents = S.consents.map(c => c.who === p.id ? { ...c, status: 'Withdrawn ' + TODAY_ISO } : c); audit(`${name(p.id)} deleted their optional profile data`); toast('Optional data deleted; consents withdrawn'); render(); },
+  wipe: () => askConfirm('Delete optional data?', 'This deletes all your optional profile data and withdraws your consents. Your name, college, expertise and email stay.', 'Delete optional data', () => { const p = me(); Object.assign(p, { phone: '', interests: [], wantsHelp: [], helpTopics: [], area: 'Undecided', photo: false, family: { partner: false, kids: [], vis: 'me' }, consent: {} }); p.complete = completeness(p); S.consents = S.consents.map(c => c.who === p.id ? { ...c, status: 'Withdrawn ' + TODAY_ISO } : c); audit(`${name(p.id)} deleted their optional profile data`); toast('Optional data deleted; consents withdrawn'); render(); }),
   // content
   guidecat: el => { S.guideCat = el.dataset.v; render(); },
   reccat: el => { S.recCat = el.dataset.v; render(); },
@@ -2069,9 +2081,9 @@ const ACT = {
   feedback: () => openModal(modalShell('Send feedback', `<form data-form="feedback" id="fbf"><div class="field"><label>What kind of feedback?</label><select class="input" name="kind"><option>${REV ? 'Suggest a new topic' : 'Suggest a new forum category'}</option><option>Outdated information</option><option>Something isn’t working</option><option>Other</option></select></div><div class="field"><label>Tell us more</label><textarea class="input" name="text" required></textarea></div></form><p class="small muted">Goes to the platform administrators. ${ref(7)}</p>`, `<button class="btn" data-act="close">Cancel</button><button class="btn primary" type="submit" form="fbf">Send</button>`)),
   dirclear: () => { S.dir = { q: '', college: '', topic: '', lang: '', interest: '', family: false, buddy: false }; render(); },
 };
-function approveMatch(id) {
+function approveMatch(id, force = false) {
   const m = S.matches.find(x => x.id === id);
-  if (load_(m.buddy) >= person(m.buddy).buddy.max && !confirm(`${name(m.buddy)} is at capacity. Confirm anyway?`)) return;
+  if (load_(m.buddy) >= person(m.buddy).buddy.max && !force) return askConfirm('Buddy at capacity', `${name(m.buddy)} already has ${person(m.buddy).buddy.max} buddies. Confirm this match anyway?`, 'Confirm anyway', () => approveMatch(id, true));
   m.status = 'introduced'; m.intro = TODAY_ISO; m.checkin = addDays(TODAY_ISO, 21);
   notify(m.seeker, `You’ve been introduced to your buddy, ${name(m.buddy)}!`, 'match');
   notify(m.buddy, `Meet your new buddy: ${name(m.seeker)}.`, 'match');
