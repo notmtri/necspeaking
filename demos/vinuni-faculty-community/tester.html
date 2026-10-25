@@ -2533,7 +2533,8 @@ Object.assign(ACT, {
   },
   obback: () => { const o = S.ob; if (o.step <= 1) S.ob = null; else o.step--; render(); window.scrollTo(0, 0); },
   startover: () => askConfirm('Start over?', 'This clears your profile and everything you did in the demo, on this browser.', 'Start over', () => { try { localStorage.removeItem(KEY); } catch (e) { /* ignore */ } S = fresh(); location.hash = ''; render(); }),
-  feedbacksoon: () => openModal(modalShell('Feedback form', '<p>The feedback form will be linked here soon. Thank you for trying the demo!</p>', '<button class="btn primary" data-act="close">OK</button>')),
+  feedbacksoon: () => openModal(modalShell('Share your feedback', `<p>Thank you for trying the demo! Please send your thoughts through the <b>Microsoft Form</b> that came with the link to this demo.</p>
+    <p class="small muted" style="margin:0">Helpful things to tell us: what you would use, what is missing, and what you would remove or change.</p>`, '<button class="btn primary" data-act="close">OK</button>')),
   tplan: el => { const a = FIRST_WEEKS.find(x => x.id === el.dataset.id); S.plan[a.id] = !stepDone(a); render(); },
   tbaccept: el => {
     const m = S.matches.find(x => x.id === el.dataset.id);
