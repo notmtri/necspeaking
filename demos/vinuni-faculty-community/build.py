@@ -6,6 +6,9 @@ Both pages share the same code; MODE switches between the proposal as
 written and the version with the suggested changes.
 """
 import base64
+import hashlib
+import os
+import secrets
 import mimetypes
 import re
 from pathlib import Path
@@ -84,7 +87,8 @@ def build_public(css: str, data: str, tour: str, app: str) -> None:
     assert "vinuni" not in js.lower(), "university name left in the hosted build"
     shell = (SRC / "shell-public.html").read_text(encoding="utf-8")
     page = embed_assets(shell.replace("{{CSS}}", css).replace("{{DATA}}\n{{TOUR}}\n{{APP}}", js))
-    out = HERE / "public" / "international-faculty-community.html"
+    page = page.replace("{{GATE}}", "")
+    out = HERE / "public" / "international-faculty-community-unbranded.html"
     out.parent.mkdir(exist_ok=True)
     out.write_text(page, encoding="utf-8")
     print(f"wrote public/{out.name} ({len(page) // 1024} KB)")
@@ -99,6 +103,28 @@ def write_site(filename: str, html: str) -> None:
     html = html.replace('<meta charset="utf-8">', '<meta charset="utf-8">\n' + tag, 1)
     assert tag in html, filename
     (site / filename).write_text(html, encoding="utf-8")
+
+
+def build_gated(css: str, data: str, tour: str, app: str) -> None:
+    """Writes the branded, password-protected review copy for hosting.
+
+    Runs only when IFC_DEMO_PASSWORD is set. The password itself is never
+    written anywhere; the page holds a salted SHA-256 fingerprint of it.
+    """
+    password = os.environ.get("IFC_DEMO_PASSWORD")
+    if not password:
+        print("skipped public/international-faculty-community.html (set IFC_DEMO_PASSWORD to build it)")
+        return
+    salt = secrets.token_hex(8)
+    digest = hashlib.sha256((salt + password).encode()).hexdigest()
+    gate = f'const GATE_HASH = "{digest}";\nconst GATE_SALT = "{salt}";'
+    shell = (SRC / "shell-public.html").read_text(encoding="utf-8")
+    page = shell.replace("{{CSS}}", css).replace("{{DATA}}\n{{TOUR}}\n{{APP}}", data + "\n" + tour + "\n" + app)
+    page = embed_assets(page.replace("{{GATE}}", gate))
+    assert password not in page
+    out = HERE / "public" / "international-faculty-community.html"
+    out.write_text(page, encoding="utf-8")
+    print(f"wrote public/{out.name} ({len(page) // 1024} KB, password-protected)")
 
 
 def main() -> None:
@@ -116,6 +142,7 @@ def main() -> None:
         write_site(filename, html)
         print(f"wrote {filename} ({len(html) // 1024} KB)")
     build_public(css, data, tour, app)
+    build_gated(css, data, tour, app)
     compare = (SRC / "compare.html").read_text(encoding="utf-8")
     compare = embed_assets(compare.replace("{{CSS}}", css).replace("{{TOUR}}", tour))
     (HERE / "compare.html").write_text(compare, encoding="utf-8")
