@@ -102,6 +102,12 @@ def main() -> None:
                 .replace("{{APP}}", app))
         html = embed_assets(html)
         (HERE / filename).write_text(html, encoding="utf-8")
+        if mode == "revised":
+            # site/ is what Vercel serves: just this page, kept out of search results
+            site = HERE / "site"
+            site.mkdir(exist_ok=True)
+            (site / "index.html").write_text(html.replace('<meta charset="utf-8">', '<meta charset="utf-8">\n<meta name="robots" content="noindex">', 1), encoding="utf-8")
+            print("wrote site/index.html")
         print(f"wrote {filename} ({len(html) // 1024} KB)")
     build_public(css, data, tour, app)
     compare = (SRC / "compare.html").read_text(encoding="utf-8")
