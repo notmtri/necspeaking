@@ -2342,7 +2342,6 @@ window.addEventListener('resize', () => { const bar = $('#demobar'); if (bar) do
 ================================================================== */
 const FEEDBACK = typeof FEEDBACK_URL === 'string' ? FEEDBACK_URL : '';
 const TITLES = ['Lecturer', 'Senior Lecturer', 'Assistant Professor', 'Associate Professor', 'Professor', 'Research Fellow', 'Other'];
-const YEARS = [['<1', 'Less than a year'], ['1-2', '1–2 years'], ['3-5', '3–5 years'], ['5+', 'More than 5 years']];
 const FIRST_WEEKS = [
   { id: 'w1', when: 'This week', title: 'Read “Your first week in Hanoi”', link: 'guide/g1' },
   { id: 'w2', when: 'This week', title: 'Find a buddy', link: 'buddy', auto: 'match' },
@@ -2352,6 +2351,8 @@ const FIRST_WEEKS = [
   { id: 'w6', when: 'This month', title: 'Go to one community event', link: 'events' },
 ];
 const hasProfile = () => S.faculty.some(f => f.id === 'me');
+const EST_ID = 'james'; // the sample established-faculty account testers sign in to
+const signedIn = () => S.role === EST_ID ? EST_ID : hasProfile() ? 'me' : null;
 const stepDone = a => a.auto === 'match' ? (() => { const m = currentMatch('me'); return !!(m && ACTIVE_M.includes(m.status)); })() || !!S.plan[a.id] : !!S.plan[a.id];
 
 function feedbackLink(cls, label = 'Give feedback') {
@@ -2360,7 +2361,7 @@ function feedbackLink(cls, label = 'Give feedback') {
     : `<button class="${cls}" type="button" data-act="feedbacksoon">${ic('chat', 'sm')}${label}</button>`;
 }
 function testerBar() {
-  return `<div class="demo-bar" id="demobar"><b>Demo</b><span class="note-t">Fictional colleagues · what you enter stays in this browser</span><span class="spacer"></span>${hasProfile() || S.ob ? '<button data-act="startover">Start over</button>' : ''}${feedbackLink('btnlink fb')}</div>`;
+  return `<div class="demo-bar" id="demobar"><b>Demo</b><span class="note-t">Fictional colleagues · what you enter stays in this browser</span><span class="spacer"></span>${signedIn() || S.ob ? '<button data-act="startover">Start over</button>' : ''}${feedbackLink('btnlink fb')}</div>`;
 }
 
 /* ---------- Start, sign-in and onboarding ---------- */
@@ -2371,7 +2372,7 @@ function tLanding() {
     <p class="ob-lede">This is a working demo of a community platform for international faculty and their families. Try it for ten minutes, then tell us what you would want added. The colleagues inside are fictional, and what you enter stays in this browser.</p>
     <div class="ob-choices">
       <button class="ob-choice" type="button" data-act="obstart" data-v="new">${ic('plane', 'lg')}<b>I’m new to ${esc(UNI.short)}</b><span>Joining soon, or arrived in the last few months</span></button>
-      <button class="ob-choice" type="button" data-act="obstart" data-v="est">${ic('users', 'lg')}<b>I’ve been here a while</b><span>See how you could help newcomers, and what’s in it for you</span></button>
+      <button class="ob-choice" type="button" data-act="obstart" data-v="est">${ic('users', 'lg')}<b>I’ve been here a while</b><span>Sign in to a ready-made faculty account and see how you’d help newcomers</span></button>
     </div>
     <div class="ob-foot">${feedbackLink('btn ghost sm', 'Already tried it? Give feedback')}</div>
   </div></div>`;
@@ -2382,7 +2383,7 @@ function tSignin() {
     <h1>Sign in</h1>
     <p class="ob-lede">Use your ${esc(UNI.name)} account to continue.</p>
     <button class="btn primary block sso-btn" type="button" data-act="obsso" id="sso-btn">${ic('key', 'sm')}Sign in with your ${esc(UNI.name)} account</button>
-    <p class="ob-note">Demo sign-in: no password is asked for or checked.</p>
+    <p class="ob-note">Demo sign-in: no password is asked for or checked. You’ll be signed in to a sample account, ${esc(name(EST_ID))} (${person(EST_ID).college}).</p>
     <div><button class="btn ghost sm" type="button" data-act="obback">${ic('back', 'sm')}Back</button></div>
   </div></div>`;
 }
@@ -2398,54 +2399,42 @@ function obShell(title, sub, body, step, total) {
   </form></div>`;
 }
 function tObStep() {
-  const { path, step, d } = S.ob, total = path === 'new' ? 4 : 3, v = k => esc(d[k] || '');
-  if (step === 1) return obShell(path === 'new' ? 'Welcome! Let’s start with you' : 'Welcome back', 'Your name and your college.',
+  const { step, d } = S.ob, total = 4, v = k => esc(d[k] || '');
+  if (step === 1) return obShell('Welcome! Let’s start with you', 'Your name and your college.',
     `<div class="grid g2">${field('First name', `<input class="input" name="first" value="${v('first')}" autocomplete="given-name">`)}${field('Last name', `<input class="input" name="last" value="${v('last')}" autocomplete="family-name">`)}</div>
      <div class="field"><span class="lbl">College</span>${radioCards('college', Object.entries(COLLEGES).map(([k, n]) => [k, k, n]), d.college, 'ob-radio ob-college')}</div>`, 1, total);
   if (step === 2) return obShell('A bit about your work', 'This helps colleagues with shared interests find you.',
     `<div class="grid g2">${field('Title', `<select class="input" name="title">${TITLES.map(t => `<option ${t === d.title ? 'selected' : ''}>${t}</option>`).join('')}</select>`)}
-     ${path === 'est' ? field(`Time at ${esc(UNI.short)}`, `<select class="input" name="years">${YEARS.map(([k, l]) => `<option value="${k}" ${k === d.years ? 'selected' : ''}>${l}</option>`).join('')}</select>`) : field('Home country', `<input class="input" name="country" value="${v('country')}" placeholder="e.g. Germany">`)}</div>
+     ${field('Home country', `<input class="input" name="country" value="${v('country')}" placeholder="e.g. Germany">`)}</div>
      ${field('Area of expertise', `<input class="input" name="expertise" value="${v('expertise')}" placeholder="e.g. Machine learning, Public health">`, 'Separate several with commas.')}
-     <div class="grid g2">${path === 'est' ? field('Home country', `<input class="input" name="country" value="${v('country')}" placeholder="e.g. Germany">`) : ''}${field('Languages you speak', `<input class="input" name="languages" value="${esc(d.languages || 'English')}">`)}</div>`, 2, total);
-  if (path === 'new' && step === 3) return obShell('Your move', 'Optional, but it makes the suggestions much better.',
+     ${field('Languages you speak', `<input class="input" name="languages" value="${esc(d.languages || 'English')}">`)}`, 2, total);
+  if (step === 3) return obShell('Your move', 'Optional, but it makes the suggestions much better.',
     `<div class="field"><span class="lbl">When do you arrive in Hanoi?</span>${radioCards('when', [['here', 'I’m already here'], ['arriving', 'I’m arriving soon']], d.when || 'arriving')}</div>
      ${field('Arrival date', `<input class="input" type="date" name="arrival" value="${v('arrival')}" min="${TODAY_ISO}">`, 'Only if you haven’t arrived yet.')}
      <div class="field"><span class="lbl">Who’s moving with you?</span><label class="row small"><input type="checkbox" name="partner" ${d.partner ? 'checked' : ''}> A partner or spouse</label></div>
      <div class="field"><span class="lbl">Children’s ages, if any</span>${chipSet('kids', KID_RANGES, d.kids || [])}</div>
      ${field('Where will you live?', `<select class="input" name="area">${AREAS.map(a => `<option ${a === (d.area || 'Undecided') ? 'selected' : ''}>${a}</option>`).join('')}</select>`)}
      <p class="ob-note">${ic('lock', 'sm')} Family details stay private. They’re only used to suggest a buddy in a similar situation.</p>`, 3, total);
-  const est = path === 'est';
-  return obShell(est ? 'How could you help newcomers?' : 'What would help most?', est ? 'Pick anything you know well. Newcomers with those questions will find you.' : 'Pick the topics you’d like help with. We’ll suggest guides and a buddy.',
-    `<div class="field"><span class="lbl">${est ? 'I can help with' : 'I’d like help with'}</span>${chipSet(est ? 'helpTopics' : 'wantsHelp', HELP_TOPICS, d[est ? 'helpTopics' : 'wantsHelp'] || [])}</div>
-     <div class="field"><span class="lbl">Your interests</span>${chipSet('interests', S.tags, d.interests || [])}</div>
-     ${est ? `<label class="row ob-buddy"><span class="toggle"><input type="checkbox" name="buddy" ${d.buddy !== false ? 'checked' : ''}><span></span></span><span><b>I’d volunteer as a buddy</b> for up to <select class="input" name="buddyMax" style="width:auto;display:inline-block;padding:3px 8px">${[1, 2, 3].map(n => `<option ${String(n) === String(d.buddyMax || 1) ? 'selected' : ''}>${n}</option>`).join('')}</select> newcomer(s) at a time</span></label>` : ''}`, total, total);
+  return obShell('What would help most?', 'Pick the topics you’d like help with. We’ll suggest guides and a buddy.',
+    `<div class="field"><span class="lbl">I’d like help with</span>${chipSet('wantsHelp', HELP_TOPICS, d.wantsHelp || [])}</div>
+     <div class="field"><span class="lbl">Your interests</span>${chipSet('interests', S.tags, d.interests || [])}</div>`, total, total);
 }
 function finishOnboarding() {
-  const d = S.ob.d, isNew = S.ob.path === 'new';
-  const arriving = isNew && d.when !== 'here' && d.arrival && d.arrival > TODAY_ISO;
-  const years = isNew ? 0 : ({ '<1': 0, '1-2': 1, '3-5': 3, '5+': 6 }[d.years] ?? 1);
+  const d = S.ob.d;
+  const arriving = d.when !== 'here' && d.arrival && d.arrival > TODAY_ISO;
   const p = {
     id: 'me', first: d.first, last: d.last, title: d.title || TITLES[0], college: d.college,
     expertise: csv(d.expertise).length ? csv(d.expertise) : ['Not added yet'], interests: d.interests || [], languages: csv(d.languages || 'English'),
-    regions: d.country ? [d.country] : [], country: d.country || '', helpTopics: isNew ? [] : (d.helpTopics || []), wantsHelp: isNew ? (d.wantsHelp || []) : [],
-    buddy: { available: !isNew && !!d.buddy, max: +(d.buddyMax || 1), base: 0 }, contact: 'Teams', phoneVis: 'me',
-    family: { partner: !!d.partner, kids: d.kids || [], vis: 'match' }, area: d.area || 'Undecided', years,
-    joined: isNew ? (arriving ? d.arrival : addDays(TODAY_ISO, -14)) : addDays(TODAY_ISO, -Math.max(1, years) * 365),
-    isNew, preArrival: !!arriving, photo: false, updated: TODAY_ISO,
+    regions: d.country ? [d.country] : [], country: d.country || '', helpTopics: [], wantsHelp: d.wantsHelp || [],
+    buddy: { available: false, max: 0, base: 0 }, contact: 'Teams', phoneVis: 'me',
+    family: { partner: !!d.partner, kids: d.kids || [], vis: 'match' }, area: d.area || 'Undecided', years: 0,
+    joined: arriving ? d.arrival : addDays(TODAY_ISO, -14), isNew: true, preArrival: !!arriving, photo: false, updated: TODAY_ISO,
   };
   if (p.family.partner || p.family.kids.length) p.consent = { family: TODAY_ISO };
   p.complete = completeness(p);
   S.faculty = S.faculty.filter(f => f.id !== 'me').concat(p);
   S.role = 'me'; S.ob = null;
-  if (isNew) notify('me', `Welcome, ${p.first}! We’ve suggested a few colleagues who could be your buddy.`, 'buddy');
-  else {
-    notify('me', `Welcome back, ${p.first}. A few newcomers could use your help.`, 'home');
-    if (p.buddy.available) {
-      const seeker = ['marcus', 'yasmin'].map(id => [id, scoreFor(id, p).pct]).sort((a, b) => b[1] - a[1])[0][0];
-      S.matches.push({ id: uid('m'), seeker, buddy: 'me', status: 'requested', created: TODAY_ISO });
-      notify('me', `${name(seeker)}, who just joined ${person(seeker).college}, asked if you’d be their buddy.`, 'buddy', false);
-    }
-  }
+  notify('me', `Welcome, ${p.first}! We’ve suggested a few colleagues who could be your buddy.`, 'buddy');
   location.hash = '#/home'; render(); window.scrollTo(0, 0);
 }
 
@@ -2474,16 +2463,17 @@ function tHomeNew(p) {
       <div class="grid g3">${guides.map(g => `<a class="card guide-card" href="#/guide/${g.id}"><div class="row between">${sourceBadge(g)}<span class="tiny muted">${g.mins} min</span></div><h3>${esc(g.title)}</h3><p class="small muted" style="margin:0">${esc(g.summary)}</p></a>`).join('')}</div></section>`;
 }
 function tHomeEst(p) {
-  const pending = S.matches.filter(m => m.buddy === 'me' && m.status === 'requested');
-  const mine = S.matches.filter(m => m.buddy === 'me' && ACTIVE_M.includes(m.status));
+  const pending = S.matches.filter(m => m.buddy === p.id && m.status === 'requested');
+  const mine = S.matches.filter(m => m.buddy === p.id && ACTIVE_M.includes(m.status));
   const topics = p.helpTopics.map(t => TOPIC_FORUM[t]);
-  const qs = S.threads.filter(t => t.author !== 'me' && (!topics.length || topics.includes(t.forum))).sort((a, b) => a.replies.length - b.replies.length || b.date.localeCompare(a.date)).slice(0, 4);
-  const newbies = S.faculty.filter(f => f.isNew && f.id !== 'me').sort((a, b) => b.joined.localeCompare(a.joined)).slice(0, 4);
+  const qs = S.threads.filter(t => t.author !== p.id && (!topics.length || topics.includes(t.forum))).sort((a, b) => a.replies.length - b.replies.length || b.date.localeCompare(a.date)).slice(0, 4);
+  const newbies = S.faculty.filter(f => f.isNew && f.id !== p.id).sort((a, b) => b.joined.localeCompare(a.joined)).slice(0, 4);
   const buddyCard = !p.buddy.available
     ? `<p class="small muted">Newcomers would love a colleague to ask the small questions. It’s a coffee and a few messages.</p><a class="btn primary sm" href="#/buddy">Volunteer as a buddy</a>`
     : (pending.map(m => `<div class="list-item">${av(m.seeker)}<div class="li-main"><span class="li-title">${esc(name(m.seeker))}</span><span class="li-sub">${person(m.seeker).college} · wants help with ${esc(person(m.seeker).wantsHelp.join(', ').toLowerCase())}</span></div><button class="btn primary sm" data-act="tbaccept" data-id="${m.id}">Accept</button><button class="btn ghost sm" data-act="decline" data-id="${m.id}">Not now</button></div>`).join('')
       + mine.map(m => `<div class="list-item">${av(m.seeker)}<div class="li-main"><span class="li-title">${esc(name(m.seeker))}</span><span class="li-sub">Your buddy since ${fmt(m.intro)}</span></div><button class="btn sm" data-act="contact" data-id="${m.seeker}">${ic('chat', 'sm')}Message</button></div>`).join('')) || '<p class="small muted">No requests right now. We’ll let you know.</p>';
-  return `<section class="hero ph ph-lawn"><h1>Welcome back, ${esc(p.first)}.</h1><p>${S.faculty.filter(f => f.isNew && f.id !== 'me').length} newcomers joined recently. Here’s where your experience helps most.</p>
+  return `<div class="notice gold mb16">${ic('info')}<div>You’re signed in to a sample account, <b>${esc(name(p.id))}</b>, a faculty member who has been here a while and already set up a profile. Look around as if it were yours.</div></div>
+    <section class="hero ph ph-lawn"><h1>Welcome back, ${esc(p.first)}.</h1><p>${p.title} · ${collegeName(p.college)} · ${p.years} years in Hanoi. ${newbies.length} newcomers joined recently, and here’s where your experience helps most.</p>
       <div class="row wrap mt16"><a class="btn red" href="#/buddy">${ic('link', 'sm')}Buddy programme</a><a class="btn" href="#/qa">${ic('help', 'sm')}Answer questions</a></div></section>
     <div class="grid g2 mt24">
       <section class="card"><div class="card-h"><h2>${ic('link')}Buddy requests</h2></div><div class="card-b">${buddyCard}</div></section>
@@ -2516,14 +2506,15 @@ const T_ALIASES = { match: 'buddy', directory: 'people', arrival: 'home', forums
 function renderTester() {
   const app = $('#app');
   document.body.classList.add('no-ann');
-  if (!hasProfile()) {
+  const who = signedIn();
+  if (!who) {
     S.role = null; $('#toasts').innerHTML = '';
     app.innerHTML = testerBar() + (!S.ob ? tLanding() : S.ob.step === 0 ? tSignin() : tObStep());
     after();
     const f = $('.ob-card input:not([type=radio]):not([type=checkbox]), .ob-card select'); if (f && S.ob && S.ob.step > 0) f.focus();
     return;
   }
-  S.role = 'me';
+  S.role = who;
   const { page, arg } = parseHash();
   if (!TPAGES[page]) { location.replace('#/' + (T_ALIASES[page] || 'home')); return; }
   app.innerHTML = testerBar() + `<div class="shell">${sidebar(page, arg)}<div class="main">${topbar()}<main class="content" id="content">${TPAGES[page](arg)}</main></div></div>` + feedbackLink('btn red fab');
@@ -2531,8 +2522,17 @@ function renderTester() {
 }
 Object.assign(ACT, {
   obstart: el => { S.ob = { path: el.dataset.v, step: el.dataset.v === 'new' ? 1 : 0, d: {} }; render(); window.scrollTo(0, 0); },
-  obsso: el => { el.disabled = true; el.innerHTML = 'Signing you in…'; setTimeout(() => { S.ob.step = 1; render(); }, 600); },
-  obback: () => { const o = S.ob; if (o.step <= (o.path === 'new' ? 1 : 0)) S.ob = null; else o.step--; render(); window.scrollTo(0, 0); },
+  obsso: el => {
+    el.disabled = true; el.innerHTML = 'Signing you in…';
+    setTimeout(() => {
+      S.ob = null; S.role = EST_ID;
+      if (!S.matches.some(m => m.buddy === EST_ID && m.seeker === 'marcus')) S.matches.push({ id: uid('m'), seeker: 'marcus', buddy: EST_ID, status: 'requested', created: TODAY_ISO });
+      notify(EST_ID, `${name('marcus')}, who just joined ${person('marcus').college}, asked if you’d be his buddy.`, 'buddy', false);
+      notify(EST_ID, 'Your buddy Noah Fischer is due a check-in this week.', 'buddy');
+      location.hash = '#/home'; render(); window.scrollTo(0, 0);
+    }, 600);
+  },
+  obback: () => { const o = S.ob; if (o.step <= 1) S.ob = null; else o.step--; render(); window.scrollTo(0, 0); },
   startover: () => askConfirm('Start over?', 'This clears your profile and everything you did in the demo, on this browser.', 'Start over', () => { try { localStorage.removeItem(KEY); } catch (e) { /* ignore */ } S = fresh(); location.hash = ''; render(); }),
   feedbacksoon: () => openModal(modalShell('Feedback form', '<p>The feedback form will be linked here soon. Thank you for trying the demo!</p>', '<button class="btn primary" data-act="close">OK</button>')),
   tplan: el => { const a = FIRST_WEEKS.find(x => x.id === el.dataset.id); S.plan[a.id] = !stepDone(a); render(); },
@@ -2554,15 +2554,13 @@ Object.assign(FORM, {
       Object.assign(d, { first: val('first'), last: val('last'), college: val('college') });
     } else if (o.step === 2) {
       Object.assign(d, { title: val('title'), expertise: val('expertise'), country: val('country'), languages: val('languages') || 'English' });
-      if (o.path === 'est') d.years = val('years');
-    } else if (o.path === 'new' && o.step === 3) {
+    } else if (o.step === 3) {
       const when = val('when') || 'arriving';
       if (when === 'arriving' && !val('arrival')) return err('Please pick your arrival date, or choose “I’m already here”.');
       if (when === 'arriving' && val('arrival') <= TODAY_ISO) return err('That date has passed. Choose “I’m already here” instead.');
       Object.assign(d, { when, arrival: when === 'arriving' ? val('arrival') : '', partner: !!fd.get('partner'), kids: listOf(fd, 'kids'), area: val('area') || 'Undecided' });
     } else {
-      if (o.path === 'new') Object.assign(d, { wantsHelp: listOf(fd, 'wantsHelp'), interests: listOf(fd, 'interests') });
-      else Object.assign(d, { helpTopics: listOf(fd, 'helpTopics'), interests: listOf(fd, 'interests'), buddy: !!fd.get('buddy'), buddyMax: val('buddyMax') || '1' });
+      Object.assign(d, { wantsHelp: listOf(fd, 'wantsHelp'), interests: listOf(fd, 'interests') });
       return finishOnboarding();
     }
     o.step++; render(); window.scrollTo(0, 0);

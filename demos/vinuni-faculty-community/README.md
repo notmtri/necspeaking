@@ -10,7 +10,7 @@ or build step is needed.
 | `with-suggested-changes.html` | The same platform with our eight suggested changes. Teal **Change** labels mark each one, and **What changed?** lists them with a “Show me” link. |
 | `compare.html` | Presenter view for meetings: both versions side by side, moved through an 11-step tour with **Next**/**Back** or the arrow keys. On a phone, a toggle switches between the two. |
 
-| `tester.html` | The simple version for current faculty to try and give feedback: new faculty go through a short onboarding, established faculty sign in (no password), then both use a simplified dashboard. Runs on today's date. |
+| `tester.html` | The simple version for current faculty to try and give feedback: new faculty go through a short onboarding, established faculty sign in (no password) straight into a sample account that is already set up, then both use a simplified dashboard. Runs on today's date. |
 
 **Present** in either page's top bar runs the same tour inside that one page.
 Keep all three files in the same folder; the side-by-side view loads the
