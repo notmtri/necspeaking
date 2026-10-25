@@ -90,6 +90,17 @@ def build_public(css: str, data: str, tour: str, app: str) -> None:
     print(f"wrote public/{out.name} ({len(page) // 1024} KB)")
 
 
+def write_site(filename: str, html: str) -> None:
+    """site/ is what Vercel serves: the three pages, kept out of search results.
+    site/vercel.json makes the revised demo the home page."""
+    site = HERE / "site"
+    site.mkdir(exist_ok=True)
+    tag = '<meta name="robots" content="noindex">'
+    html = html.replace('<meta charset="utf-8">', '<meta charset="utf-8">\n' + tag, 1)
+    assert tag in html, filename
+    (site / filename).write_text(html, encoding="utf-8")
+
+
 def main() -> None:
     shell = (SRC / "shell.html").read_text(encoding="utf-8")
     css = (SRC / "fonts.css").read_text(encoding="utf-8") + (SRC / "styles.css").read_text(encoding="utf-8")
@@ -102,17 +113,13 @@ def main() -> None:
                 .replace("{{APP}}", app))
         html = embed_assets(html)
         (HERE / filename).write_text(html, encoding="utf-8")
-        if mode == "revised":
-            # site/ is what Vercel serves: just this page, kept out of search results
-            site = HERE / "site"
-            site.mkdir(exist_ok=True)
-            (site / "index.html").write_text(html.replace('<meta charset="utf-8">', '<meta charset="utf-8">\n<meta name="robots" content="noindex">', 1), encoding="utf-8")
-            print("wrote site/index.html")
+        write_site(filename, html)
         print(f"wrote {filename} ({len(html) // 1024} KB)")
     build_public(css, data, tour, app)
     compare = (SRC / "compare.html").read_text(encoding="utf-8")
     compare = embed_assets(compare.replace("{{CSS}}", css).replace("{{TOUR}}", tour))
     (HERE / "compare.html").write_text(compare, encoding="utf-8")
+    write_site("compare.html", compare)
     print("wrote compare.html")
 
 
