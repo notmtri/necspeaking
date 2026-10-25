@@ -10,6 +10,8 @@ or build step is needed.
 | `with-suggested-changes.html` | The same platform with our eight suggested changes. Teal **Change** labels mark each one, and **What changed?** lists them with a “Show me” link. |
 | `compare.html` | Presenter view for meetings: both versions side by side, moved through an 11-step tour with **Next**/**Back** or the arrow keys. On a phone, a toggle switches between the two. |
 
+| `tester.html` | The simple version for current faculty to try and give feedback: new faculty go through a short onboarding, established faculty sign in (no password), then both use a simplified dashboard. Runs on today's date. |
+
 **Present** in either page's top bar runs the same tour inside that one page.
 Keep all three files in the same folder; the side-by-side view loads the
 other two.
@@ -33,3 +35,8 @@ All three pages are generated from `src/`. The two demos share one
 codebase (`MODE` selects the version), and `src/tour.js` holds the tour steps. After editing anything in `src/`, run:
 
     python3 build.py
+
+Optional environment variables:
+
+- `IFC_FEEDBACK_URL`: the feedback form the tester build's "Give feedback" buttons open. Until it is set, they show a "coming soon" note.
+- `IFC_DEMO_PASSWORD`: also builds `public/international-faculty-community.html`, the password-protected tester build used for the hosted link. Only a salted fingerprint of the password is stored.

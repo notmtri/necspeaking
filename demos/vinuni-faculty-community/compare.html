@@ -532,6 +532,52 @@ body.embed .top { top: 0; }
 .gate-err { color: var(--red-700); font-size: 13.5px; }
 .gate-note { font-size: 12.5px; color: var(--ink-3) !important; }
 
+/* ---------- Tester build: start screen and onboarding ---------- */
+.demo-bar .fb { background: var(--red); border-color: var(--red); color: #fff; display: inline-flex; align-items: center; gap: 6px; }
+.demo-bar .fb:hover { background: var(--red-700); }
+a.fab { display: inline-flex; align-items: center; gap: 7px; color: #fff; text-decoration: none; }
+.ob { min-height: calc(100vh - var(--bar, 38px)); display: grid; place-items: center; padding: 32px max(16px, env(safe-area-inset-left, 0px)); background: radial-gradient(900px 420px at 50% -10%, var(--navy-100), transparent 70%), var(--bg); }
+.ob-card { width: min(580px, 100%); background: var(--surface); border: 1px solid var(--line); border-radius: 18px; box-shadow: var(--shadow-lg); padding: 32px; display: flex; flex-direction: column; gap: 16px; }
+.ob-card.wide { width: min(740px, 100%); }
+.ob-card h1 { font-family: var(--serif); font-size: 30px; font-weight: 600; color: var(--navy-900); text-wrap: balance; }
+.ob-card .field { margin-bottom: 0; }
+.ob-lede { color: var(--ink-2); margin: 0; font-size: 15.5px; }
+.ob-brand { display: flex; align-items: center; gap: 12px; }
+.ob-brand .brand-txt b { color: var(--navy-900); }
+.ob-brand .brand-txt span { color: var(--ink-3); }
+.ob-choices { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.ob-choice { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; text-align: left; padding: 22px; border: 1.5px solid var(--line); border-radius: 14px; background: var(--surface); cursor: pointer; transition: border-color .12s, box-shadow .12s; }
+.ob-choice:hover, .ob-choice:focus-visible { border-color: var(--navy-700); box-shadow: 0 0 0 3px var(--navy-50); outline: none; }
+.ob-choice svg { color: var(--red); margin-bottom: 4px; }
+.ob-choice b { font-size: 17px; color: var(--navy-900); }
+.ob-choice span { color: var(--ink-2); font-size: 14px; }
+.ob-top { display: flex; justify-content: space-between; align-items: center; }
+.ob-steps { display: flex; gap: 6px; }
+.ob-steps i { width: 30px; height: 5px; border-radius: 99px; background: var(--line); }
+.ob-steps i.on { background: var(--red); }
+.ob-radios { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.ob-radio { position: relative; display: flex; flex-direction: column; gap: 2px; padding: 12px 14px; border: 1.5px solid var(--line); border-radius: 12px; cursor: pointer; background: var(--surface); }
+.ob-radio input { position: absolute; opacity: 0; pointer-events: none; }
+.ob-radio b { font-size: 15px; color: var(--navy-900); }
+.ob-radio span { font-size: 12.5px; color: var(--ink-3); line-height: 1.35; }
+.ob-radio.on { border-color: var(--navy-700); background: var(--navy-50); box-shadow: inset 0 0 0 1px var(--navy-700); }
+.ob-radio:focus-within { outline: 2px solid var(--navy-500); outline-offset: 2px; }
+.ob-college b { font-size: 18px; }
+.ob-nav { display: flex; justify-content: space-between; gap: 10px; margin-top: 4px; }
+.ob-err { color: var(--red-700); font-size: 14px; font-weight: 600; }
+.ob-foot { display: flex; justify-content: center; }
+.ob-note { font-size: 13px; color: var(--ink-3); margin: 0; display: flex; gap: 6px; align-items: center; }
+.ob-buddy { align-items: flex-start; gap: 12px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; font-size: 14px; }
+.sso-btn { padding: 12px 16px; font-size: 15px; }
+.t-h2 { font-family: var(--serif); font-size: 21px; font-weight: 600; color: var(--navy-900); }
+@media (max-width: 640px) {
+  .ob { padding-block: 20px; }
+  .ob-card { padding: 22px; gap: 14px; }
+  .ob-card h1 { font-size: 24px; }
+  .ob-choices, .ob-radios { grid-template-columns: minmax(0, 1fr); }
+  .demo-bar .note-t { display: none; }
+}
+
 html, body { height: 100%; }
 body { display: grid; grid-template-rows: auto auto minmax(0, 1fr); overflow: hidden; }
 .cmp-bar { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding: 10px 18px; background: var(--navy-950); color: #C9D3E8; font-size: 13px; }

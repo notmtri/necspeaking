@@ -6,6 +6,7 @@ Both pages share the same code; MODE switches between the proposal as
 written and the version with the suggested changes.
 """
 import base64
+import json
 import hashlib
 import os
 import secrets
@@ -19,7 +20,17 @@ SRC = HERE / "src"
 PAGES = {
     "proposal-as-written.html": ("proposal", "Faculty Community · Proposal Demo"),
     "with-suggested-changes.html": ("revised", "Faculty Community · Revised Demo"),
+    "tester.html": ("tester", "Faculty Community · Try It"),
 }
+
+FEEDBACK_URL = os.environ.get("IFC_FEEDBACK_URL", "")  # the form faculty send feedback to
+
+
+def extra_js(mode: str) -> str:
+    """Constants only the tester build needs: live dates and the feedback form link."""
+    if mode != "tester":
+        return ""
+    return f"const DEMO_LIVE_DATE = true;\nconst FEEDBACK_URL = {json.dumps(FEEDBACK_URL)};"
 
 
 def embed_assets(text: str) -> str:
@@ -33,6 +44,7 @@ def embed_assets(text: str) -> str:
 
 # The hosted preview leaves out the university's name, logo and campus photos.
 PUBLIC_TEXT = [
+    ("const UNI = { name: 'VinUniversity', short: 'VinUni' };", "const UNI = { name: 'the university', short: 'the university' };"),
     ('<b>VinUniversity</b><span>International Faculty Community</span>', '<b>International Faculty</b><span>Community · concept demo</span>'),
     ('aria-label="VinUniversity"', 'aria-label="International Faculty Community"'),
     ('Not an official VinUniversity system', 'Not an official university system'),
@@ -87,7 +99,7 @@ def build_public(css: str, data: str, tour: str, app: str) -> None:
     assert "vinuni" not in js.lower(), "university name left in the hosted build"
     shell = (SRC / "shell-public.html").read_text(encoding="utf-8")
     page = embed_assets(shell.replace("{{CSS}}", css).replace("{{DATA}}\n{{TOUR}}\n{{APP}}", js))
-    page = page.replace("{{GATE}}", "")
+    page = page.replace("{{GATE}}", "").replace("{{MODE}}", "revised")
     out = HERE / "public" / "international-faculty-community-unbranded.html"
     out.parent.mkdir(exist_ok=True)
     out.write_text(page, encoding="utf-8")
@@ -106,7 +118,7 @@ def write_site(filename: str, html: str) -> None:
 
 
 def build_gated(css: str, data: str, tour: str, app: str) -> None:
-    """Writes the branded, password-protected review copy for hosting.
+    """Writes the branded, password-protected tester build for hosting.
 
     Runs only when IFC_DEMO_PASSWORD is set. The password itself is never
     written anywhere; the page holds a salted SHA-256 fingerprint of it.
@@ -117,10 +129,10 @@ def build_gated(css: str, data: str, tour: str, app: str) -> None:
         return
     salt = secrets.token_hex(8)
     digest = hashlib.sha256((salt + password).encode()).hexdigest()
-    gate = f'const GATE_HASH = "{digest}";\nconst GATE_SALT = "{salt}";'
+    gate = f'const GATE_HASH = "{digest}";\nconst GATE_SALT = "{salt}";\n' + extra_js("tester")
     shell = (SRC / "shell-public.html").read_text(encoding="utf-8")
     page = shell.replace("{{CSS}}", css).replace("{{DATA}}\n{{TOUR}}\n{{APP}}", data + "\n" + tour + "\n" + app)
-    page = embed_assets(page.replace("{{GATE}}", gate))
+    page = embed_assets(page.replace("{{GATE}}", gate).replace("{{MODE}}", "tester"))
     assert password not in page
     out = HERE / "public" / "international-faculty-community.html"
     out.write_text(page, encoding="utf-8")
@@ -134,7 +146,7 @@ def main() -> None:
     app = (SRC / "app.js").read_text(encoding="utf-8")
     tour = (SRC / "tour.js").read_text(encoding="utf-8")
     for filename, (mode, title) in PAGES.items():
-        html = (shell.replace("{{TITLE}}", title).replace("{{MODE}}", mode)
+        html = (shell.replace("{{TITLE}}", title).replace("{{MODE}}", mode).replace("{{EXTRA}}", extra_js(mode))
                 .replace("{{CSS}}", css).replace("{{DATA}}", data).replace("{{TOUR}}", tour)
                 .replace("{{APP}}", app))
         html = embed_assets(html)

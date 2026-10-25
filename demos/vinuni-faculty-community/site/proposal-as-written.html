@@ -534,6 +534,52 @@ body.embed .top { top: 0; }
 .gate-err { color: var(--red-700); font-size: 13.5px; }
 .gate-note { font-size: 12.5px; color: var(--ink-3) !important; }
 
+/* ---------- Tester build: start screen and onboarding ---------- */
+.demo-bar .fb { background: var(--red); border-color: var(--red); color: #fff; display: inline-flex; align-items: center; gap: 6px; }
+.demo-bar .fb:hover { background: var(--red-700); }
+a.fab { display: inline-flex; align-items: center; gap: 7px; color: #fff; text-decoration: none; }
+.ob { min-height: calc(100vh - var(--bar, 38px)); display: grid; place-items: center; padding: 32px max(16px, env(safe-area-inset-left, 0px)); background: radial-gradient(900px 420px at 50% -10%, var(--navy-100), transparent 70%), var(--bg); }
+.ob-card { width: min(580px, 100%); background: var(--surface); border: 1px solid var(--line); border-radius: 18px; box-shadow: var(--shadow-lg); padding: 32px; display: flex; flex-direction: column; gap: 16px; }
+.ob-card.wide { width: min(740px, 100%); }
+.ob-card h1 { font-family: var(--serif); font-size: 30px; font-weight: 600; color: var(--navy-900); text-wrap: balance; }
+.ob-card .field { margin-bottom: 0; }
+.ob-lede { color: var(--ink-2); margin: 0; font-size: 15.5px; }
+.ob-brand { display: flex; align-items: center; gap: 12px; }
+.ob-brand .brand-txt b { color: var(--navy-900); }
+.ob-brand .brand-txt span { color: var(--ink-3); }
+.ob-choices { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.ob-choice { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; text-align: left; padding: 22px; border: 1.5px solid var(--line); border-radius: 14px; background: var(--surface); cursor: pointer; transition: border-color .12s, box-shadow .12s; }
+.ob-choice:hover, .ob-choice:focus-visible { border-color: var(--navy-700); box-shadow: 0 0 0 3px var(--navy-50); outline: none; }
+.ob-choice svg { color: var(--red); margin-bottom: 4px; }
+.ob-choice b { font-size: 17px; color: var(--navy-900); }
+.ob-choice span { color: var(--ink-2); font-size: 14px; }
+.ob-top { display: flex; justify-content: space-between; align-items: center; }
+.ob-steps { display: flex; gap: 6px; }
+.ob-steps i { width: 30px; height: 5px; border-radius: 99px; background: var(--line); }
+.ob-steps i.on { background: var(--red); }
+.ob-radios { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.ob-radio { position: relative; display: flex; flex-direction: column; gap: 2px; padding: 12px 14px; border: 1.5px solid var(--line); border-radius: 12px; cursor: pointer; background: var(--surface); }
+.ob-radio input { position: absolute; opacity: 0; pointer-events: none; }
+.ob-radio b { font-size: 15px; color: var(--navy-900); }
+.ob-radio span { font-size: 12.5px; color: var(--ink-3); line-height: 1.35; }
+.ob-radio.on { border-color: var(--navy-700); background: var(--navy-50); box-shadow: inset 0 0 0 1px var(--navy-700); }
+.ob-radio:focus-within { outline: 2px solid var(--navy-500); outline-offset: 2px; }
+.ob-college b { font-size: 18px; }
+.ob-nav { display: flex; justify-content: space-between; gap: 10px; margin-top: 4px; }
+.ob-err { color: var(--red-700); font-size: 14px; font-weight: 600; }
+.ob-foot { display: flex; justify-content: center; }
+.ob-note { font-size: 13px; color: var(--ink-3); margin: 0; display: flex; gap: 6px; align-items: center; }
+.ob-buddy { align-items: flex-start; gap: 12px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; font-size: 14px; }
+.sso-btn { padding: 12px 16px; font-size: 15px; }
+.t-h2 { font-family: var(--serif); font-size: 21px; font-weight: 600; color: var(--navy-900); }
+@media (max-width: 640px) {
+  .ob { padding-block: 20px; }
+  .ob-card { padding: 22px; gap: 14px; }
+  .ob-card h1 { font-size: 24px; }
+  .ob-choices, .ob-radios { grid-template-columns: minmax(0, 1fr); }
+  .demo-bar .note-t { display: none; }
+}
+
 </style>
 </head>
 <body>
@@ -546,12 +592,17 @@ body.embed .top { top: 0; }
 <script>
 const MODE = "proposal";
 const PUBLIC = false;
+
 /* ------------------------------------------------------------------
    Mock data. Every person, provider and school here is fictional.
    Neighbourhood names and public emergency numbers are real.
 ------------------------------------------------------------------- */
 
-const TODAY = new Date('2026-10-15T09:00:00');
+// The demo story is set on 15 October 2026. The tester build (DEMO_LIVE_DATE) runs on the
+// real date instead, and app.js shifts every sample date by the same number of days.
+const STORY_DAY = new Date('2026-10-15T09:00:00');
+const TODAY = typeof DEMO_LIVE_DATE !== 'undefined' && DEMO_LIVE_DATE ? (() => { const d = new Date(); d.setHours(9, 0, 0, 0); return d; })() : STORY_DAY;
+const UNI = { name: 'VinUniversity', short: 'VinUni' };
 
 const COLLEGES = {
   CECS: 'College of Engineering & Computer Science',
@@ -885,9 +936,24 @@ const TOUR = [
    International Faculty Community — clickable concept demo.
    One codebase, two builds: MODE = "proposal" | "revised".
 ================================================================== */
-const REV = MODE === 'revised';
+const TESTER = MODE === 'tester'; // simple two-path build for faculty to try and give feedback
+const REV = MODE === 'revised' || TESTER;
 const KEY = 'vinuni-ifc-demo-' + MODE + '-v1';
-const TODAY_ISO = '2026-10-15';
+function isoOf(d) { return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; }
+const TODAY_ISO = isoOf(TODAY);
+const DATE_SHIFT = Math.round((TODAY - STORY_DAY) / 864e5); // 0 except in the tester build
+function shiftDates(value) {
+  if (!DATE_SHIFT) return value;
+  if (typeof value === 'string') {
+    const m = value.match(/^(\d{4})-(\d{2})-(\d{2})( \d{2}:\d{2})?$/);
+    if (!m) return value;
+    const d = new Date(+m[1], +m[2] - 1, +m[3] + DATE_SHIFT);
+    return isoOf(d) + (m[4] || '');
+  }
+  if (Array.isArray(value)) return value.map(shiftDates);
+  if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, shiftDates(v)]));
+  return value;
+}
 const SOFIA_ARRIVAL = '2026-11-09';
 const EMBED = window.self !== window.top; // inside the side-by-side page
 
@@ -953,21 +1019,23 @@ const ic = (n, cls = '') => `<svg class="i ${cls}" viewBox="0 0 24 24" aria-hidd
 
 /* ---------- State ---------- */
 function fresh() {
-  const faculty = clone(FACULTY);
-  if (REV) { const s = faculty.find(f => f.id === 'sofia'); s.preArrival = true; s.joined = SOFIA_ARRIVAL; s.consent = { family: '2026-09-23' }; }
+  const faculty = shiftDates(clone(FACULTY));
+  if (MODE === 'revised') { const s = faculty.find(f => f.id === 'sofia'); s.preArrival = true; s.joined = SOFIA_ARRIVAL; s.consent = { family: '2026-09-23' }; }
   return {
-    role: null, annotate: true,
+    role: null, annotate: !TESTER, ob: null,
     faculty,
-    threads: clone(THREADS).filter(t => REV || !t.revOnly),
-    events: clone(EVENTS), recs: clone(RECS), guides: clone(GUIDES),
-    matches: clone(MATCHES), notifs: clone(NOTIFS).filter(n => REV || n.to !== 'erik'),
+    threads: shiftDates(clone(THREADS)).filter(t => (REV || !t.revOnly) && !(TESTER && t.forum === 'partners')),
+    events: shiftDates(clone(EVENTS)), recs: shiftDates(clone(RECS)), guides: shiftDates(clone(GUIDES)),
+    // the tester build has no coordinator, so requests waiting for one are left out
+    matches: shiftDates(clone(MATCHES)).filter(m => !(TESTER && m.status === 'requested')),
+    notifs: TESTER ? [] : clone(NOTIFS).filter(n => REV || n.to !== 'erik'),
     forums: clone(FORUMS), reports: clone(REPORTS), audit: clone(AUDIT),
     flows: clone(FLOWS).filter(f => REV || !f.rev), tags: clone(INTEREST_TAGS),
     weights: Object.fromEntries(FACTORS.map(f => [f.key, f.w])),
-    prefs: {}, read: {}, readGuides: [], feedback: [], plan: Object.fromEntries(ARRIVAL_PLAN.map(a => [a.id, a.done])),
+    prefs: {}, read: {}, readGuides: [], feedback: [], plan: Object.fromEntries(ARRIVAL_PLAN.map(a => [a.id, TESTER ? false : a.done])),
     invites: clone(INVITES), consents: clone(CONSENTS), leavers: clone(USERS_EXTRA),
     dir: { q: '', college: '', topic: '', lang: '', interest: '', family: false, buddy: false },
-    cal: { y: 2026, m: 9 }, evView: 'calendar', evCat: '', recCat: '', guideCat: '', qaTag: '', qaSort: 'latest',
+    cal: { y: TODAY.getFullYear(), m: TODAY.getMonth() }, evView: TESTER ? 'list' : 'calendar', evCat: '', recCat: '', guideCat: '', qaTag: '', qaSort: 'latest',
     remind: 12, promote: 8, roles: {}, asked: false,
   };
 }
@@ -1052,7 +1120,7 @@ function routeQuestion(text) {
   const t = ' ' + text.toLowerCase() + ' ';
   let best = 'newto', bestN = 0;
   for (const [f, words] of Object.entries(KEYWORDS)) {
-    if (f === 'partners' && !REV) continue;
+    if (f === 'partners' && (!REV || TESTER)) continue;
     const n = words.filter(w => t.includes(w)).length;
     if (n > bestN) { best = f; bestN = n; }
   }
@@ -1071,6 +1139,7 @@ function factorScore(key, sk, c, pr) {
   switch (key) {
     case 'college': return sk.college === c.college ? [1, `Also in ${c.college}`] : [0, `Different college (${c.college})`];
     case 'culture': {
+      if (sk.country && c.country === sk.country) return [1, `Also from ${c.country}`];
       const reg = c.regions.filter(r => sk.regions.includes(r)); if (reg.length) return [1, `Also familiar with ${reg[0]}`];
       const lang = c.languages.filter(l => l !== 'English' && sk.languages.includes(l)); if (lang.length) return [0.7, `Speaks ${lang[0]}`];
       return [0, 'No shared region or language'];
@@ -1112,7 +1181,7 @@ function audit(what, who = S.role) { S.audit.unshift({ date: nowStamp(), who, wh
 function toast(msg, auto = false) {
   const t = document.createElement('div'); t.className = 'toast';
   t.innerHTML = `${ic(auto ? 'zap' : 'check', 'sm')}<span>${esc(msg)}</span>${auto ? `<span class="auto">${REV ? 'Automated' : 'Power Automate'}</span>` : ''}`;
-  $('#toasts').appendChild(t); setTimeout(() => t.remove(), 3800);
+  const box = $('#toasts'); box.appendChild(t); while (box.children.length > 2) box.firstChild.remove(); setTimeout(() => t.remove(), 3800);
 }
 function openModal(html) { $('#modal').innerHTML = html; $('#modal').classList.add('open'); $('#scrim').classList.add('open'); const f = $('#modal input:not([type=hidden]):not([readonly]), #modal textarea'); if (f) setTimeout(() => f.focus(), 60); }
 function openDrawer(html) { $('#drawer').innerHTML = html; $('#drawer').classList.add('open'); $('#scrim').classList.add('open'); }
@@ -1201,6 +1270,7 @@ function render() {
   document.body.classList.toggle('no-ann', !S.annotate);
   const app = $('#app');
   if (!gateOpen()) { app.innerHTML = gateScreen(); return; }
+  if (TESTER) return renderTester();
   if (!S.role) { app.innerHTML = demoBar() + signin(); after(); return; }
   if (isPartner() && !REV) { app.innerHTML = demoBar() + entraBlocked(); after(); return; }
   let { page, arg } = parseHash();
@@ -1262,6 +1332,7 @@ function demoBar() {
 
 function navItems() {
   const r = S.role;
+  if (TESTER) return [['home', 'Home', 'home'], ['buddy', me().isNew ? 'My buddy' : 'Buddy programme', 'link'], ['people', 'People', 'users'], ['qa', 'Ask & Discuss', 'message'], ['living', 'Living in Hanoi', 'map'], ['events', 'Events', 'calendar'], ['profile', 'My profile', 'user']];
   if (!REV) return [
     ['home', 'Home', 'home'], ['profile', 'My Profile', 'user'], ['directory', 'Find Faculty', 'users'], ['match', 'New Faculty Match', 'link'],
     ['living', 'Living in Hanoi', 'map'], ['forums', 'Forums & Communities', 'message'], ['events', 'Events & Activities', 'calendar'],
@@ -1297,7 +1368,7 @@ function sidebar(page, arg) {
       ${navItems().map(([k, l, i, x]) => `<a href="#/${k}" class="${activeKey === k ? 'on' : ''} ${x || ''}">${ic(i)}${l}</a>`).join('')}
       ${isAdmin() ? `<div class="nav-h">Administration</div>${ADMIN_TABS().map(([k, l, i]) => `<a href="#/admin/${k}" class="${page === 'admin' && (arg || 'overview') === k ? 'on' : ''}">${ic(i)}${l}${counts[k] ? `<span class="count">${counts[k]}</span>` : ''}</a>`).join('')}` : ''}
     </nav>
-    <div class="side-foot">${REV ? 'Pilot · Semester 1, 2026–27' : 'Shows Phases 1–2 of the proposal'}<br>${isPartner() ? 'Guest access' : isPre() ? 'Pre-arrival guest access' : 'Signed in with VinUniversity SSO'}</div>
+    <div class="side-foot">${TESTER ? 'Demo with fictional colleagues<br>What you enter stays in this browser' : REV ? 'Pilot · Semester 1, 2026–27' : 'Shows Phases 1–2 of the proposal'}<br>${isPartner() ? 'Guest access' : isPre() ? 'Pre-arrival guest access' : 'Signed in with VinUniversity SSO'}</div>
   </aside>`;
 }
 function topbar() {
@@ -1315,8 +1386,8 @@ function topbar() {
           <div style="max-height:380px;overflow:auto">${mine.length ? mine.map(n => `<a class="notif ${S.read[n.id] ? '' : 'unread'}" href="#/${n.go}" data-act="readnotif" data-id="${n.id}"><span class="flow-ico" ${n.auto ? '' : 'style="background:var(--navy-50);color:var(--navy-700)"'}>${ic(n.auto ? 'zap' : 'message', 'sm')}</span><div><div>${esc(n.text)}</div><div class="nd">${ago(n.date)}${n.auto ? ` · automated${REV ? '' : ' (Power Automate)'}` : ''}</div></div></a>`).join('') : '<div class="empty">Nothing yet</div>'}</div>
         </div>
       </div>
-      <a class="me-chip" href="#/profile">${av(p.id, 'sm')}<span class="txt"><span class="nm">${esc(name(p.id))}</span><br><span class="rl">${esc(persona.label)}</span></span></a>
-      <button class="icon-btn" data-act="signout" title="Switch persona" aria-label="Sign out">${ic('logout')}</button>
+      <a class="me-chip" href="#/profile">${av(p.id, 'sm')}<span class="txt"><span class="nm">${esc(name(p.id))}</span><br><span class="rl">${esc(TESTER ? (p.isNew ? (p.preArrival ? 'Arriving soon' : 'New faculty') : 'Faculty') : persona.label)}</span></span></a>
+      <button class="icon-btn" data-act="signout" title="${TESTER ? 'Start over' : 'Switch persona'}" aria-label="${TESTER ? 'Start over' : 'Sign out'}">${ic('logout')}</button>
     </div>
   </header>`;
 }
@@ -1509,7 +1580,7 @@ function homeAdmin() {
 
 /* ---------- Arrival plan (revised) ---------- */
 function planDone(a) {
-  if (a.auto === 'match' && a.id === 'a3') { const m = currentMatch('sofia'); if (m && ACTIVE_M.includes(m.status)) return true; }
+  if (a.auto === 'match' && a.id === 'a3') { const m = currentMatch(TESTER ? 'me' : 'sofia'); if (m && ACTIVE_M.includes(m.status)) return true; }
   return !!S.plan[a.id];
 }
 function arrivalSummary(partner) {
@@ -1725,9 +1796,9 @@ function buddyView(p) {
     + `<div class="split"><div class="stack">
     <section class="card"><div class="card-h"><h2>${ic('link')}Your buddies</h2><span class="small muted">${load_(p.id)} of ${p.buddy.max} places used</span></div><div class="card-b">
       ${mine.map(m => `<div class="list-item">${av(m.seeker)}<div class="li-main"><span class="li-title">${esc(name(m.seeker))}</span><span class="li-sub">${person(m.seeker).college} · introduced ${fmt(m.intro)} · ${m.status === 'checkin_due' ? 'check-in due ' + fmt(m.checkin) : m.checkinResult ? 'check-in: ' + m.checkinResult : 'check-in ' + fmt(m.checkin)}</span></div><button class="btn sm" data-act="contact" data-id="${m.seeker}">${ic('chat', 'sm')}Message</button></div>`).join('') || '<div class="muted small">No current buddies.</div>'}
-      ${pending.length ? `<div class="hr"></div><div class="small muted mb8">Requested, waiting for ${REV ? 'the coordinator' : 'admin confirmation'}</div>${pending.map(m => `<div class="list-item">${av(m.seeker)}<div class="li-main"><span class="li-title">${esc(name(m.seeker))}</span><span class="li-sub">Asked for you ${ago(m.created)}</span></div></div>`).join('')}` : ''}
+      ${pending.length ? `<div class="hr"></div><div class="small muted mb8">${TESTER ? 'Asking you to be their buddy' : `Requested, waiting for ${REV ? 'the coordinator' : 'admin confirmation'}`}</div>${pending.map(m => `<div class="list-item">${av(m.seeker)}<div class="li-main"><span class="li-title">${esc(name(m.seeker))}</span><span class="li-sub">${person(m.seeker).college} · asked for you ${ago(m.created)}</span></div>${TESTER ? `<button class="btn sm" data-act="person" data-id="${m.seeker}">Profile</button><button class="btn primary sm" data-act="tbaccept" data-id="${m.id}">Accept</button><button class="btn ghost sm" data-act="decline" data-id="${m.id}">Decline</button>` : ''}</div>`).join('')}` : ''}
     </div></section>
-    <section class="card"><div class="card-h"><h2>${ic('users')}Newcomers who might like your help</h2></div><div class="card-b">${S.faculty.filter(f => f.isNew && !currentMatch(f.id)).map(f => { const s = scoreFor(f.id, p); return `<div class="list-item">${av(f.id)}<div class="li-main"><span class="li-title">${esc(name(f.id))}</span><span class="li-sub">${f.college} · ${f.preArrival ? 'arriving ' + fmtShort(f.joined) : 'joined ' + ago(f.joined)} · wants help with ${f.wantsHelp.join(', ').toLowerCase()}</span></div><span class="badge navy">${s.pct}%</span></div>`; }).join('') || '<div class="muted small">Every newcomer has a buddy.</div>'}</div></section>
+    <section class="card"><div class="card-h"><h2>${ic('users')}Newcomers who might like your help</h2></div><div class="card-b">${S.faculty.filter(f => f.isNew && !currentMatch(f.id)).map(f => { const s = scoreFor(f.id, p); return `<div class="list-item">${av(f.id)}<div class="li-main"><span class="li-title">${esc(name(f.id))}</span><span class="li-sub">${f.college} · ${f.preArrival ? 'arriving ' + fmtShort(f.joined) : 'joined ' + ago(f.joined)} · wants help with ${f.wantsHelp.join(', ').toLowerCase()}</span></div>${TESTER ? `<button class="btn sm" data-act="person" data-id="${f.id}">Profile</button>` : `<span class="badge navy">${s.pct}%</span>`}</div>`; }).join('') || '<div class="muted small">Every newcomer has a buddy.</div>'}</div></section>
   </div>
   <aside class="card card-pad"><b>Your availability</b><label class="row mt12"><span class="toggle"><input type="checkbox" data-change="buddyavail" ${p.buddy.available ? 'checked' : ''}><span></span></span><span class="small">Available as a buddy</span></label>
     <p class="small muted mt12">You can take up to <b>${p.buddy.max}</b> at a time (change this on your profile). When you’re full, you stop appearing in suggestions, so the same helpful people don’t get every match.</p>
@@ -1823,14 +1894,14 @@ PAGES.ask = () => pageHead('Ask the Community', 'Post a question and we’ll sen
     <aside class="card card-pad"><b>How routing works</b><ol class="small mt8" style="padding-left:1.2em"><li>We read your question and suggest the best forum.</li><li>The faculty who list that topic under “I can help with” get a notification.</li><li>If no one answers in 48 hours, the forum moderator is alerted. ${phase(2)}</li></ol><div class="hr"></div><b class="small">Recently asked</b>${[...S.threads].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 4).map(threadItem).join('')}</aside></div>`;
 function askRoute(text, chosen) {
   const r = routeQuestion(text), f = chosen || r.forum, helpers = helpersFor(f);
-  const opts = REV ? [...activeForums(), PARTNER_TAG] : activeForums();
+  const opts = REV && !TESTER ? [...activeForums(), PARTNER_TAG] : activeForums();
   return `<div class="notice ${r.confident || chosen ? 'green' : ''}">${ic(r.confident ? 'sparkle' : 'info')}<div style="flex:1"><div class="row wrap"><b>${REV ? 'Topic:' : 'Best place:'}</b><select class="input" name="forum" data-change="askforum" style="width:auto;padding:4px 8px">${opts.map(o => `<option value="${o.id}" ${o.id === f ? 'selected' : ''}>${esc(REV ? o.short : o.name)}</option>`).join('')}</select></div>
     <div class="small mt8">${helpers.length ? `<span class="av-stack" style="display:inline-flex;vertical-align:middle;margin-right:6px">${helpers.slice(0, 5).map(h => av(h.id, 'sm')).join('')}</span>${helpers.length} ${helpers.length === 1 ? 'colleague lists' : 'colleagues list'} this as a help topic and will be notified.` : 'The moderator will be notified.'}</div></div></div>`;
 }
 
 /* ---------- Ask & Discuss (revised) ---------- */
 PAGES.qa = () => {
-  const tags = [...activeForums(), PARTNER_TAG];
+  const tags = TESTER ? activeForums() : [...activeForums(), PARTNER_TAG];
   let list = S.threads.filter(t => !S.qaTag || t.forum === S.qaTag);
   if (S.qaSort === 'unanswered') list = list.filter(t => !t.replies.length);
   list.sort((a, b) => S.qaSort === 'top' ? b.replies.length - a.replies.length : lastActivity(b).localeCompare(lastActivity(a)));
@@ -2058,7 +2129,7 @@ const ACT = {
   tourstep: el => { const n = S.tour + +el.dataset.v; if (n >= TOUR.length) ACT.tourend(); else applyStep(Math.max(0, n)); },
   side: () => { const open = document.body.classList.toggle('side-open'); $('#scrim').classList.toggle('open', open); },
   persona: el => { S.role = el.dataset.id; save(); go('home'); },
-  signout: () => { S.role = null; save(); location.hash = ''; render(); },
+  signout: () => { if (TESTER) return ACT.startover(); S.role = null; save(); location.hash = ''; render(); },
   reset: () => askConfirm('Reset the demo?', 'Everything you changed in this demo will be cleared.', 'Reset demo', () => { try { localStorage.removeItem(KEY); } catch (e) { /* ignore */ } S = fresh(); location.hash = ''; render(); }),
   confirmyes: () => { const f = pendingConfirm; pendingConfirm = null; closeOverlays(); if (f) f(); },
   map: () => openModal(proposalMap()),
@@ -2131,7 +2202,7 @@ const ACT = {
   evview: el => { S.evView = el.dataset.v; render(); },
   evcat: el => { S.evCat = el.dataset.v; render(); },
   calnav: el => { const d = new Date(S.cal.y, S.cal.m + +el.dataset.v, 1); S.cal = { y: d.getFullYear(), m: d.getMonth() }; render(); },
-  newevent: () => openModal(modalShell('Create an event', `<form data-form="newevent" id="neweventf"><div class="field"><label>Title</label><input class="input" name="title" required placeholder="e.g. Board games night"></div><div class="grid g2"><div class="field"><label>Date</label><input class="input" type="date" name="date" value="2026-10-30" required></div><div class="field"><label>Time</label><input class="input" type="time" name="time" value="19:00" required></div></div><div class="field"><label>Location</label><input class="input" name="loc" required placeholder="Where?"></div><div class="grid g2"><div class="field"><label>Category</label><select class="input" name="cat">${['Social', 'Cultural', 'Sports', 'Family', 'Weekend'].map(c => `<option>${c}</option>`).join('')}</select></div><div class="field"><label>Places</label><input class="input" type="number" name="cap" value="12" min="2"></div></div><div class="field"><label>Description</label><textarea class="input" name="desc"></textarea></div></form>`, `<button class="btn" data-act="close">Cancel</button><button class="btn primary" type="submit" form="neweventf">Create</button>`)),
+  newevent: () => openModal(modalShell('Create an event', `<form data-form="newevent" id="neweventf"><div class="field"><label>Title</label><input class="input" name="title" required placeholder="e.g. Board games night"></div><div class="grid g2"><div class="field"><label>Date</label><input class="input" type="date" name="date" value="${addDays(TODAY_ISO, 7)}" required></div><div class="field"><label>Time</label><input class="input" type="time" name="time" value="19:00" required></div></div><div class="field"><label>Location</label><input class="input" name="loc" required placeholder="Where?"></div><div class="grid g2"><div class="field"><label>Category</label><select class="input" name="cat">${['Social', 'Cultural', 'Sports', 'Family', 'Weekend'].map(c => `<option>${c}</option>`).join('')}</select></div><div class="field"><label>Places</label><input class="input" type="number" name="cap" value="12" min="2"></div></div><div class="field"><label>Description</label><textarea class="input" name="desc"></textarea></div></form>`, `<button class="btn" data-act="close">Cancel</button><button class="btn primary" type="submit" form="neweventf">Create</button>`)),
   feedback: () => openModal(modalShell('Send feedback', `<form data-form="feedback" id="fbf"><div class="field"><label>What kind of feedback?</label><select class="input" name="kind"><option>${REV ? 'Suggest a new topic' : 'Suggest a new forum category'}</option><option>Outdated information</option><option>Something isn’t working</option><option>Other</option></select></div><div class="field"><label>Tell us more</label><textarea class="input" name="text" required></textarea></div></form><p class="small muted">Goes to the platform administrators. ${ref(7)}</p>`, `<button class="btn" data-act="close">Cancel</button><button class="btn primary" type="submit" form="fbf">Send</button>`)),
   dirclear: () => { S.dir = { q: '', college: '', topic: '', lang: '', interest: '', family: false, buddy: false }; render(); },
 };
@@ -2262,6 +2333,245 @@ document.addEventListener('input', e => { const el = e.target.closest('[data-inp
 document.addEventListener('submit', e => { const f = e.target.closest('form[data-form]'); if (!f) return; e.preventDefault(); FORM[f.dataset.form](f, new FormData(f)); save(); });
 window.addEventListener('hashchange', () => { render(); window.scrollTo(0, 0); });
 window.addEventListener('resize', () => { const bar = $('#demobar'); if (bar) document.documentElement.style.setProperty('--bar', bar.offsetHeight + 'px'); });
+
+/* ==================================================================
+   TESTER BUILD
+   A simple, two-path version for current faculty to try and comment on:
+   new faculty go through a short onboarding, established faculty sign in.
+================================================================== */
+const FEEDBACK = typeof FEEDBACK_URL === 'string' ? FEEDBACK_URL : '';
+const TITLES = ['Lecturer', 'Senior Lecturer', 'Assistant Professor', 'Associate Professor', 'Professor', 'Research Fellow', 'Other'];
+const YEARS = [['<1', 'Less than a year'], ['1-2', '1–2 years'], ['3-5', '3–5 years'], ['5+', 'More than 5 years']];
+const FIRST_WEEKS = [
+  { id: 'w1', when: 'This week', title: 'Read “Your first week in Hanoi”', link: 'guide/g1' },
+  { id: 'w2', when: 'This week', title: 'Find a buddy', link: 'buddy', auto: 'match' },
+  { id: 'w3', when: 'This week', title: 'Open a bank account (bring the HR letter)', link: 'guide/g4' },
+  { id: 'w4', when: 'Next two weeks', title: 'Choose where to live', link: 'guide/g2' },
+  { id: 'w5', when: 'Next two weeks', title: 'Ask your first question', link: 'qa' },
+  { id: 'w6', when: 'This month', title: 'Go to one community event', link: 'events' },
+];
+const hasProfile = () => S.faculty.some(f => f.id === 'me');
+const stepDone = a => a.auto === 'match' ? (() => { const m = currentMatch('me'); return !!(m && ACTIVE_M.includes(m.status)); })() || !!S.plan[a.id] : !!S.plan[a.id];
+
+function feedbackLink(cls, label = 'Give feedback') {
+  return FEEDBACK
+    ? `<a class="${cls}" href="${esc(FEEDBACK)}" target="_blank" rel="noopener">${ic('chat', 'sm')}${label}</a>`
+    : `<button class="${cls}" type="button" data-act="feedbacksoon">${ic('chat', 'sm')}${label}</button>`;
+}
+function testerBar() {
+  return `<div class="demo-bar" id="demobar"><b>Demo</b><span class="note-t">Fictional colleagues · what you enter stays in this browser</span><span class="spacer"></span>${hasProfile() || S.ob ? '<button data-act="startover">Start over</button>' : ''}${feedbackLink('btnlink fb')}</div>`;
+}
+
+/* ---------- Start, sign-in and onboarding ---------- */
+function tLanding() {
+  return `<div class="ob"><div class="ob-card wide">
+    <div class="ob-brand"><div class="brand-mark lg" role="img" aria-label="${esc(UNI.name)}"></div><div class="brand-txt"><b>${esc(UNI.name)}</b><span>International Faculty Community</span></div></div>
+    <h1>Help us shape a home for international faculty</h1>
+    <p class="ob-lede">This is a working demo of a community platform for international faculty and their families. Try it for ten minutes, then tell us what you would want added. The colleagues inside are fictional, and what you enter stays in this browser.</p>
+    <div class="ob-choices">
+      <button class="ob-choice" type="button" data-act="obstart" data-v="new">${ic('plane', 'lg')}<b>I’m new to ${esc(UNI.short)}</b><span>Joining soon, or arrived in the last few months</span></button>
+      <button class="ob-choice" type="button" data-act="obstart" data-v="est">${ic('users', 'lg')}<b>I’ve been here a while</b><span>See how you could help newcomers, and what’s in it for you</span></button>
+    </div>
+    <div class="ob-foot">${feedbackLink('btn ghost sm', 'Already tried it? Give feedback')}</div>
+  </div></div>`;
+}
+function tSignin() {
+  return `<div class="ob"><div class="ob-card">
+    <div class="ob-brand"><div class="brand-mark lg" role="img" aria-label="${esc(UNI.name)}"></div><div class="brand-txt"><b>${esc(UNI.name)}</b><span>International Faculty Community</span></div></div>
+    <h1>Sign in</h1>
+    <p class="ob-lede">Use your ${esc(UNI.name)} account to continue.</p>
+    <button class="btn primary block sso-btn" type="button" data-act="obsso" id="sso-btn">${ic('key', 'sm')}Sign in with your ${esc(UNI.name)} account</button>
+    <p class="ob-note">Demo sign-in: no password is asked for or checked.</p>
+    <div><button class="btn ghost sm" type="button" data-act="obback">${ic('back', 'sm')}Back</button></div>
+  </div></div>`;
+}
+const field = (label, input, hint = '') => `<div class="field"><label>${label}</label>${input}${hint ? `<span class="hint">${hint}</span>` : ''}</div>`;
+const radioCards = (nm, opts, sel, cls = 'ob-radio') => `<div class="ob-radios">${opts.map(([v, l, sub]) => `<label class="${cls} ${sel === v ? 'on' : ''}"><input type="radio" name="${nm}" value="${esc(v)}" ${sel === v ? 'checked' : ''}><b>${esc(l)}</b>${sub ? `<span>${esc(sub)}</span>` : ''}</label>`).join('')}</div>`;
+function obShell(title, sub, body, step, total) {
+  return `<div class="ob"><form class="ob-card" data-form="ob" novalidate>
+    <div class="ob-top"><div class="ob-steps">${Array.from({ length: total }, (_, i) => `<i class="${i < step ? 'on' : ''}"></i>`).join('')}</div><span class="tiny muted">Step ${step} of ${total}</span></div>
+    <h1>${title}</h1>${sub ? `<p class="ob-lede">${sub}</p>` : ''}
+    ${body}
+    <div class="ob-err" id="ob-err" role="alert" hidden></div>
+    <div class="ob-nav"><button type="button" class="btn ghost" data-act="obback">${ic('back', 'sm')}Back</button><button class="btn primary" type="submit">${step === total ? 'Finish' : 'Next'} ${ic(step === total ? 'check' : 'chev', 'sm')}</button></div>
+  </form></div>`;
+}
+function tObStep() {
+  const { path, step, d } = S.ob, total = path === 'new' ? 4 : 3, v = k => esc(d[k] || '');
+  if (step === 1) return obShell(path === 'new' ? 'Welcome! Let’s start with you' : 'Welcome back', 'Your name and your college.',
+    `<div class="grid g2">${field('First name', `<input class="input" name="first" value="${v('first')}" autocomplete="given-name">`)}${field('Last name', `<input class="input" name="last" value="${v('last')}" autocomplete="family-name">`)}</div>
+     <div class="field"><span class="lbl">College</span>${radioCards('college', Object.entries(COLLEGES).map(([k, n]) => [k, k, n]), d.college, 'ob-radio ob-college')}</div>`, 1, total);
+  if (step === 2) return obShell('A bit about your work', 'This helps colleagues with shared interests find you.',
+    `<div class="grid g2">${field('Title', `<select class="input" name="title">${TITLES.map(t => `<option ${t === d.title ? 'selected' : ''}>${t}</option>`).join('')}</select>`)}
+     ${path === 'est' ? field(`Time at ${esc(UNI.short)}`, `<select class="input" name="years">${YEARS.map(([k, l]) => `<option value="${k}" ${k === d.years ? 'selected' : ''}>${l}</option>`).join('')}</select>`) : field('Home country', `<input class="input" name="country" value="${v('country')}" placeholder="e.g. Germany">`)}</div>
+     ${field('Area of expertise', `<input class="input" name="expertise" value="${v('expertise')}" placeholder="e.g. Machine learning, Public health">`, 'Separate several with commas.')}
+     <div class="grid g2">${path === 'est' ? field('Home country', `<input class="input" name="country" value="${v('country')}" placeholder="e.g. Germany">`) : ''}${field('Languages you speak', `<input class="input" name="languages" value="${esc(d.languages || 'English')}">`)}</div>`, 2, total);
+  if (path === 'new' && step === 3) return obShell('Your move', 'Optional, but it makes the suggestions much better.',
+    `<div class="field"><span class="lbl">When do you arrive in Hanoi?</span>${radioCards('when', [['here', 'I’m already here'], ['arriving', 'I’m arriving soon']], d.when || 'arriving')}</div>
+     ${field('Arrival date', `<input class="input" type="date" name="arrival" value="${v('arrival')}" min="${TODAY_ISO}">`, 'Only if you haven’t arrived yet.')}
+     <div class="field"><span class="lbl">Who’s moving with you?</span><label class="row small"><input type="checkbox" name="partner" ${d.partner ? 'checked' : ''}> A partner or spouse</label></div>
+     <div class="field"><span class="lbl">Children’s ages, if any</span>${chipSet('kids', KID_RANGES, d.kids || [])}</div>
+     ${field('Where will you live?', `<select class="input" name="area">${AREAS.map(a => `<option ${a === (d.area || 'Undecided') ? 'selected' : ''}>${a}</option>`).join('')}</select>`)}
+     <p class="ob-note">${ic('lock', 'sm')} Family details stay private. They’re only used to suggest a buddy in a similar situation.</p>`, 3, total);
+  const est = path === 'est';
+  return obShell(est ? 'How could you help newcomers?' : 'What would help most?', est ? 'Pick anything you know well. Newcomers with those questions will find you.' : 'Pick the topics you’d like help with. We’ll suggest guides and a buddy.',
+    `<div class="field"><span class="lbl">${est ? 'I can help with' : 'I’d like help with'}</span>${chipSet(est ? 'helpTopics' : 'wantsHelp', HELP_TOPICS, d[est ? 'helpTopics' : 'wantsHelp'] || [])}</div>
+     <div class="field"><span class="lbl">Your interests</span>${chipSet('interests', S.tags, d.interests || [])}</div>
+     ${est ? `<label class="row ob-buddy"><span class="toggle"><input type="checkbox" name="buddy" ${d.buddy !== false ? 'checked' : ''}><span></span></span><span><b>I’d volunteer as a buddy</b> for up to <select class="input" name="buddyMax" style="width:auto;display:inline-block;padding:3px 8px">${[1, 2, 3].map(n => `<option ${String(n) === String(d.buddyMax || 1) ? 'selected' : ''}>${n}</option>`).join('')}</select> newcomer(s) at a time</span></label>` : ''}`, total, total);
+}
+function finishOnboarding() {
+  const d = S.ob.d, isNew = S.ob.path === 'new';
+  const arriving = isNew && d.when !== 'here' && d.arrival && d.arrival > TODAY_ISO;
+  const years = isNew ? 0 : ({ '<1': 0, '1-2': 1, '3-5': 3, '5+': 6 }[d.years] ?? 1);
+  const p = {
+    id: 'me', first: d.first, last: d.last, title: d.title || TITLES[0], college: d.college,
+    expertise: csv(d.expertise).length ? csv(d.expertise) : ['Not added yet'], interests: d.interests || [], languages: csv(d.languages || 'English'),
+    regions: d.country ? [d.country] : [], country: d.country || '', helpTopics: isNew ? [] : (d.helpTopics || []), wantsHelp: isNew ? (d.wantsHelp || []) : [],
+    buddy: { available: !isNew && !!d.buddy, max: +(d.buddyMax || 1), base: 0 }, contact: 'Teams', phoneVis: 'me',
+    family: { partner: !!d.partner, kids: d.kids || [], vis: 'match' }, area: d.area || 'Undecided', years,
+    joined: isNew ? (arriving ? d.arrival : addDays(TODAY_ISO, -14)) : addDays(TODAY_ISO, -Math.max(1, years) * 365),
+    isNew, preArrival: !!arriving, photo: false, updated: TODAY_ISO,
+  };
+  if (p.family.partner || p.family.kids.length) p.consent = { family: TODAY_ISO };
+  p.complete = completeness(p);
+  S.faculty = S.faculty.filter(f => f.id !== 'me').concat(p);
+  S.role = 'me'; S.ob = null;
+  if (isNew) notify('me', `Welcome, ${p.first}! We’ve suggested a few colleagues who could be your buddy.`, 'buddy');
+  else {
+    notify('me', `Welcome back, ${p.first}. A few newcomers could use your help.`, 'home');
+    if (p.buddy.available) {
+      const seeker = ['marcus', 'yasmin'].map(id => [id, scoreFor(id, p).pct]).sort((a, b) => b[1] - a[1])[0][0];
+      S.matches.push({ id: uid('m'), seeker, buddy: 'me', status: 'requested', created: TODAY_ISO });
+      notify('me', `${name(seeker)}, who just joined ${person(seeker).college}, asked if you’d be their buddy.`, 'buddy', false);
+    }
+  }
+  location.hash = '#/home'; render(); window.scrollTo(0, 0);
+}
+
+/* ---------- Dashboard ---------- */
+function tStep(a) {
+  const done = stepDone(a);
+  return `<div class="step ${done ? 'done' : ''}"><button class="tick" type="button" data-act="tplan" data-id="${a.id}" aria-label="${done ? 'Mark as not done' : 'Mark as done'}">${done ? ic('check', 'sm') : ''}</button><span class="when">${a.when}</span><div class="li-main"><div class="st-title">${a.title}</div></div><a class="btn ghost sm" href="#/${a.link}">Open ${ic('chev', 'sm')}</a></div>`;
+}
+function tHome() {
+  const p = me();
+  return p.isNew ? tHomeNew(p) : tHomeEst(p);
+}
+function tHomeNew(p) {
+  const m = currentMatch('me'), steps = p.preArrival ? ARRIVAL_PLAN.filter(a => a.id !== 'a9') : FIRST_WEEKS;
+  const done = steps.filter(a => a.id === 'a3' ? planDone(a) : stepDone(a)).length;
+  const guides = S.guides.filter(g => p.wantsHelp.includes(g.cat)).concat(S.guides.filter(g => !p.wantsHelp.includes(g.cat))).slice(0, 3);
+  const buddyBox = !m ? `<p class="small muted">Get matched with a colleague who has been here a while.</p><a class="btn primary sm" href="#/buddy">See suggestions</a>`
+    : m.status === 'requested' ? `<div class="row">${av(m.buddy)}<div><b>${esc(name(m.buddy))}</b><div class="small muted">Request sent, waiting to confirm</div></div></div>`
+    : `<div class="row">${av(m.buddy)}<div><b>${esc(name(m.buddy))}</b><div class="small muted">Your buddy · ${person(m.buddy).college}</div></div></div><button class="btn sm mt12" data-act="contact" data-id="${m.buddy}">${ic('chat', 'sm')}Message</button>`;
+  return `<section class="hero ph ph-facade"><h1>Welcome, ${esc(p.first)}.</h1><p>${p.preArrival ? `You arrive in Hanoi in <b>${daysUntil(p.joined)}</b> days. Here’s what to sort out first.` : 'Here’s what to sort out in your first weeks.'}</p>
+      <div class="row wrap mt16"><a class="btn red" href="#/buddy">${ic('link', 'sm')}${m ? 'My buddy' : 'Find a buddy'}</a><a class="btn" href="#/qa">${ic('help', 'sm')}Ask a question</a></div></section>
+    <div class="split mt24"><section class="card"><div class="card-h"><h2>${ic('list')}Your next steps</h2><span class="small muted">${done} of ${steps.length} done</span></div><div class="card-b"><div class="steps">${steps.map(a => a.id.startsWith('a') ? planStep(a) : tStep(a)).join('')}</div></div></section>
+      <div class="stack"><section class="card card-pad"><h3 class="mb12">Your buddy</h3>${buddyBox}</section>
+      <section class="card card-pad"><h3 class="mb8">Coming up</h3>${upcomingEvents(3).map(eventItem).join('')}<a class="btn ghost sm mt8" href="#/events">All events ${ic('chev', 'sm')}</a></section></div></div>
+    <section class="mt24"><div class="row between mb12"><h2 class="t-h2">Guides for you</h2><a class="btn ghost sm" href="#/living">All guides ${ic('chev', 'sm')}</a></div>
+      <div class="grid g3">${guides.map(g => `<a class="card guide-card" href="#/guide/${g.id}"><div class="row between">${sourceBadge(g)}<span class="tiny muted">${g.mins} min</span></div><h3>${esc(g.title)}</h3><p class="small muted" style="margin:0">${esc(g.summary)}</p></a>`).join('')}</div></section>`;
+}
+function tHomeEst(p) {
+  const pending = S.matches.filter(m => m.buddy === 'me' && m.status === 'requested');
+  const mine = S.matches.filter(m => m.buddy === 'me' && ACTIVE_M.includes(m.status));
+  const topics = p.helpTopics.map(t => TOPIC_FORUM[t]);
+  const qs = S.threads.filter(t => t.author !== 'me' && (!topics.length || topics.includes(t.forum))).sort((a, b) => a.replies.length - b.replies.length || b.date.localeCompare(a.date)).slice(0, 4);
+  const newbies = S.faculty.filter(f => f.isNew && f.id !== 'me').sort((a, b) => b.joined.localeCompare(a.joined)).slice(0, 4);
+  const buddyCard = !p.buddy.available
+    ? `<p class="small muted">Newcomers would love a colleague to ask the small questions. It’s a coffee and a few messages.</p><a class="btn primary sm" href="#/buddy">Volunteer as a buddy</a>`
+    : (pending.map(m => `<div class="list-item">${av(m.seeker)}<div class="li-main"><span class="li-title">${esc(name(m.seeker))}</span><span class="li-sub">${person(m.seeker).college} · wants help with ${esc(person(m.seeker).wantsHelp.join(', ').toLowerCase())}</span></div><button class="btn primary sm" data-act="tbaccept" data-id="${m.id}">Accept</button><button class="btn ghost sm" data-act="decline" data-id="${m.id}">Not now</button></div>`).join('')
+      + mine.map(m => `<div class="list-item">${av(m.seeker)}<div class="li-main"><span class="li-title">${esc(name(m.seeker))}</span><span class="li-sub">Your buddy since ${fmt(m.intro)}</span></div><button class="btn sm" data-act="contact" data-id="${m.seeker}">${ic('chat', 'sm')}Message</button></div>`).join('')) || '<p class="small muted">No requests right now. We’ll let you know.</p>';
+  return `<section class="hero ph ph-lawn"><h1>Welcome back, ${esc(p.first)}.</h1><p>${S.faculty.filter(f => f.isNew && f.id !== 'me').length} newcomers joined recently. Here’s where your experience helps most.</p>
+      <div class="row wrap mt16"><a class="btn red" href="#/buddy">${ic('link', 'sm')}Buddy programme</a><a class="btn" href="#/qa">${ic('help', 'sm')}Answer questions</a></div></section>
+    <div class="grid g2 mt24">
+      <section class="card"><div class="card-h"><h2>${ic('link')}Buddy requests</h2></div><div class="card-b">${buddyCard}</div></section>
+      <section class="card"><div class="card-h"><h2>${ic('help')}Questions you could answer</h2></div><div class="card-b">${qs.map(t => `<a class="list-item" href="#/thread/${t.id}">${av(t.author, 'sm')}<div class="li-main"><span class="li-title">${esc(t.title)}</span><span class="li-sub">${esc(tagLabel(t.forum))} · ${t.replies.length ? t.replies.length + ' replies' : '<b style="color:var(--red)">no replies yet</b>'}</span></div></a>`).join('')}</div></section>
+      <section class="card"><div class="card-h"><h2>${ic('users')}New colleagues</h2></div><div class="card-b">${newbies.map(f => `<a class="list-item" href="javascript:void 0" data-act="person" data-id="${f.id}">${av(f.id)}<div class="li-main"><span class="li-title">${esc(name(f.id))}</span><span class="li-sub">${f.college} · ${esc(f.country)} · joined ${ago(f.joined)}</span></div></a>`).join('')}</div></section>
+      <section class="card"><div class="card-h"><h2>${ic('calendar')}Coming up</h2></div><div class="card-b">${upcomingEvents(4).map(eventItem).join('')}</div></section>
+    </div>`;
+}
+function tBuddy() {
+  const p = me();
+  if (!p.isNew) return buddyView(p);
+  const m = currentMatch('me');
+  const head = pageHead('My buddy', 'An experienced colleague who answers the small questions and helps you settle in.');
+  if (!m) {
+    const sug = suggestions('me').filter(s => !s.full).slice(0, 3);
+    return head + `<p class="mb16">Based on what you told us, these colleagues could be a good fit. Ask one, and they and the coordinator will confirm.</p>
+      <div class="grid g3">${sug.map(s => { const c = person(s.id), why = s.parts.filter(x => x.wt && x.v >= .5).sort((a, b) => b.wt * b.v - a.wt * a.v).slice(0, 3);
+        return `<article class="card match-card"><div class="row" style="align-items:flex-start">${av(s.id, 'lg')}<div style="min-width:0"><div class="strong">${esc(name(s.id))}</div><div class="small muted">${esc(c.title)} · ${c.college} · ${c.years} yrs in Hanoi</div></div></div>
+          <ul class="small" style="margin:0">${why.map(w => `<li>${esc(w.why)}</li>`).join('') || '<li>Knows Hanoi well</li>'}</ul>
+          <div class="row between"><button class="btn ghost sm" data-act="person" data-id="${s.id}">Profile</button><button class="btn primary sm" data-act="requestmatch" data-id="${s.id}">Ask ${esc(c.first)}</button></div></article>`; }).join('')}</div>
+      <p class="small muted mt16">Not quite right? <a href="#/profile">Update what you need help with</a> and the suggestions change.</p>`;
+  }
+  if (m.status === 'requested') return head + `<section class="card card-pad" style="max-width:760px"><div class="row" style="gap:16px">${av(m.buddy, 'lg')}<div><div class="strong" style="font-size:17px">You asked ${esc(name(m.buddy))}</div><div class="muted small">They and the coordinator usually confirm within two days.</div></div></div>
+    <div class="row wrap mt16"><button class="btn primary" data-act="tbaccept" data-id="${m.id}">${ic('sparkle', 'sm')}Demo: see what happens when ${esc(first(m.buddy))} says yes</button><button class="btn ghost" data-act="cancelmatch" data-id="${m.id}">Cancel request</button></div></section>`;
+  return head + matchStatus(m);
+}
+const TPAGES = { home: tHome, buddy: tBuddy, people: (...a) => PAGES.directory(...a), qa: (...a) => PAGES.qa(...a), thread: (...a) => PAGES.thread(...a), living: (...a) => PAGES.living(...a), guide: (...a) => PAGES.guide(...a), events: (...a) => PAGES.events(...a), profile: (...a) => PAGES.profile(...a) };
+const T_ALIASES = { match: 'buddy', directory: 'people', arrival: 'home', forums: 'qa', ask: 'qa', recs: 'living/recs' };
+
+function renderTester() {
+  const app = $('#app');
+  document.body.classList.add('no-ann');
+  if (!hasProfile()) {
+    S.role = null; $('#toasts').innerHTML = '';
+    app.innerHTML = testerBar() + (!S.ob ? tLanding() : S.ob.step === 0 ? tSignin() : tObStep());
+    after();
+    const f = $('.ob-card input:not([type=radio]):not([type=checkbox]), .ob-card select'); if (f && S.ob && S.ob.step > 0) f.focus();
+    return;
+  }
+  S.role = 'me';
+  const { page, arg } = parseHash();
+  if (!TPAGES[page]) { location.replace('#/' + (T_ALIASES[page] || 'home')); return; }
+  app.innerHTML = testerBar() + `<div class="shell">${sidebar(page, arg)}<div class="main">${topbar()}<main class="content" id="content">${TPAGES[page](arg)}</main></div></div>` + feedbackLink('btn red fab');
+  after();
+}
+Object.assign(ACT, {
+  obstart: el => { S.ob = { path: el.dataset.v, step: el.dataset.v === 'new' ? 1 : 0, d: {} }; render(); window.scrollTo(0, 0); },
+  obsso: el => { el.disabled = true; el.innerHTML = 'Signing you in…'; setTimeout(() => { S.ob.step = 1; render(); }, 600); },
+  obback: () => { const o = S.ob; if (o.step <= (o.path === 'new' ? 1 : 0)) S.ob = null; else o.step--; render(); window.scrollTo(0, 0); },
+  startover: () => askConfirm('Start over?', 'This clears your profile and everything you did in the demo, on this browser.', 'Start over', () => { try { localStorage.removeItem(KEY); } catch (e) { /* ignore */ } S = fresh(); location.hash = ''; render(); }),
+  feedbacksoon: () => openModal(modalShell('Feedback form', '<p>The feedback form will be linked here soon. Thank you for trying the demo!</p>', '<button class="btn primary" data-act="close">OK</button>')),
+  tplan: el => { const a = FIRST_WEEKS.find(x => x.id === el.dataset.id); S.plan[a.id] = !stepDone(a); render(); },
+  tbaccept: el => {
+    const m = S.matches.find(x => x.id === el.dataset.id);
+    m.status = 'introduced'; m.intro = TODAY_ISO; m.checkin = addDays(TODAY_ISO, 21);
+    if (m.seeker === 'me') notify('me', `${first(m.buddy)} said yes! You’ve been introduced.`, 'buddy');
+    else toast(`You’re now ${first(m.seeker)}’s buddy. We’ve sent you both an introduction.`, true);
+    render();
+  },
+});
+Object.assign(FORM, {
+  ob: (f, fd) => {
+    const o = S.ob, d = o.d, val = k => String(fd.get(k) || '').trim();
+    const err = msg => { const e = $('#ob-err'); e.textContent = msg; e.hidden = false; };
+    if (o.step === 1) {
+      if (!val('first') || !val('last')) return err('Please enter your first and last name.');
+      if (!val('college')) return err('Please choose your college.');
+      Object.assign(d, { first: val('first'), last: val('last'), college: val('college') });
+    } else if (o.step === 2) {
+      Object.assign(d, { title: val('title'), expertise: val('expertise'), country: val('country'), languages: val('languages') || 'English' });
+      if (o.path === 'est') d.years = val('years');
+    } else if (o.path === 'new' && o.step === 3) {
+      const when = val('when') || 'arriving';
+      if (when === 'arriving' && !val('arrival')) return err('Please pick your arrival date, or choose “I’m already here”.');
+      if (when === 'arriving' && val('arrival') <= TODAY_ISO) return err('That date has passed. Choose “I’m already here” instead.');
+      Object.assign(d, { when, arrival: when === 'arriving' ? val('arrival') : '', partner: !!fd.get('partner'), kids: listOf(fd, 'kids'), area: val('area') || 'Undecided' });
+    } else {
+      if (o.path === 'new') Object.assign(d, { wantsHelp: listOf(fd, 'wantsHelp'), interests: listOf(fd, 'interests') });
+      else Object.assign(d, { helpTopics: listOf(fd, 'helpTopics'), interests: listOf(fd, 'interests'), buddy: !!fd.get('buddy'), buddyMax: val('buddyMax') || '1' });
+      return finishOnboarding();
+    }
+    o.step++; render(); window.scrollTo(0, 0);
+  },
+});
+document.addEventListener('change', e => {
+  const card = e.target.type === 'radio' && e.target.closest('.ob-radio');
+  if (card) card.parentElement.querySelectorAll('.ob-radio').forEach(l => l.classList.toggle('on', l.querySelector('input').checked));
+});
+
 render();
 
 </script>

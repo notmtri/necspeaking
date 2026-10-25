@@ -3,7 +3,11 @@
    Neighbourhood names and public emergency numbers are real.
 ------------------------------------------------------------------- */
 
-const TODAY = new Date('2026-10-15T09:00:00');
+// The demo story is set on 15 October 2026. The tester build (DEMO_LIVE_DATE) runs on the
+// real date instead, and app.js shifts every sample date by the same number of days.
+const STORY_DAY = new Date('2026-10-15T09:00:00');
+const TODAY = typeof DEMO_LIVE_DATE !== 'undefined' && DEMO_LIVE_DATE ? (() => { const d = new Date(); d.setHours(9, 0, 0, 0); return d; })() : STORY_DAY;
+const UNI = { name: 'VinUniversity', short: 'VinUni' };
 
 const COLLEGES = {
   CECS: 'College of Engineering & Computer Science',
