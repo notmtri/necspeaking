@@ -1,0 +1,636 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>International Faculty Community Platform: Pilot Proposal</title>
+<style>
+@font-face { font-family: 'Hanken'; font-weight: 400 700; src: url('{{FONTS}}/HankenGrotesk-latin.woff2') format('woff2'); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+@font-face { font-family: 'Hanken'; font-weight: 400 700; src: url('{{FONTS}}/HankenGrotesk-latin-ext.woff2') format('woff2'); unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+@font-face { font-family: 'Hanken'; font-weight: 400 700; src: url('{{FONTS}}/HankenGrotesk-vietnamese.woff2') format('woff2'); unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB; }
+@font-face { font-family: 'Newsreader'; font-weight: 500 700; src: url('{{FONTS}}/Newsreader-latin.woff2') format('woff2'); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+@font-face { font-family: 'Newsreader'; font-weight: 500 700; src: url('{{FONTS}}/Newsreader-latin-ext.woff2') format('woff2'); unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+@font-face { font-family: 'Newsreader'; font-weight: 500 700; src: url('{{FONTS}}/Newsreader-vietnamese.woff2') format('woff2'); unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB; }
+
+:root { --navy: #1D3C73; --navy-d: #0A1834; --navy-50: #EEF2FA; --navy-100: #DCE4F4; --red: #C72027; --red-50: #FCECEF; --ink: #1B1F28; --ink2: #464E5E; --ink3: #737B8C; --line: #DDE1E8; --gold-50: #FBF4E4; --green: #1E7A4C; --green-50: #E7F4EC; --teal: #0E7A6E; }
+@page { size: A4; margin: 19mm 18mm 18mm 18mm; }
+* { box-sizing: border-box; }
+html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+body { margin: 0; font-family: 'Hanken', system-ui, sans-serif; font-size: 10.2pt; line-height: 1.55; color: var(--ink); }
+h1, h2, h3, h4 { font-family: 'Newsreader', Georgia, serif; color: var(--navy-d); font-weight: 600; margin: 0; line-height: 1.2; }
+h2.sec { font-size: 23pt; margin: 0 0 4mm; padding-top: 1mm; letter-spacing: -.2px; break-after: avoid; }
+h2.sec .n { color: var(--red); margin-right: 3mm; }
+h3 { font-size: 14pt; margin: 6mm 0 2mm; break-after: avoid; }
+h3 .n { color: var(--red); font-size: 11pt; margin-right: 2mm; font-family: 'Hanken'; font-weight: 700; }
+h4 { font-family: 'Hanken'; font-size: 9pt; text-transform: uppercase; letter-spacing: .9px; color: var(--red); font-weight: 700; margin: 4mm 0 1.5mm; break-after: avoid; }
+p { margin: 0 0 2.6mm; }
+ul, ol { margin: 0 0 3mm; padding-left: 5mm; }
+li { margin-bottom: 1mm; }
+b, strong { font-weight: 700; color: var(--navy-d); }
+.lede { font-size: 11.5pt; color: var(--ink2); line-height: 1.55; margin-bottom: 5mm; }
+.newpage { break-before: page; }
+.flow { margin-top: 11mm; }
+.muted { color: var(--ink3); }
+.small { font-size: 8.8pt; }
+.box { border-radius: 3mm; padding: 4mm 5mm; margin: 3mm 0 4mm; break-inside: avoid; }
+.box.navy { background: var(--navy-50); border-left: 1.2mm solid var(--navy); }
+.box.red { background: var(--red-50); border-left: 1.2mm solid var(--red); }
+.box.gold { background: var(--gold-50); border-left: 1.2mm solid #B88A2E; }
+.box.green { background: var(--green-50); border-left: 1.2mm solid var(--green); }
+.box h4:first-child { margin-top: 0; }
+.box p:last-child, .box ul:last-child, .box ol:last-child { margin-bottom: 0; }
+table { width: 100%; border-collapse: collapse; margin: 2mm 0 4mm; font-size: 8.9pt; break-inside: auto; }
+th { text-align: left; background: var(--navy); color: #fff; font-weight: 600; padding: 2mm 2.4mm; font-size: 8.4pt; }
+td { padding: 2mm 2.4mm; border-bottom: .3mm solid var(--line); vertical-align: top; }
+tr { break-inside: avoid; }
+tr:nth-child(even) td { background: #F7F8FA; }
+td.num, th.num { text-align: center; width: 9mm; }
+.tag { display: inline-block; padding: .2mm 2mm; border-radius: 9mm; font-size: 7.6pt; font-weight: 700; white-space: nowrap; }
+.tag.pilot { background: var(--green-50); color: var(--green); }
+.tag.later { background: #EEF0F4; color: var(--ink2); }
+.tag.chg { background: #E2F5F2; color: var(--teal); }
+figure { margin: 3mm 0 5mm; break-inside: avoid; }
+figure img { display: block; width: 100%; border: .3mm solid var(--line); border-radius: 2mm; box-shadow: 0 .6mm 2mm rgba(10, 24, 52, .10); }
+figure.w45 { width: 45%; } figure.w55 { width: 55%; } figure.w65 { width: 65%; } figure.w75 { width: 75%; } figure.w85 { width: 85%; }
+figure.c { margin-left: auto; margin-right: auto; }
+figcaption { font-size: 8.2pt; color: var(--ink3); margin-top: 1.8mm; line-height: 1.4; }
+figcaption b { color: var(--ink2); }
+.figs { display: grid; gap: 5mm; margin: 3mm 0 5mm; align-items: start; break-inside: avoid; }
+.figs.two { grid-template-columns: 1fr 1fr; } .figs.two-r { grid-template-columns: 1.35fr 1fr; } .figs.three { grid-template-columns: 1fr 1fr 1fr; }
+.figs figure { margin: 0; }
+.side { display: grid; grid-template-columns: 1fr 44%; gap: 6mm; align-items: start; margin-bottom: 2mm; }
+.side.l { grid-template-columns: 40% 1fr; }
+.side figure { margin-top: 1mm; }
+.feature { break-inside: auto; }
+.why { font-size: 9.2pt; color: var(--ink2); border-top: .3mm dashed var(--line); padding-top: 2mm; margin-top: 1mm; }
+.why b { color: var(--red); }
+.kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 3mm; margin: 3mm 0 5mm; }
+.kpi { border: .3mm solid var(--line); border-radius: 2.5mm; padding: 3mm; break-inside: avoid; }
+.kpi .v { font-family: 'Newsreader'; font-size: 20pt; font-weight: 600; color: var(--navy-d); line-height: 1; }
+.kpi .l { font-size: 8.4pt; color: var(--ink2); margin-top: 1.5mm; line-height: 1.35; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 5mm; }
+.toc { margin-top: 4mm; }
+.toc a { display: flex; align-items: baseline; gap: 2mm; color: var(--ink); text-decoration: none; padding: .8mm 0; border-bottom: .3mm solid var(--line); font-size: 9.8pt; }
+.toc a.sub { padding-left: 8mm; font-size: 8.5pt; padding-top: .45mm; padding-bottom: .45mm; color: var(--ink2); border-bottom-style: dotted; }
+.toc .n { color: var(--red); font-weight: 700; min-width: 7mm; }
+.toc .dots { flex: 1; }
+.toc .pg { font-variant-numeric: tabular-nums; color: var(--ink2); }
+.persona { display: grid; grid-template-columns: 11mm 1fr; gap: 3mm; padding: 3mm 0; border-bottom: .3mm solid var(--line); break-inside: avoid; }
+.persona .av { width: 11mm; height: 11mm; border-radius: 50%; display: grid; place-items: center; color: #fff; font-weight: 700; font-size: 9pt; }
+.timeline { position: relative; margin: 3mm 0 5mm; }
+.tl { display: grid; grid-template-columns: 30mm 1fr; gap: 4mm; padding: 2.5mm 0; border-bottom: .3mm solid var(--line); break-inside: avoid; }
+.tl .when { font-weight: 700; color: var(--red); font-size: 9.2pt; }
+.tl .what b { display: block; margin-bottom: .5mm; }
+.sign { margin-top: 8mm; display: grid; grid-template-columns: 1fr 1fr; gap: 10mm; }
+.sign div { border-top: .3mm solid var(--ink3); padding-top: 2mm; font-size: 8.8pt; color: var(--ink3); }
+.note { font-size: 8.2pt; color: var(--ink3); }
+</style>
+</head>
+<body>
+
+<!-- ============================ CONTENTS ============================ -->
+<section>
+  <h2 class="sec">Contents</h2>
+  <div class="toc">{{TOC}}</div>
+  <div class="box gold" style="margin-top:4mm;padding:3mm 4mm;font-size:8.8pt">
+    <h4>About this document and the demo</h4>
+    <p>This proposal comes with an online demo that faculty can try: <a href="https://claude.ai/artifact/HKcpCfBua9uHhv5Y3hNKNc">claude.ai/artifact/HKcpCfBua9uHhv5Y3hNKNc</a> (password provided separately). It shows the experience for new and established faculty. The screenshots in this document come from the full working prototype, which also includes the partner and coordinator screens described in Sections 5 and 6. <b>All people, schools, clinics and providers shown are fictional sample data</b>, and the demo is a concept, not an official VinUniversity system. Appendix A explains how to try it.</p>
+  </div>
+</section>
+
+<!-- ============================ 1 ============================ -->
+<section class="newpage" data-sec="s1">
+  <h2 class="sec" id="s1"><span class="n">1</span>Executive summary</h2>
+  <p class="lede">International faculty make some of the biggest decisions about their move to Hanoi, such as where to live, which school to choose and how to insure their family, before they arrive and before they have anyone to ask. Partners and children face the move too, but have no place in university systems. This proposal asks the council to approve a one-semester pilot of a small, private community platform that closes those gaps.</p>
+
+  <h4>What the platform does</h4>
+  <ul>
+    <li><b>Starts before arrival.</b> New hires get a personal invitation link as soon as they sign their contract, with an arrival plan timed to their start date.</li>
+    <li><b>Includes families.</b> Partners get a limited guest account linked to the faculty member, so the person visiting schools and viewing apartments can take part.</li>
+    <li><b>Connects people.</b> A privacy-aware directory and a buddy programme pair every newcomer with an experienced colleague, with a coordinator confirming each match.</li>
+    <li><b>Keeps answers findable.</b> One Ask &amp; Discuss space, curated <i>Living in Hanoi</i> guides and dated recommendations replace scattered emails and chat threads. A weekly digest keeps the existing WhatsApp and Zalo groups in the loop instead of competing with them.</li>
+    <li><b>Is accountable.</b> Consent is recorded for every optional personal field, official information is kept separate from peer advice, and the pilot is judged against four outcome targets.</li>
+  </ul>
+
+  <h4>Where this comes from</h4>
+  <p>The platform builds directly on the <i>International Faculty Community Platform</i> proposal by Marc Kramer, Senior Lecturer (September 2026). It keeps that proposal’s directory, guides, events, recommendations and buddy matching, and its Microsoft 365 direction. It adds eight refinements, summarised in Section 3: mainly earlier access, family inclusion, a lighter start, and measurable outcomes.</p>
+
+  <div class="kpis">
+    <div class="kpi"><div class="v">1</div><div class="l">semester pilot with a clear expand / adjust / stop decision</div></div>
+    <div class="kpi"><div class="v">4</div><div class="l">outcome targets, led by buddies confirmed <i>before</i> arrival</div></div>
+    <div class="kpi"><div class="v">0</div><div class="l">new systems to procure. Built on Microsoft 365 tools the university already uses (to be confirmed by IT)</div></div>
+    <div class="kpi"><div class="v">8</div><div class="l">refinements to the original proposal, all built into the prototype</div></div>
+  </div>
+
+  <div class="box red">
+    <h4>Decisions requested from the council</h4>
+    <ol>
+      <li>Approve a one-semester pilot for international faculty joining in the Spring 2027 semester, and their partners.</li>
+      <li>Name an owning office (Faculty Affairs is suggested) and a faculty sponsor.</li>
+      <li>Ask Legal / Data Protection to review the personal-data design before launch.</li>
+      <li>Ask IT to confirm licences and guest (pre-arrival and partner) access in Microsoft 365.</li>
+      <li>Agree the success measures in Section 9 and a review date in June 2027.</li>
+    </ol>
+  </div>
+</section>
+
+<!-- ============================ 2 ============================ -->
+<section class="flow" data-sec="s2">
+  <h2 class="sec" id="s2"><span class="n">2</span>The problem</h2>
+  <p class="lede">Relocating to a new country is a family project with a hard deadline. Today, the support around it is fragmented: official information sits in HR documents and emails, practical knowledge lives in colleagues’ heads and in fast-moving chat groups, and nothing connects a newcomer to the right person at the right time.</p>
+
+  <h3>Five gaps</h3>
+  <table>
+    <tr><th class="num">#</th><th style="width:34%">Gap</th><th>What it looks like in practice</th></tr>
+    <tr><td class="num">1</td><td><b>Help arrives too late</b></td><td>Housing, school places and insurance for dependants are usually decided weeks before arrival, but a university account, and with it most internal channels, only starts on the contract start date.</td></tr>
+    <tr><td class="num">2</td><td><b>Families are invisible</b></td><td>Partners often handle school visits, house hunting and daily logistics, and are the most isolated members of a relocating family, yet they have no access to university information or community.</td></tr>
+    <tr><td class="num">3</td><td><b>Knowledge is scattered and decays</b></td><td>Good answers are given in chat groups and private messages, then scroll away. Advice about realtors, clinics and banks goes out of date with no way to tell.</td></tr>
+    <tr><td class="num">4</td><td><b>Newcomers don’t know whom to ask</b></td><td>Without a way to find colleagues by expertise, language, family stage or interest, the same few helpful people receive every question.</td></tr>
+    <tr><td class="num">5</td><td><b>No one can tell if support is working</b></td><td>There is no shared measure of whether new faculty feel settled, whether questions get answered, or whether a buddy relationship actually happened.</td></tr>
+  </table>
+
+  <h3>What a good outcome looks like</h3>
+  <p>The original proposal states the test well: <i>“A new colleague should be able to find people with shared interests, identify someone who can answer a relocation question, discover trusted community information, and receive a personal connection without needing to know whom to ask.”</i> This proposal adds two conditions: that this should be true <b>before</b> the colleague arrives, and <b>for their family</b> as well.</p>
+
+  <div class="box navy">
+    <h4>Why a platform, and why now</h4>
+    <p>The university already recruits internationally every semester, and each cohort rebuilds the same knowledge from scratch. A small, well-run platform turns that effort into something that accumulates. Starting with a one-semester pilot keeps the cost and risk low, and the results will show whether to go further.</p>
+  </div>
+</section>
+
+<!-- ============================ 3 ============================ -->
+<section class="flow" data-sec="s3">
+  <h2 class="sec" id="s3"><span class="n">3</span>Building on the original proposal</h2>
+  <p class="lede">Marc Kramer’s September 2026 proposal set out a secure, internal community for international faculty: a searchable directory with privacy controls, curated relocation guides, topic forums, events, dated recommendations, a rules-based buddy-matching system, administration and governance, all on Microsoft 365. This proposal keeps that foundation.</p>
+
+  <h3>What stays the same</h3>
+  <ul>
+    <li>Faculty profiles in which every optional personal field is opt-in, with family information private by default.</li>
+    <li>Transparent, rules-based matching (no AI) that spreads the load across buddies, with check-ins after a few weeks.</li>
+    <li>A clear separation between official university information and peer advice, with review dates on anything that goes stale.</li>
+    <li>Microsoft 365 as the technology base, single sign-on for faculty, role-based permissions and an audit trail.</li>
+    <li>A phased approach: start simple, focus on adoption, then expand.</li>
+  </ul>
+
+  <h3>Eight refinements</h3>
+  <table>
+    <tr><th class="num">#</th><th style="width:27%">Refinement</th><th>Reason</th><th style="width:18%">See</th></tr>
+    <tr><td class="num">1</td><td><b>Pre-arrival access</b></td><td>The biggest decisions happen before a university account exists. HR sends an invitation link when the contract is signed.</td><td>§5.2</td></tr>
+    <tr><td class="num">2</td><td><b>Partner and family guest accounts</b></td><td>Partners do much of the practical work of a move. They get a limited guest account linked to the faculty member, with no directory access.</td><td>§5.3</td></tr>
+    <tr><td class="num">3</td><td><b>One Ask &amp; Discuss space with tags</b></td><td>Ten separate forums would spread a small community thin. One stream stays active, and a topic gets its own space once it is busy.</td><td>§5.7</td></tr>
+    <tr><td class="num">4</td><td><b>Work with WhatsApp and Zalo</b></td><td>Faculty already chat there. A weekly digest goes to the groups, and good answers are saved to the platform so they can be found later.</td><td>§5.8</td></tr>
+    <tr><td class="num">5</td><td><b>Coordinator-led matching</b></td><td>With a few dozen buddies, a person picks better than an algorithm. Scores are suggestions and the coordinator confirms.</td><td>§5.6</td></tr>
+    <tr><td class="num">6</td><td><b>A lighter stack for the pilot</b></td><td>Start on Microsoft 365 tools that are usually already licensed, and move to premium services only if the pilot succeeds.</td><td>§8</td></tr>
+    <tr><td class="num">7</td><td><b>Explicit, recorded consent</b></td><td>Vietnam’s personal-data rules call for specific, recorded, withdrawable consent. Each optional field has its own.</td><td>§7</td></tr>
+    <tr><td class="num">8</td><td><b>Pilot success measures</b></td><td>Judge the pilot on outcomes (buddies before arrival, answer times, feeling settled), not page views.</td><td>§9</td></tr>
+  </table>
+
+  <div class="figs two">
+    <figure><img src="{{SHOTS}}/asis-erik.jpg" alt=""><figcaption><b>As originally proposed:</b> a partner without a university account is stopped at sign-in.</figcaption></figure>
+    <figure><img src="{{SHOTS}}/partner-hero.jpg" alt=""><figcaption><b>With the refinements:</b> the same partner has guest access to the shared arrival plan, Q&amp;A and family events.</figcaption></figure>
+  </div>
+</section>
+
+<!-- ============================ 4 ============================ -->
+<section class="flow" data-sec="s4">
+  <h2 class="sec" id="s4"><span class="n">4</span>Who the platform serves</h2>
+  <p class="lede">Four groups use the platform, and each sees only what it needs. The online demo lets faculty try the first two, as a new or an established colleague.</p>
+
+  <div class="persona"><div class="av" style="background:#0F6B5C">NF</div><div><b>New faculty, including before arrival</b><br>Use the arrival plan, find a buddy, ask questions, read guides and join events. Before their start date they use a personal invitation link; afterwards, university single sign-on. <span class="muted">Example: Sofia, arriving in November with her partner and two children.</span></div></div>
+  <div class="persona"><div class="av" style="background:#4B3A8C">EF</div><div><b>Established faculty</b><br>Volunteer as buddies (with a cap they set), answer questions in their areas, share recommendations and organise activities. <span class="muted">Example: James, three years at the College of Business &amp; Management.</span></div></div>
+  <div class="persona"><div class="av" style="background:#fff;color:#464E5E;border:.5mm dashed #A9B1C2">PG</div><div><b>Partners and family members (guests)</b><br>See the shared arrival plan, guides, events and Q&amp;A, and post as guests. They cannot see the faculty directory or contact details. Access ends automatically with the faculty member’s. <span class="muted">Example: Erik, Sofia’s partner.</span></div></div>
+  <div class="persona"><div class="av" style="background:#3F6B2E">FA</div><div><b>Faculty Affairs coordinator and moderators</b><br>Invite new hires, confirm buddy matches, moderate content, keep guides current, manage access and consent, and track the pilot measures. <span class="muted">Example: Linh, Faculty Affairs.</span></div></div>
+
+</section>
+
+<!-- ============================ 5 ============================ -->
+<section class="newpage" data-sec="s5">
+  <h2 class="sec" id="s5"><span class="n">5</span>Features</h2>
+  <p class="lede">This section walks through every feature of the platform, with what it does, why it matters and a screenshot from the prototype. Each feature is marked <span class="tag pilot">Pilot</span> if it is proposed for the first semester or <span class="tag later">Later</span> if it would follow a successful pilot. The prototype shows the full vision so the council can see where the pilot leads. The online demo focuses on the faculty features in 5.1–5.13.</p>
+
+  <div class="feature">
+    <h3 id="s5-1"><span class="n">5.1</span>A home page built on three questions <span class="tag pilot">Pilot</span></h3>
+    <p>Every user lands on a page that answers the three questions from the original proposal: <b>Who can I connect with?</b> <b>What information do I need?</b> <b>What is happening?</b> Content is personalised: a newcomer sees suggested buddies and guides for the topics they asked for help with; an established colleague sees new arrivals to welcome and unanswered questions in their areas.</p>
+    <figure><img src="{{SHOTS}}/home-three.jpg" alt=""><figcaption><b>Figure.</b> The three-question home page for a new faculty member: suggested buddies with match scores, guides picked for her help topics, and upcoming events and conversations.</figcaption></figure>
+    <div class="figs two-r">
+      <figure><img src="{{SHOTS}}/james-home-cards.jpg" alt=""><figcaption><b>Figure.</b> For an established colleague: current buddies with check-in status, and questions he could answer based on the topics he offered help with.</figcaption></figure>
+      <div class="why" style="border:0;padding:0"><p><b>Why it matters.</b> Newcomers shouldn’t have to know the system to benefit from it. The home page brings the right people and information to them, and gives experienced colleagues a low-effort way to help.</p></div>
+    </div>
+  </div>
+
+  <div class="feature">
+    <h3 id="s5-2"><span class="n">5.2</span>Pre-arrival access and the arrival plan <span class="tag pilot">Pilot</span> <span class="tag chg">Refinement 1</span></h3>
+    <p>When HR records a signed contract, the new hire receives a personal invitation link at their personal email address. They can complete a profile, request a buddy, read guides and ask questions straight away. On their start date the university account takes over automatically and everything carries over.</p>
+    <p>The <b>arrival plan</b> is a checklist timed to the arrival date: choose a neighbourhood eight weeks out, shortlist schools at seven, meet the buddy on video at six, sort out dependants’ insurance at five, and so on through the arrival week. Each step links to the relevant guide or conversation, and the plan is shared with the partner.</p>
+    <figure><img src="{{SHOTS}}/prearrival-hero.jpg" alt=""><figcaption><b>Figure.</b> A new hire’s home page 25 days before arrival, showing the countdown, arrival-plan progress, buddy status and partner access.</figcaption></figure>
+    <div class="side">
+      <figure><img src="{{SHOTS}}/arrival-plan.jpg" alt=""><figcaption><b>Figure.</b> The shared arrival plan, with timed steps, buddy status, access details and the chat-group invite.</figcaption></figure>
+      <div><h4>Key capabilities</h4><ul class="small"><li>Invitation sent automatically from HR’s contract record</li><li>Guest access until the start date, then single sign-on</li><li>Nine timed steps, each linked to a guide</li><li>Shared and editable by the faculty member and partner</li><li>The buddy step completes itself when a match is confirmed</li></ul>
+      <div class="why"><b>Why it matters.</b> Support that starts on day one is already too late for housing, schools and insurance. This moves help to when decisions are actually made.</div></div>
+    </div>
+  </div>
+
+  <div class="feature">
+    <h3 id="s5-3"><span class="n">5.3</span>Guest access for partners and families <span class="tag pilot">Pilot</span> <span class="tag chg">Refinement 2</span></h3>
+    <p>A faculty member can add their partner as a guest. Guests can read and post in Ask &amp; Discuss (their posts are clearly marked <i>Guest</i>), use the guides, RSVP to events marked “partners and families welcome”, and share the arrival plan. They cannot see the faculty directory or anyone’s contact details. A <i>Partners &amp; families</i> topic gives them a space of their own, for example to organise a beginners’ Vietnamese class. Access ends automatically when the linked faculty member leaves or removes them.</p>
+    <div class="figs two">
+      <figure><img src="{{SHOTS}}/partner-cards.jpg" alt=""><figcaption><b>Figure.</b> A partner’s home page: family conversations, family-friendly events, and a plain statement of what guests can and cannot see.</figcaption></figure>
+      <figure><img src="{{SHOTS}}/partner-locked.jpg" alt=""><figcaption><b>Figure.</b> The directory stays faculty-only. Guests are pointed to Ask &amp; Discuss and events instead.</figcaption></figure>
+    </div>
+    <p class="why"><b>Why it matters.</b> A move that works for the faculty member but not for their family often doesn’t last. Including partners costs little and protects faculty privacy by design.</p>
+  </div>
+
+  <div class="feature">
+    <h3 id="s5-4"><span class="n">5.4</span>Profiles with privacy controls <span class="tag pilot">Pilot</span> <span class="tag chg">Refinement 7</span></h3>
+    <p>Profiles follow the field list in the original proposal: name, college, expertise and university email are required, and everything else is optional. Each optional field has its own visibility: <b>visible to faculty</b>, <b>matching only</b> (used to suggest buddies but never displayed), or <b>only me</b>. Family information is private by default and uses children’s age ranges, never names or birth dates. Home addresses are never collected, only a broad area such as “Ocean Park” for matching.</p>
+    <div class="side">
+      <figure><img src="{{SHOTS}}/profile-private.jpg" alt=""><figcaption><b>Figure.</b> Private details, with a visibility setting for each field and a recorded consent statement that switches the family fields on or off.</figcaption></figure>
+      <div>
+        <h4>Key capabilities</h4>
+        <ul class="small">
+          <li>Required, recommended and optional fields clearly labelled</li>
+          <li>Per-field visibility; consent recorded with a date and withdrawable at any time</li>
+          <li><b>Preview as others see it</b> shows exactly what colleagues will see</li>
+          <li><b>Download my data</b> and <b>delete optional data</b> in one click</li>
+          <li>Completeness meter, and a reminder to review the profile every 12 months (adjustable)</li>
+          <li>Volunteer as a buddy and set a personal cap on how many</li>
+        </ul>
+        <figure><img src="{{SHOTS}}/profile-preview.jpg" alt=""><figcaption><b>Figure.</b> “Preview as others see it” lists exactly what is hidden.</figcaption></figure>
+      </div>
+    </div>
+  </div>
+
+  <div class="feature">
+    <h3 id="s5-5"><span class="n">5.5</span>Faculty directory <span class="tag pilot">Pilot</span></h3>
+    <p>Faculty can search by name, expertise or interest and filter by college, help topic (“can help with schools”), hobby, language, buddy availability, and, only for people who chose to share it, whether they have children. A profile panel shows what the person has made visible, with one-click contact through their preferred channel.</p>
+    <div class="figs two-r">
+      <figure><img src="{{SHOTS}}/directory.jpg" alt=""><figcaption><b>Figure.</b> The directory filtered to colleagues who can help with schools.</figcaption></figure>
+      <figure><img src="{{SHOTS}}/person-drawer.jpg" alt=""><figcaption><b>Figure.</b> A colleague’s profile panel: expertise, help topics, languages and preferred contact.</figcaption></figure>
+    </div>
+  </div>
+
+  <div class="feature">
+    <h3 id="s5-6"><span class="n">5.6</span>Buddy programme <span class="tag pilot">Pilot</span> <span class="tag chg">Refinement 5</span></h3>
+    <p>A newcomer says what matters to them by marking six factors as Off, Nice to have or Key: college, country or language familiarity, family stage (private), hobbies, help topics and broad area. The platform suggests three to five buddies with a <b>transparent score</b>: anyone can open “Why this score?” to see the breakdown. Suggestions are adjusted for <b>workload</b>, so a buddy who is at their cap stops appearing and the same helpful people don’t get every newcomer.</p>
+    <div class="figs two-r">
+      <figure><img src="{{SHOTS}}/match-cards.jpg" alt=""><figcaption><b>Figure.</b> Suggested buddies with scores and plain-language reasons. Changing the factors on the right updates the suggestions at once.</figcaption></figure>
+      <figure><img src="{{SHOTS}}/match-why.jpg" alt=""><figcaption><b>Figure.</b> “Why this score?”, the factor-by-factor breakdown.</figcaption></figure>
+    </div>
+    <p>In the pilot, a <b>coordinator confirms every match</b> using the suggestions and the newcomer’s request. Once confirmed, both people receive an introduction. Three weeks later the newcomer gets a private check-in (“Going well”, “We haven’t connected yet”, or “I’d like a different match”), and a re-match is one click away.</p>
+    <div class="figs two">
+      <figure><img src="{{SHOTS}}/admin-matching.jpg" alt=""><figcaption><b>Figure.</b> The coordinator’s queue: confirm, choose another buddy, or decline.</figcaption></figure>
+      <figure><img src="{{SHOTS}}/admin-workload.jpg" alt=""><figcaption><b>Figure.</b> Active matches and each buddy’s workload against their cap.</figcaption></figure>
+    </div>
+    <div class="figs two">
+      <figure><img src="{{SHOTS}}/match-intro.jpg" alt=""><figcaption><b>Figure.</b> The introduction both people receive once a match is confirmed.</figcaption></figure>
+      <figure><img src="{{SHOTS}}/buddy-view.jpg" alt=""><figcaption><b>Figure.</b> A buddy’s view: current buddies, check-in dates, and a single switch to pause availability.</figcaption></figure>
+    </div>
+  </div>
+
+  <div class="feature">
+    <h3 id="s5-7"><span class="n">5.7</span>Ask &amp; Discuss <span class="tag pilot">Pilot</span> <span class="tag chg">Refinement 3</span></h3>
+    <p>All questions and conversations live in one stream, organised by topic tags (schools, housing, health and insurance, food, sports, banking, weekend, book club, new to Hanoi, partners and families). When someone types a question, the platform <b>suggests the right topic</b> and shows how many colleagues have offered help on it. Those colleagues are notified, instead of the whole faculty being emailed. Unanswered questions are easy to filter, and moderators are alerted after 48 hours.</p>
+    <div class="figs two-r">
+      <figure><img src="{{SHOTS}}/qa-list.jpg" alt=""><figcaption><b>Figure.</b> One stream with topic filters, an “Unanswered” view and a question box at the top.</figcaption></figure>
+      <figure><img src="{{SHOTS}}/ask-route.jpg" alt=""><figcaption><b>Figure.</b> Routing: the question is tagged “Schools” and five colleagues who help with schools will be notified.</figcaption></figure>
+    </div>
+    <p>Sensitive topics carry <b>standing disclaimers</b>: housing posts are not university endorsements of any realtor; health posts link to the official HR benefits guide; banking posts are not financial advice. Posts can be marked helpful or reported, and moderators can pin key threads.</p>
+    <figure class="w85 c"><img src="{{SHOTS}}/thread.jpg" alt=""><figcaption><b>Figure.</b> A health-insurance thread: a peer-advice disclaimer, a link to the official HR guide, a moderator’s reply, and the people who can help.</figcaption></figure>
+  </div>
+
+  <div class="feature">
+    <h3 id="s5-8"><span class="n">5.8</span>Working with the WhatsApp and Zalo groups <span class="tag pilot">Pilot</span> <span class="tag chg">Refinement 4</span></h3>
+    <p>Most day-to-day chat among faculty already happens in WhatsApp and Zalo groups. Rather than asking people to leave them, the platform <b>posts a weekly digest</b> there (new answers, upcoming events and unanswered questions), and moderators can <b>save a good answer</b> from a chat into Ask &amp; Discuss with the author’s permission, so it can be searched later. New hires can ask for a group invite from their arrival plan.</p>
+    <figure><img src="{{SHOTS}}/bridge.jpg" alt=""><figcaption><b>Figure.</b> The chat-group card on an established faculty member’s home page. In the pilot, the coordinator posts the digest by hand; automating it would depend on the messaging services and university policy.</figcaption></figure>
+  </div>
+
+  <div class="feature">
+    <h3 id="s5-9"><span class="n">5.9</span>Living in Hanoi guides <span class="tag pilot">Pilot</span></h3>
+    <p>Curated guides cover the first week, choosing where to live, schools, banking, health insurance and dependants, medical care, getting around, and international groceries. Each guide is labelled <b>Official</b> (maintained by HR or the International Office) or <b>Faculty-contributed</b>, names an owner, and shows when it was last reviewed. Overdue guides are flagged. Readers can report outdated information, and each guide links to related conversations.</p>
+    <div class="figs two">
+      <figure><img src="{{SHOTS}}/living.jpg" alt=""><figcaption><b>Figure.</b> The guide library, with official and faculty-contributed labels and review status.</figcaption></figure>
+      <figure><img src="{{SHOTS}}/guide.jpg" alt=""><figcaption><b>Figure.</b> A faculty-contributed guide with a peer-advice notice, an overdue-review flag and related conversations.</figcaption></figure>
+    </div>
+  </div>
+
+  <div class="feature">
+    <h3 id="s5-10"><span class="n">5.10</span>Faculty recommendations <span class="tag pilot">Pilot</span></h3>
+    <p>Colleagues recommend realtors, clinics, schools, shops and activities. Every recommendation carries the date it was last confirmed and how many people agree. A colour shows how fresh it is: <b>current</b> (confirmed within 6 months), <b>review due</b> (6–12 months) or <b>likely outdated</b> (over a year). One click confirms it is still accurate. Businesses carry a standard note that the recommendation is not a VinUniversity endorsement.</p>
+    <figure class="w85 c"><img src="{{SHOTS}}/recs.jpg" alt=""><figcaption><b>Figure.</b> Recommendations with freshness indicators, agreement counts, disclaimers and “Still accurate” confirmation.</figcaption></figure>
+  </div>
+
+  <div class="feature">
+    <h3 id="s5-11"><span class="n">5.11</span>Events and activities <span class="tag pilot">Pilot</span></h3>
+    <p>A shared calendar and list cover social, cultural, sports, family and weekend activities, organised by faculty or by the university (official events are highlighted). Anyone can create an event. RSVPs show capacity and fill a waitlist when full, and events suitable for families are marked as welcoming partners. Interested people are notified, and a reminder is sent the day before. Calendar integration with Outlook is <span class="tag later">Later</span>.</p>
+    <div class="figs two-r">
+      <figure><img src="{{SHOTS}}/events-cal.jpg" alt=""><figcaption><b>Figure.</b> The month view, colour-coded by category, with official university events in red.</figcaption></figure>
+      <figure><img src="{{SHOTS}}/event-modal.jpg" alt=""><figcaption><b>Figure.</b> Event details with capacity, attendees and a one-click RSVP.</figcaption></figure>
+    </div>
+  </div>
+
+  <div class="feature">
+    <h3 id="s5-12"><span class="n">5.12</span>Search, notifications and feedback <span class="tag pilot">Pilot</span></h3>
+    <p>One search box finds people, conversations, guides and events. Notifications cover replies, buddy introductions, check-ins and reminders, with automated ones clearly marked. A <b>Feedback</b> button on every page lets anyone suggest a new topic or report outdated information directly to the administrators.</p>
+    <div class="figs two">
+      <figure><img src="{{SHOTS}}/search.jpg" alt=""><figcaption><b>Figure.</b> Search results grouped by type.</figcaption></figure>
+      <figure><img src="{{SHOTS}}/notifications.jpg" alt=""><figcaption><b>Figure.</b> Notifications, with automated ones marked.</figcaption></figure>
+    </div>
+  </div>
+
+  <div class="feature">
+    <h3 id="s5-13"><span class="n">5.13</span>Works on phones <span class="tag pilot">Pilot</span></h3>
+    <div class="side l">
+      <div class="figs two" style="margin:0">
+        <figure><img src="{{SHOTS}}/phone-home.jpg" alt=""><figcaption>Home</figcaption></figure>
+        <figure><img src="{{SHOTS}}/phone-arrival.jpg" alt=""><figcaption>Arrival plan</figcaption></figure>
+      </div>
+      <div><p>Every page adapts to a phone screen. That matters most before arrival, when new hires and partners are likely to read on a phone between packing and paperwork. The navigation collapses into a menu, and tables and calendars reflow.</p>
+      <p class="why"><b>Note.</b> In the Microsoft 365 build, the same screens would run inside the Teams mobile app and the Power Apps mobile app.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ 6 ============================ -->
+<section class="newpage" data-sec="s6">
+  <h2 class="sec" id="s6"><span class="n">6</span>Administration and governance</h2>
+  <p class="lede">A community platform succeeds or fails on upkeep. The administration area gives a small team (one coordinator and a few volunteer moderators) what they need in one place, and makes no change without a trace.</p>
+
+  <h3 id="s6-1"><span class="n">6.1</span>Pilot measures and dashboard <span class="tag pilot">Pilot</span> <span class="tag chg">Refinement 8</span></h3>
+  <p>The coordinator’s first screen shows the four pilot outcome measures against their targets, followed by the operational figures from the original proposal: new users, incomplete profiles, unanswered questions, active topics, upcoming events and pending match requests. Charts show weekly activity and which topics are busiest, and a list of incomplete profiles has a one-click reminder.</p>
+  <figure><img src="{{SHOTS}}/admin-overview.jpg" alt=""><figcaption><b>Figure.</b> “Is the pilot working?”: the four outcome measures with targets and status. The figures shown are sample data.</figcaption></figure>
+  <figure class="w85 c"><img src="{{SHOTS}}/admin-overview-2.jpg" alt=""><figcaption><b>Figure.</b> Weekly active users and activity by topic (sample data).</figcaption></figure>
+
+  <h3 id="s6-2"><span class="n">6.2</span>Moderation and content review <span class="tag pilot">Pilot</span></h3>
+  <p>Reported posts come with the reason and an excerpt, and are kept or removed with one click. Unanswered questions can be sent to the colleagues who offered help on that topic. Feedback from the Feedback button lands here too. A separate <b>content review</b> list orders every guide and recommendation by how overdue it is, with “Mark reviewed” and “Archive” actions, because housing, banking, school and insurance information goes stale fastest.</p>
+  <div class="figs two">
+    <figure><img src="{{SHOTS}}/admin-moderation.jpg" alt=""><figcaption><b>Figure.</b> Moderation: reported content, unanswered questions and feedback.</figcaption></figure>
+    <figure><img src="{{SHOTS}}/admin-content.jpg" alt=""><figcaption><b>Figure.</b> Content review, with the most overdue items first.</figcaption></figure>
+  </div>
+
+  <h3 id="s6-3"><span class="n">6.3</span>Topics and settings, configured without code <span class="tag pilot">Pilot</span></h3>
+  <p>As the original proposal recommends, new topics, interest tags, matching weights and the profile-reminder interval are settings, not programming work. Each topic shows its activity over the last 30 days. When one passes a threshold (eight posts a month in the prototype), it is flagged as ready for its own space with a moderator.</p>
+  <div class="figs two">
+    <figure><img src="{{SHOTS}}/admin-config.jpg" alt=""><figcaption><b>Figure.</b> Topics with 30-day activity and a “ready for its own space” flag.</figcaption></figure>
+    <figure><img src="{{SHOTS}}/admin-config-2.jpg" alt=""><figcaption><b>Figure.</b> Matching weights, interest tags and the reminder interval.</figcaption></figure>
+  </div>
+
+  <h3 id="s6-4"><span class="n">6.4</span>Users and access <span class="tag pilot">Pilot</span></h3>
+  <p>The coordinator sends pre-arrival invitations, sees which partners hold guest accounts, deactivates leavers flagged by the HR sync on their last day, and assigns roles. Every faculty account shows its role, profile completeness and status.</p>
+  <figure><img src="{{SHOTS}}/admin-users-2.jpg" alt=""><figcaption><b>Figure.</b> Pre-arrival invitations (with partner names) and partner guest accounts, each tied to a faculty account.</figcaption></figure>
+  <table>
+    <tr><th style="width:26%">Role</th><th>Can do</th></tr>
+    <tr><td><b>Faculty user</b></td><td>Own profile, directory, Ask &amp; Discuss, events, recommendations, buddy requests.</td></tr>
+    <tr><td><b>Moderator</b></td><td>As above, plus pin, edit and remove posts in their topic, and mark content outdated.</td></tr>
+    <tr><td><b>Platform administrator</b></td><td>As above, plus confirm matches, send invitations, manage topics, tags and accounts, and see the dashboard and audit log.</td></tr>
+    <tr><td><b>Technical administrator</b></td><td>Configuration and integrations only. No access to private profile fields (least privilege).</td></tr>
+    <tr><td><b>Pre-arrival guest</b></td><td>Everything a faculty user can do, until their university account starts.</td></tr>
+    <tr><td><b>Partner guest</b></td><td>Ask &amp; Discuss, guides, events and the shared arrival plan. No directory or contact details.</td></tr>
+  </table>
+
+  <h3 id="s6-5"><span class="n">6.5</span>Automations and audit log <span class="tag pilot">Pilot</span></h3>
+  <p>Routine work runs on Power Automate flows that can be switched on and off individually: onboarding, profile reminders, match introductions and check-ins, unanswered-question alerts, event reminders, review reminders, leaver deactivation, pre-arrival invitations and consent-expiry checks. Administrative and moderation actions are recorded in an audit log with who, what and when.</p>
+  <div class="figs two">
+    <figure><img src="{{SHOTS}}/admin-automations.jpg" alt=""><figcaption><b>Figure.</b> Automations, each with its trigger, action, last run and an on/off switch.</figcaption></figure>
+    <figure><img src="{{SHOTS}}/admin-audit.jpg" alt=""><figcaption><b>Figure.</b> The audit log of administrative changes.</figcaption></figure>
+  </div>
+</section>
+
+<!-- ============================ 7 ============================ -->
+<section class="flow" data-sec="s7">
+  <h2 class="sec" id="s7"><span class="n">7</span>Privacy, security and compliance</h2>
+  <p class="lede">The platform holds personal and, optionally, family information about colleagues. Privacy is therefore part of the design, not an add-on, and the whole design should be reviewed by the university’s Legal / Data Protection function before launch.</p>
+
+  <h3>Principles</h3>
+  <ul>
+    <li><b>Collect the minimum.</b> Only name, college, expertise and university email are required. No home addresses, no children’s names or birth dates, and no marital status.</li>
+    <li><b>Opt in, field by field.</b> Every optional field has its own visibility and, where personal, its own recorded consent with a stated purpose.</li>
+    <li><b>Private by default.</b> Family information and phone numbers start hidden. “Matching only” data is used to suggest buddies but never displayed.</li>
+    <li><b>Internal only.</b> No public access. Faculty sign in with university single sign-on; guests use invitation-based guest accounts with narrower permissions.</li>
+    <li><b>Least privilege.</b> Technical administrators cannot read private profile fields. Administrative and moderation actions are audited.</li>
+    <li><b>People stay in control.</b> Anyone can preview their profile as others see it, download their data, withdraw consent or delete all optional data.</li>
+    <li><b>Official vs peer.</b> Official guidance is labelled and owned by HR or the International Office. Peer advice carries disclaimers, and businesses are never endorsed.</li>
+  </ul>
+
+  <div style="break-inside:avoid"><h3>Data inventory</h3>
+  <table>
+    <tr><th style="width:25%">Data</th><th style="width:14%">Required?</th><th style="width:20%">Who can see it</th><th>Purpose and retention</th></tr>
+    <tr><td>Name, college, title, expertise, university email</td><td>Required</td><td>Faculty</td><td>Directory and contact. Removed from view when the person leaves.</td></tr>
+    <tr><td>Phone / messaging number</td><td>Optional</td><td>Faculty, or only the person</td><td>Contact, if the person chooses.</td></tr>
+    <tr><td>Interests, languages, region familiarity</td><td>Optional</td><td>Faculty</td><td>Finding colleagues and matching.</td></tr>
+    <tr><td>Topics I can help with</td><td>Recommended</td><td>Faculty</td><td>Routing questions and matching.</td></tr>
+    <tr><td>Topics I’d like help with</td><td>Optional</td><td>Matching only</td><td>Buddy suggestions and onboarding.</td></tr>
+    <tr><td>Partner; children’s age ranges</td><td>Optional, with consent</td><td>Matching only by default</td><td>Buddy suggestions. Consent is recorded and withdrawable, and renewal is requested after 24 months.</td></tr>
+    <tr><td>Broad area (no address)</td><td>Optional</td><td>Matching only</td><td>Buddy suggestions.</td></tr>
+    <tr><td>Partner guest name and email</td><td>Required for guests</td><td>Shown on their own posts</td><td>Guest access. Ends automatically with the linked faculty account.</td></tr>
+    <tr><td>Posts, replies, RSVPs, recommendations</td><td>User content</td><td>Community</td><td>Community knowledge. Retention to be set by policy.</td></tr>
+  </table></div>
+
+  <div class="side">
+    <figure><img src="{{SHOTS}}/admin-consent.jpg" alt=""><figcaption><b>Figure.</b> The consent register, with each consent’s purpose, date and status, exportable as CSV for audit.</figcaption></figure>
+    <div class="box gold" style="margin-top:1mm">
+      <h4>Legal basis: to be confirmed</h4>
+      <p class="small">The design aims to meet the consent and data-subject-rights requirements of Vietnam’s personal data protection framework, including the Law on Personal Data Protection (in force from 1 January 2026) and Decree 13/2023/NĐ-CP. Whether the design is sufficient, and what retention periods apply, must be confirmed by the university’s legal and data-protection review. This proposal does not replace that review.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ 8 ============================ -->
+<section class="flow" data-sec="s8">
+  <h2 class="sec" id="s8"><span class="n">8</span>Technology and cost</h2>
+  <p class="lede">The original proposal recommends Microsoft 365 and the Power Platform, which the university already uses for identity and collaboration. This proposal keeps that direction and starts the pilot on the lightest components, deferring premium licences until there is evidence the platform is used.</p>
+
+  <div class="side l">
+    <figure><img src="{{SHOTS}}/admin-architecture.jpg" alt=""><figcaption><b>Figure.</b> The pilot stack and data model, from the prototype’s administration area.</figcaption></figure>
+    <div>
+      <table>
+        <tr><th style="width:28%">Layer</th><th>Pilot component</th></tr>
+        <tr><td><b>Front door</b></td><td>A Teams app tab plus a web link (for guests on phones)</td></tr>
+        <tr><td><b>Interface</b></td><td>Power Apps (canvas app)</td></tr>
+        <tr><td><b>Data</b></td><td>Dataverse for Teams or Microsoft Lists</td></tr>
+        <tr><td><b>Guides</b></td><td>SharePoint pages, owned by HR / the International Office for official content</td></tr>
+        <tr><td><b>Workflows</b></td><td>Power Automate with standard connectors</td></tr>
+        <tr><td><b>Identity</b></td><td>Microsoft Entra ID single sign-on; Entra guest (B2B) accounts for pre-arrival hires and partners</td></tr>
+        <tr><td><b>Chat groups</b></td><td>Weekly digest posted by the coordinator</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <h3>Cost</h3>
+  <p>The pilot is designed to need <b>no new software purchases</b>: the components above are usually included in university Microsoft 365 plans. The main cost is people’s time:</p>
+  <table>
+    <tr><th style="width:32%">Role</th><th>Estimated effort during the pilot</th></tr>
+    <tr><td><b>Coordinator</b> (owning office)</td><td>About 2–3 hours a week: invitations, match confirmations, weekly digest, moderation backstop</td></tr>
+    <tr><td><b>Volunteer moderators</b> (3–5 faculty)</td><td>About 30 minutes a week each</td></tr>
+    <tr><td><b>Content owners</b> (HR, International Office)</td><td>Review the official guides once before launch and once per semester</td></tr>
+    <tr><td><b>IT</b></td><td>A few days to set up the environment, guest access and permissions, then light support</td></tr>
+    <tr><td><b>Build</b></td><td>Prototype and pilot build by the proposal author, with IT review</td></tr>
+  </table>
+  <p class="note">Effort figures are planning estimates, to be refined with the owning office and IT.</p>
+
+  <div class="box navy">
+    <h4>What IT needs to confirm</h4>
+    <ol class="small">
+      <li>Which Microsoft 365 / Power Platform licences the university holds, and whether Dataverse for Teams or Lists covers the pilot without premium licences.</li>
+      <li>Whether guest (B2B) accounts can be issued to pre-arrival hires and partners, with access limited to this app.</li>
+      <li>How the HR system can trigger invitations and flag leavers.</li>
+      <li>Data residency and retention settings for the environment.</li>
+    </ol>
+  </div>
+
+  <h3>Upgrade path</h3>
+  <p>If the pilot meets its targets, the same tables move to full Dataverse (premium licences), analytics move to Power BI, and calendar integration and further automation follow. Features the original proposal places in later phases, such as AI-assisted search and summaries and a buy/sell/give-away board, stay out of scope until the basics are proven.</p>
+</section>
+
+<!-- ============================ 9 ============================ -->
+<section class="flow" data-sec="s9">
+  <h2 class="sec" id="s9"><span class="n">9</span>Pilot plan</h2>
+  <p class="lede">One semester, one cohort, four measures and a decision at the end. The pilot is deliberately small, so it can be run well and judged fairly.</p>
+
+  <h3>Scope</h3>
+  <ul>
+    <li><b>Who:</b> international faculty joining in the Spring 2027 semester and their partners, plus established international faculty as buddies, moderators and contributors.</li>
+    <li><b>What:</b> the features marked <span class="tag pilot">Pilot</span> in Section 5 and the administration in Section 6.</li>
+    <li><b>Not in the pilot:</b> calendar integration, full Dataverse, Power BI analytics, automated chat-group posting, AI features, buy/sell/give-away.</li>
+  </ul>
+
+  <h3>Timeline</h3>
+  <div class="timeline">
+    <div class="tl"><div class="when">Nov 2026</div><div class="what"><b>Approve and prepare</b>Council decision; owning office and sponsor named; Legal / Data Protection review begins; IT confirms licences and guest access.</div></div>
+    <div class="tl"><div class="when">Dec 2026</div><div class="what"><b>Build and seed</b>Pilot built in Microsoft 365; first eight guides written and official ones reviewed; 10–15 volunteer buddies and 3–5 moderators recruited; invitations sent to incoming Spring hires.</div></div>
+    <div class="tl"><div class="when">Jan 2027</div><div class="what"><b>Launch</b>Briefing for buddies and moderators; new hires and partners onboarded; the weekly chat-group digest starts.</div></div>
+    <div class="tl"><div class="when">Jan–May 2027</div><div class="what"><b>Run</b>Monthly check-ins with the owning office; mid-pilot review in March; settled-ness survey at 8 weeks after each arrival.</div></div>
+    <div class="tl"><div class="when">Jun 2027</div><div class="what"><b>Evaluate and decide</b>Short report on the measures below, with a recommendation to expand, adjust or stop.</div></div>
+  </div>
+  <p class="note">Dates are indicative and should be aligned with the academic calendar and the Spring hiring timeline.</p>
+
+  <h3>Success measures</h3>
+  <table>
+    <tr><th style="width:36%">Measure</th><th style="width:16%">Target</th><th>How it is measured</th></tr>
+    <tr><td><b>New hires with a confirmed buddy before arrival</b></td><td>80% or more</td><td>Match confirmation date compared with start date</td></tr>
+    <tr><td><b>Median time to first answer</b></td><td>Under 24 hours</td><td>Time between a question and its first reply</td></tr>
+    <tr><td><b>New faculty who feel settled at 8 weeks</b></td><td>4.0 / 5 or more</td><td>A three-question survey eight weeks after arrival</td></tr>
+    <tr><td><b>International faculty active in a typical week</b></td><td>40% or more</td><td>Weekly active users compared with the number of international faculty</td></tr>
+    <tr><td><i>Guardrail:</i> privacy incidents</td><td>None</td><td>Incident log; consent register audit</td></tr>
+    <tr><td><i>Guardrail:</i> guides within their review date</td><td>90% or more</td><td>Content review list</td></tr>
+  </table>
+
+  <h3>Roles and responsibilities</h3>
+  <table>
+    <tr><th style="width:30%">Who</th><th>Responsible for</th></tr>
+    <tr><td><b>School council</b></td><td>Approves the pilot and the final decision.</td></tr>
+    <tr><td><b>Faculty sponsor</b></td><td>Champions the pilot among faculty; chairs the mid-pilot and final reviews.</td></tr>
+    <tr><td><b>Owning office</b> (Faculty Affairs suggested)</td><td>Runs the platform day to day, confirms matches, sends invitations and the digest, and owns the measures.</td></tr>
+    <tr><td><b>HR and International Office</b></td><td>Own the official guides; trigger invitations; flag leavers.</td></tr>
+    <tr><td><b>IT</b></td><td>Environment, identity and guest access, permissions, support.</td></tr>
+    <tr><td><b>Legal / Data Protection</b></td><td>Reviews the data design, consent wording and retention.</td></tr>
+    <tr><td><b>Proposal author</b></td><td>Builds the pilot with IT, documents it, supports the owning office, and prepares the evaluation report.</td></tr>
+  </table>
+</section>
+
+<!-- ============================ 10 ============================ -->
+<section class="flow" data-sec="s10">
+  <h2 class="sec" id="s10"><span class="n">10</span>Risks and mitigations</h2>
+  <table>
+    <tr><th style="width:26%">Risk</th><th style="width:12%">Likelihood</th><th>Mitigation</th></tr>
+    <tr><td><b>Low adoption</b>: people stay in their chat groups</td><td>Medium</td><td>Work with the groups, not against them (weekly digest, saved answers); seed content before launch; start with a cohort that has a clear need; buddies point newcomers to the platform.</td></tr>
+    <tr><td><b>Content goes out of date</b></td><td>High</td><td>Every guide and recommendation has an owner, a date and a freshness label; review reminders; a content review list; “Still accurate” confirmations.</td></tr>
+    <tr><td><b>Personal data misused or over-collected</b></td><td>Low</td><td>Minimal required fields; opt-in with per-field consent; private by default; no addresses; least privilege; audit log; Legal / Data Protection review before launch.</td></tr>
+    <tr><td><b>Buddy fatigue</b>: the same helpful people are overloaded</td><td>Medium</td><td>Personal caps; workload-adjusted suggestions; coordinator oversight; recognition of buddies’ service.</td></tr>
+    <tr><td><b>Reliance on one person</b></td><td>Medium</td><td>At least two administrators; documented setup and processes; settings rather than code for changes.</td></tr>
+    <tr><td><b>Unexpected licence costs</b></td><td>Low–Medium</td><td>Start on included components; IT confirms licences before build; premium services only after a successful pilot.</td></tr>
+    <tr><td><b>Liability for recommendations</b></td><td>Low</td><td>Standing disclaimers; no endorsements; moderation and reporting; official information kept separate.</td></tr>
+    <tr><td><b>Guest account misuse</b></td><td>Low</td><td>Guests limited to this app; no directory or contact data; access tied to and ending with the faculty account; Entra guest policies.</td></tr>
+  </table>
+</section>
+
+<!-- ============================ 11 ============================ -->
+<section data-sec="s11" style="margin-top:8mm">
+  <h2 class="sec" id="s11"><span class="n">11</span>Decisions requested</h2>
+  <p>The council is asked to:</p>
+  <ol>
+    <li><b>Approve</b> a one-semester pilot of the International Faculty Community Platform for international faculty joining in Spring 2027 and their partners, as described in Section 9.</li>
+    <li><b>Name</b> an owning office (Faculty Affairs is suggested) and a faculty sponsor.</li>
+    <li><b>Request</b> a Legal / Data Protection review of the personal-data design in Section 7 before launch.</li>
+    <li><b>Request</b> that IT confirm licences, guest access and the HR triggers listed in Section 8.</li>
+    <li><b>Agree</b> the success measures in Section 9 and schedule a review of the results in June 2027.</li>
+  </ol>
+  <div class="sign"><div>Prepared by: Nguyen Hoang Minh Tri</div><div>Date</div></div>
+</section>
+
+<!-- ============================ APPENDIX A ============================ -->
+<section class="newpage" data-sec="a1">
+  <h2 class="sec" id="a1"><span class="n">A</span>Trying the online demo</h2>
+  <p class="lede">The demo opens in any modern browser, on a laptop or a phone, with nothing to install. It is meant for current faculty to try, so we can learn what they would want added before the pilot is built.</p>
+  <table>
+    <tr><th style="width:26%">Link</th><td><a href="https://claude.ai/artifact/HKcpCfBua9uHhv5Y3hNKNc"><b>claude.ai/artifact/HKcpCfBua9uHhv5Y3hNKNc</b></a></td></tr>
+    <tr><th>Password</th><td>Provided separately by the author</td></tr>
+    <tr><th>Time needed</th><td>About ten minutes</td></tr>
+    <tr><th>Feedback</th><td>The <b>Give feedback</b> button on every screen opens the feedback form</td></tr>
+  </table>
+
+  <h3>Two ways in</h3>
+  <div class="figs two">
+    <div><h4>“I’m new to VinUni”</h4><p>A four-step onboarding: name and college; title, expertise, home country and languages; arrival date, family and where they will live (optional); and what they would like help with. The dashboard is then built from those answers, with an arrival checklist, buddy suggestions, guides on their topics and upcoming events.</p></div>
+    <div><h4>“I’ve been here a while”</h4><p>A demo sign-in that never asks for a password, straight into a sample account of a faculty member who has been here three years. It shows a buddy request from a newcomer to accept, a current buddy, questions in their areas and new colleagues to welcome.</p></div>
+  </div>
+  <div class="figs three">
+    <figure><img src="{{SHOTS}}/t-landing.jpg" alt=""><figcaption><b>Figure.</b> The start screen: new, or here a while.</figcaption></figure>
+    <figure><img src="{{SHOTS}}/t-onboard1.jpg" alt=""><figcaption><b>Figure.</b> Onboarding step 1: name and college.</figcaption></figure>
+    <figure><img src="{{SHOTS}}/t-onboard3.jpg" alt=""><figcaption><b>Figure.</b> Onboarding step 3: the move. Family details are optional and private.</figcaption></figure>
+  </div>
+  <div class="figs two">
+    <figure><img src="{{SHOTS}}/t-newhome.jpg" alt=""><figcaption><b>Figure.</b> A new faculty member’s dashboard, built from their onboarding answers.</figcaption></figure>
+    <figure><img src="{{SHOTS}}/t-esthome.jpg" alt=""><figcaption><b>Figure.</b> An established faculty member’s dashboard after the demo sign-in.</figcaption></figure>
+  </div>
+
+  <h3>Suggested things to try</h3>
+  <ol>
+    <li>Choose <b>I’m new to VinUni</b>, complete the four steps, and look at the dashboard built for you.</li>
+    <li>Open <b>My buddy</b>, ask one of the suggested colleagues, then click the button to see what happens when they say yes.</li>
+    <li>Ask a question in <b>Ask &amp; Discuss</b> and see which colleagues it would be sent to.</li>
+    <li>Click <b>Start over</b>, choose <b>I’ve been here a while</b>, sign in, and accept the buddy request.</li>
+    <li>Click <b>Give feedback</b> and tell us what you would add, change or remove.</li>
+  </ol>
+  <p class="note">What testers enter stays in their own browser and is not sent anywhere. <b>Start over</b> clears it. The partner and coordinator views described in this document are part of the prototype but not of the online demo.</p>
+</section>
+
+<!-- ============================ APPENDIX B ============================ -->
+<section class="newpage" data-sec="a2">
+  <h2 class="sec" id="a2"><span class="n">B</span>Traceability to the original MVP criteria</h2>
+  <p>The original proposal (§14) lists ten acceptance criteria for a minimum viable product. All ten are met by the refined design and built into the prototype.</p>
+  <table>
+    <tr><th class="num">#</th><th style="width:48%">Original MVP criterion</th><th>Where it is met</th></tr>
+    <tr><td class="num">1</td><td>Faculty can sign in using their VinUniversity identity</td><td>Single sign-on for faculty, plus invitation links for pre-arrival hires and guests (§5.2, §5.3)</td></tr>
+    <tr><td class="num">2</td><td>Faculty can create and update their own profile</td><td>Profiles with per-field visibility and consent (§5.4)</td></tr>
+    <tr><td class="num">3</td><td>Users can search/filter the directory by college, expertise, interests and help topics</td><td>Directory, plus language, buddy availability and opt-in family filters (§5.5)</td></tr>
+    <tr><td class="num">4</td><td>Users can join and participate in the initial forum categories</td><td>Ask &amp; Discuss with topic tags; topics can graduate to their own spaces (§5.7, §6.3)</td></tr>
+    <tr><td class="num">5</td><td>New faculty can request a buddy; administrators can create or approve a match</td><td>Buddy programme with coordinator confirmation, introductions and check-ins (§5.6)</td></tr>
+    <tr><td class="num">6</td><td>Administrators can add/edit categories and resource pages without code</td><td>Topics and settings (§6.3); guides in SharePoint (§5.9)</td></tr>
+    <tr><td class="num">7</td><td>Administrators can deactivate users and moderate content</td><td>Users and access, leaver sync, moderation (§6.2, §6.4)</td></tr>
+    <tr><td class="num">8</td><td>Optional personal information has clear privacy controls</td><td>Per-field visibility, consent register, preview, download and delete (§5.4, §7)</td></tr>
+    <tr><td class="num">9</td><td>The platform works well on desktop and mobile</td><td>Responsive design (§5.13)</td></tr>
+    <tr><td class="num">10</td><td>Basic usage metrics are available to administrators</td><td>Dashboard plus pilot outcome measures (§6.1)</td></tr>
+  </table>
+</section>
+
+<!-- ============================ APPENDIX C ============================ -->
+<section data-sec="a3" style="margin-top:8mm">
+  <h2 class="sec" id="a3"><span class="n">C</span>Feature inventory</h2>
+  <table>
+    <tr><th style="width:28%">Area</th><th>Features</th><th style="width:13%">Phase</th></tr>
+    <tr><td><b>Access</b></td><td>Faculty single sign-on; pre-arrival invitation links; partner guest accounts; role-based permissions</td><td><span class="tag pilot">Pilot</span></td></tr>
+    <tr><td><b>Onboarding</b></td><td>Three-question home page; getting-started checklist; timed, shared arrival plan</td><td><span class="tag pilot">Pilot</span></td></tr>
+    <tr><td><b>People</b></td><td>Profiles with per-field visibility and consent; preview; download and delete; directory with filters</td><td><span class="tag pilot">Pilot</span></td></tr>
+    <tr><td><b>Buddy programme</b></td><td>Weighted preferences; transparent scores; workload caps; coordinator confirmation; introductions; check-ins; re-match</td><td><span class="tag pilot">Pilot</span></td></tr>
+    <tr><td><b>Conversation</b></td><td>Ask &amp; Discuss with tags; question routing to helpers; unanswered alerts; disclaimers; pinning; reporting; partner topic</td><td><span class="tag pilot">Pilot</span></td></tr>
+    <tr><td><b>Chat groups</b></td><td>Weekly digest (by hand); saving answers with permission</td><td><span class="tag pilot">Pilot</span></td></tr>
+    <tr><td></td><td>Automated digest posting</td><td><span class="tag later">Later</span></td></tr>
+    <tr><td><b>Knowledge</b></td><td>Official and faculty guides with owners and review dates; dated recommendations with freshness and confirmations</td><td><span class="tag pilot">Pilot</span></td></tr>
+    <tr><td><b>Events</b></td><td>Calendar and list; RSVP with capacity and waitlist; family-friendly marking; reminders</td><td><span class="tag pilot">Pilot</span></td></tr>
+    <tr><td></td><td>Outlook calendar integration</td><td><span class="tag later">Later</span></td></tr>
+    <tr><td><b>Administration</b></td><td>Pilot measures; dashboard; matching queue; moderation; content review; topics, tags and weights; invitations; leaver sync; consent register; automations; audit log</td><td><span class="tag pilot">Pilot</span></td></tr>
+    <tr><td></td><td>Power BI analytics; full Dataverse; AI-assisted search; buy/sell/give-away</td><td><span class="tag later">Later</span></td></tr>
+  </table>
+</section>
+
+</body>
+</html>

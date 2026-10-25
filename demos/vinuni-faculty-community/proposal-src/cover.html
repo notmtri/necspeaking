@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Cover</title>
+<style>
+@font-face { font-family: 'Hanken'; font-weight: 400 700; src: url('{{FONTS}}/HankenGrotesk-latin.woff2') format('woff2'); }
+@font-face { font-family: 'Newsreader'; font-weight: 500 700; src: url('{{FONTS}}/Newsreader-latin.woff2') format('woff2'); }
+@page { size: A4; margin: 0; }
+html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+body { margin: 0; width: 210mm; height: 297mm; font-family: 'Hanken', sans-serif; color: #1B1F28; overflow: hidden; }
+.photo { height: 168mm; position: relative; color: #fff; padding: 16mm 18mm; display: flex; flex-direction: column;
+  background: linear-gradient(180deg, rgba(10,24,52,.55) 0%, rgba(10,24,52,.05) 30%, rgba(10,24,52,.12) 42%, rgba(10,24,52,.72) 64%, rgba(10,24,52,.95) 100%), url('file:///tmp/claude-0/-home-user-necspeaking/0734c8c0-c4aa-5631-ab1a-a060c16b3c92/scratchpad/proposal/cover-lawn.jpg') center 58% / cover; }
+.brand { display: flex; align-items: center; gap: 4mm; }
+.mark { width: 15mm; height: 15mm; border-radius: 3.5mm; background: #fff url('{{ASSETS}}/mark.png') center / 66% no-repeat; box-shadow: 0 1mm 3mm rgba(0,0,0,.25); }
+.brand b { display: block; font-size: 12pt; letter-spacing: .3px; }
+.brand span { font-size: 9pt; color: #D5DEEF; }
+.kicker { margin-top: auto; font-size: 9pt; letter-spacing: 1.6px; text-transform: uppercase; font-weight: 700; color: #F5B3BE; }
+h1 { font-family: 'Newsreader', serif; font-weight: 600; font-size: 38pt; line-height: 1.04; margin: 3mm 0 0; letter-spacing: -.5px; max-width: 165mm; }
+.sub { font-size: 13pt; color: #DCE3F3; margin-top: 5mm; max-width: 150mm; line-height: 1.45; }
+.meta { padding: 13mm 18mm 0; display: grid; grid-template-columns: 1fr 1fr; gap: 8mm 12mm; }
+.meta .l { font-size: 7.8pt; letter-spacing: 1.2px; text-transform: uppercase; color: #C72027; font-weight: 700; margin-bottom: 1.2mm; }
+.meta .v { font-size: 10.5pt; line-height: 1.45; }
+.meta .v b { color: #0A1834; }
+.foot { position: absolute; left: 18mm; right: 18mm; bottom: 14mm; display: flex; justify-content: space-between; align-items: flex-end; border-top: .3mm solid #DDE1E8; padding-top: 4mm; font-size: 8.4pt; color: #737B8C; }
+.logo { width: 34mm; height: 21mm; background: url('{{ASSETS}}/logo.png') right center / contain no-repeat; }
+</style></head>
+<body>
+  <div class="photo">
+    <div class="brand"><div class="mark"></div><div><b>VinUniversity</b><span>International Faculty Community</span></div></div>
+    <div class="kicker">Proposal for a one-semester pilot</div>
+    <h1>International Faculty Community Platform</h1>
+    <div class="sub">Helping international faculty and their families settle in at VinUniversity, starting before they arrive.</div>
+  </div>
+  <div class="meta">
+    <div><div class="l">Prepared for</div><div class="v"><b>School Council</b><br>VinUniversity</div></div>
+    <div><div class="l">Prepared by</div><div class="v"><b>Nguyen Hoang Minh Tri</b><br>College of Engineering and Computer Science</div></div>
+    <div><div class="l">Builds on</div><div class="v"><i>International Faculty Community Platform</i> proposal by <b>Marc Kramer</b>, Senior Lecturer (September 2026)</div></div>
+    <div><div class="l">Date</div><div class="v"><b>October 2026</b><br>Version 1.0, for discussion</div></div>
+  </div>
+  <div class="foot"><div>Accompanies an online demo for faculty to try.<br>All people and providers shown in screenshots are fictional sample data.</div><div class="logo"></div></div>
+</body></html>
