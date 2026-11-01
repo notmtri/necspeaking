@@ -43,6 +43,7 @@ const createFetchMock = (overrides = {}) => vi.fn(async (url) => {
   }
   if (target.includes('/api/admin/check')) return createFetchResponse({ authenticated: false });
   if (target.includes('/api/auth/community')) return createFetchResponse({ profiles: overrides.profiles || [] });
+  if (target.includes('/report')) return createFetchResponse({ success: true, reportedCount: 1, hidden: false });
   if (target.includes('/api/community/posts')) return createFetchResponse({ posts: overrides.posts || [] });
   if (target.includes('/api/questions')) return createFetchResponse({ questions: overrides.questions || [] });
   if (target.includes('/api/samples')) return createFetchResponse({ samples: overrides.samples || [] });
@@ -291,6 +292,34 @@ describe('App', () => {
     expect(JSON.parse(sent()[1].body)).toMatchObject({ message: 'Please add more samples.', page: 'samples' });
     expect(await waitUntil(() => container.textContent.includes('Thanks! Your feedback was sent.'))).toBe(true);
     expect(document.querySelector('[role="dialog"]')).toBeNull();
+  });
+
+  const postFixture = {
+    id: 41, title: 'Spam post', body: 'buy now', createdAt: '2026-11-01T00:00:00',
+    author: { id: 'user-2', name: 'Someone', username: 'someone', role: 'Student' },
+  };
+  const reportCalls = () => global.fetch.mock.calls.filter(([url]) => String(url).includes('/report'));
+
+  it('asks guests to log in before reporting a post', async () => {
+    await renderApp('/community', { posts: [postFixture] });
+    await waitUntil(() => Boolean(buttonNamed('Report')));
+    await act(async () => buttonNamed('Report').click());
+    expect(container.textContent).toContain('Log in to report a post.');
+    expect(reportCalls()).toHaveLength(0);
+  });
+
+  it('marks a post as reported so it is not reported twice', async () => {
+    await renderApp('/community', { posts: [postFixture], user: newStudent(1) });
+    await waitUntil(() => Boolean(buttonNamed('Report')));
+    await act(async () => buttonNamed('Report').click());
+    expect(await waitUntil(() => Boolean(buttonNamed('Reported')))).toBe(true);
+    expect(buttonNamed('Reported').disabled).toBe(true);
+    expect(reportCalls()).toHaveLength(1);
+  });
+
+  it('gives each page its own browser title', async () => {
+    await renderApp('/samples', { samples: [sampleFixture] });
+    expect(document.title).toBe('High-scoring NEC samples | necs.');
   });
 
   it('keeps the feedback button off the timed simulation', async () => {

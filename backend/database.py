@@ -63,6 +63,9 @@ class User(db.Model):
     email_code_purpose = db.Column(db.String(20), nullable=True)
     email_code_expires_at = db.Column(db.DateTime, nullable=True)
     email_code_attempts = db.Column(db.Integer, nullable=False, default=0)
+    # Bumped when the password changes; sessions carrying an older value are
+    # logged out (see get_current_user in app.py).
+    session_version = db.Column(db.Integer, nullable=False, default=0)
     name = db.Column(db.String(255), nullable=False)
     class_name = db.Column(db.String(100), default='')
     school = db.Column(db.String(255), default='')
@@ -300,6 +303,17 @@ class AppAnnouncement(db.Model):
             'message': self.message or '',
             'updatedAt': self.updated_at.isoformat() if self.updated_at else None,
         }
+
+
+class CommunityPostReport(db.Model):
+    """One account's report of one post; the unique pair stops repeat clicks counting."""
+    __tablename__ = 'community_post_reports'
+    __table_args__ = (db.UniqueConstraint('post_id', 'user_id', name='uq_community_post_reports_post_user'),)
+
+    id = db.Column(db.Integer, primary_key=True)
+    post_id = db.Column(db.Integer, db.ForeignKey('community_posts.id', ondelete='CASCADE'), nullable=False, index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False, index=True)
+    created_at = db.Column(db.DateTime, default=utcnow)
 
 
 class FeedbackMessage(db.Model):

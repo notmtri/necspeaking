@@ -4,7 +4,7 @@ import { Loader, MessageSquare } from 'lucide-react';
 import { AdminLoginModal, FeedbackModal, ToastViewport } from './components/AppOverlays';
 import { AppHeader, AppStatusStack, Footer } from './components/AppChrome';
 import ErrorBoundary from './components/ErrorBoundary';
-import { API_BASE_URL, DEFAULT_ANNOUNCEMENT, downloadDocumentFromBase64, pageFromLocation, pathForPage, readGuestModePreference, writeGuestModePreference } from './appShared';
+import { API_BASE_URL, DEFAULT_ANNOUNCEMENT, PAGE_TITLES, downloadDocumentFromBase64, pageFromLocation, pathForPage, readGuestModePreference, writeGuestModePreference } from './appShared';
 import { apiFetch, isAbortError } from './apiClient';
 import HomePage from './pages/HomePage';
 
@@ -187,6 +187,10 @@ export default function SpeakUpApp() {
     () => (communityLoadedRef.current ? loadCommunityProfiles() : Promise.resolve()),
     [loadCommunityProfiles],
   );
+
+  useEffect(() => {
+    document.title = PAGE_TITLES[currentPage] || PAGE_TITLES.home;
+  }, [currentPage]);
 
   useEffect(() => {
     if (currentPage !== 'community' || communityLoadedRef.current) return undefined;

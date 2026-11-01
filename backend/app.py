@@ -22,11 +22,12 @@ from groq import Groq
 import re
 import random
 from sqlalchemy import inspect, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import configure_mappers, defer
 
 from analysis_service import allowed_file, build_job_storage_path, cleanup_old_files, generate_docx, get_audio_duration
-from database import MAX_AVATAR_CHARS, AnalysisJob, AppAnnouncement, CommunityPost, FeedbackMessage, Question, RateLimitEntry, Sample, User, UserPracticeSession, avatar_from_name, build_prompt_key, db, utcnow
+from database import MAX_AVATAR_CHARS, AnalysisJob, AppAnnouncement, CommunityPost, CommunityPostReport, FeedbackMessage, Question, RateLimitEntry, Sample, User, UserPracticeSession, avatar_from_name, build_prompt_key, db, utcnow
 from job_worker import AnalysisWorker, should_start_embedded_worker
 from rate_limiter import client_ip, rate_limit, rate_limiter
 from user_progress import create_practice_session
@@ -223,6 +224,7 @@ def ensure_runtime_tables():
                 ('questions', Question.__table__),
                 ('samples', Sample.__table__),
                 ('feedback_messages', FeedbackMessage.__table__),
+                ('community_post_reports', CommunityPostReport.__table__),
             ]
             for table_name, table in managed_tables:
                 if table_name not in table_names:
@@ -500,7 +502,27 @@ def get_current_user():
     user_id = session.get('user_id')
     if not user_id:
         return None
-    return db.session.get(User, user_id)
+    user = db.session.get(User, user_id)
+    # Sessions are signed cookies, so they can't be deleted server-side. A
+    # password change bumps user.session_version instead, and any session
+    # still carrying the old number is treated as logged out. Sessions from
+    # before this existed carry none, which matches the starting value 0.
+    if user and session.get('session_version', 0) != (user.session_version or 0):
+        session.pop('user_id', None)
+        return None
+    return user
+
+
+def start_session(user):
+    session['user_id'] = user.id
+    session['session_version'] = user.session_version or 0
+    session.permanent = False
+
+
+def end_other_sessions(user):
+    """Log out every other device; this one stays logged in. Caller commits."""
+    user.session_version = (user.session_version or 0) + 1
+    session['session_version'] = user.session_version
 
 
 # A guest's analysis exists only as a job row, deleted after
@@ -655,8 +677,7 @@ def signup():
         db.session.add(user)
         db.session.commit()
 
-        session['user_id'] = user.id
-        session.permanent = False
+        start_session(user)
         claimed = claim_guest_jobs(user)
         verification_sent = send_verification_code(user) if email_enabled() else False
 
@@ -685,8 +706,7 @@ def login():
         if not user or not check_password_hash(user.password_hash, payload["password"]):
             return jsonify({"error": "Invalid email or password."}), 401
 
-        session['user_id'] = user.id
-        session.permanent = False
+        start_session(user)
         claimed = claim_guest_jobs(user)
 
         return jsonify({"success": True, "user": user.to_dict(), "claimedResults": claimed})
@@ -794,22 +814,68 @@ def create_community_post():
         return jsonify({"error": "Could not publish post."}), 500
 
 
+# Posts reported by this many different accounts are hidden until the admin
+# looks; one that the admin has already reviewed (moderated_at) stays up.
+AUTO_HIDE_REPORTS = 3
+ADMIN_NOTIFY_EMAIL = os.getenv('ADMIN_NOTIFY_EMAIL', 'necspeaking@gmail.com').strip()
+
+
+def notify_admin_of_report(post, report_count, auto_hidden):
+    if not (email_enabled() and ADMIN_NOTIFY_EMAIL):
+        return
+    author = post.user.username if post.user else 'unknown'
+    status = (f"It has now been hidden automatically after {report_count} reports and waits for your review."
+              if auto_hidden else f"Reports so far: {report_count}. It is still visible.")
+    send_email(
+        ADMIN_NOTIFY_EMAIL,
+        f'necs. community post reported: {post.title[:60]}',
+        f'The post "{post.title}" by @{author} was reported.\n{status}\n\n'
+        'Review it in the admin panel under Moderation, where you can hide or restore it.\n',
+    )
+
+
 @app.route('/api/community/posts/<int:post_id>/report', methods=['POST'])
+@require_login()
 @rate_limit('community-post-report', max_requests=20, window_seconds=3600)
 def report_community_post(post_id):
+    """One report per account per post. It used to be an anonymous counter that
+    a single visitor could bump 20 times an hour."""
+    user = get_current_user()
     post = db.session.get(CommunityPost, post_id)
     if not post or post.hidden:
         return jsonify({"error": "Post not found."}), 404
+    if post.user_id == user.id:
+        return jsonify({"error": "You can't report your own post."}), 400
 
     try:
+        db.session.add(CommunityPostReport(post_id=post.id, user_id=user.id))
+        db.session.flush()
+    except IntegrityError:
+        db.session.rollback()
+        return jsonify({"success": True, "alreadyReported": True, "reportedCount": int(post.reported_count or 0)})
+
+    try:
+        reports = CommunityPostReport.query.filter_by(post_id=post.id).count()
         post.reported_count = int(post.reported_count or 0) + 1
         post.last_reported_at = utcnow()
+        auto_hidden = reports >= AUTO_HIDE_REPORTS and not post.moderated_at
+        if auto_hidden:
+            post.hidden = True
+            post.hidden_reason = f'Hidden automatically after {reports} reports; waiting for admin review.'
         db.session.commit()
-        return jsonify({"success": True, "reportedCount": post.reported_count})
     except Exception as error:
         db.session.rollback()
         print(f"[COMMUNITY] Report post error: {error}")
         return jsonify({"error": "Could not report post."}), 500
+
+    # Only on the first report and on auto-hide, to keep the inbox quiet.
+    if reports == 1 or auto_hidden:
+        notify_admin_of_report(post, reports, auto_hidden)
+    return jsonify({
+        "success": True,
+        "reportedCount": int(post.reported_count or 0),
+        "hidden": auto_hidden,
+    })
 
 
 @app.route('/api/auth/practice-history', methods=['GET'])
@@ -1088,14 +1154,15 @@ def reset_password():
         user.password_hash = generate_password_hash(new_password)
         # Receiving the code proves they read that inbox.
         user.email_verified_at = user.email_verified_at or utcnow()
+        # Whoever knew the old password is logged out everywhere.
+        end_other_sessions(user)
         db.session.commit()
     except Exception as error:
         db.session.rollback()
         print(f"[AUTH] Password reset error: {error}")
         return jsonify({"error": "Could not reset the password. Try again."}), 500
 
-    session['user_id'] = user.id
-    session.permanent = False
+    start_session(user)
     claim_guest_jobs(user)
     return jsonify({"success": True, "user": user.to_dict()})
 
@@ -1116,6 +1183,7 @@ def update_password():
             return jsonify({"error": "New password must be at least 8 characters."}), 400
 
         user.password_hash = generate_password_hash(new_password)
+        end_other_sessions(user)
         db.session.commit()
         return jsonify({"success": True})
     except Exception as e:

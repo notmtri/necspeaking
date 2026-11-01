@@ -218,22 +218,31 @@ export default function CommunityPage({ profiles, selectedProfile, onSelectProfi
     setOverlayProfile(profile);
   }, [onSelectProfile]);
 
+  // Reports count once per account (the server enforces it); this only
+  // remembers which posts were reported here so the button can say so.
+  const [reportedPostIds, setReportedPostIds] = useState(() => new Set());
+
   const reportPost = useCallback(async (postId) => {
+    if (!currentUser) {
+      setPostError('Log in to report a post.');
+      return;
+    }
     setReportingPostId(postId);
     setPostError('');
     try {
       const data = await apiFetch(`/api/community/posts/${postId}/report`, { method: 'POST' });
       if (data.success) {
-        setCommunityPosts((current) => current.map((post) => (
-          post.id === postId ? { ...post, reportedCount: data.reportedCount } : post
-        )));
+        setReportedPostIds((current) => new Set(current).add(postId));
+        setCommunityPosts((current) => (data.hidden
+          ? current.filter((post) => post.id !== postId)
+          : current.map((post) => (post.id === postId ? { ...post, reportedCount: data.reportedCount } : post))));
       }
     } catch (error) {
       setPostError(error.message || 'Could not report post.');
     } finally {
       setReportingPostId(null);
     }
-  }, []);
+  }, [currentUser]);
 
   return (
     <div className="min-w-0 space-y-5 sm:space-y-6">
@@ -356,10 +365,10 @@ export default function CommunityPage({ profiles, selectedProfile, onSelectProfi
                   <button
                     type="button"
                     onClick={() => reportPost(item.id)}
-                    disabled={reportingPostId === item.id}
+                    disabled={reportingPostId === item.id || reportedPostIds.has(item.id)}
                     className="inline-flex rounded-full border border-line bg-overlay px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-ink-muted transition hover:bg-overlay-hover disabled:opacity-60"
                   >
-                    {reportingPostId === item.id ? 'Reporting...' : `Report${item.reportedCount ? ` (${item.reportedCount})` : ''}`}
+                    {reportingPostId === item.id ? 'Reporting...' : reportedPostIds.has(item.id) ? 'Reported' : 'Report'}
                   </button>
                 </div>
               </article>

@@ -1,7 +1,9 @@
 import os
+import re
 import sys
 import unittest
 from io import BytesIO
+from unittest import mock
 from pathlib import Path
 
 from werkzeug.security import generate_password_hash
@@ -138,6 +140,7 @@ class ApiSmokeTests(unittest.TestCase):
             db.session.commit()
             post_id = post.id
 
+        self._signup(email='reporter@example.com', username='reporter')
         report_response = self.client.post(f'/api/community/posts/{post_id}/report')
         self.assertEqual(report_response.status_code, 200)
         self.assertEqual(report_response.get_json()['reportedCount'], 1)
@@ -915,6 +918,121 @@ class FeedbackTests(unittest.TestCase):
         self.assertTrue(resolved.get_json()['feedback']['resolved'])
         self.assertEqual(admin.get('/api/admin/feedback').get_json()['openCount'], 0)
         self.assertEqual(admin.put('/api/admin/feedback/999', json={'resolved': True}).status_code, 404)
+
+
+
+CODE_PATTERN = re.compile(r'\b(\d{6})\b')
+
+
+class ReportsAndSessionsTests(unittest.TestCase):
+    def setUp(self):
+        app_module.app.config.update(TESTING=True)
+        with app_module.app.app_context():
+            db.drop_all()
+            db.create_all()
+
+    def tearDown(self):
+        with app_module.app.app_context():
+            db.session.remove()
+
+    def account(self, username, password='strongpass123'):
+        browser = app_module.app.test_client()
+        response = browser.post('/api/auth/signup', json={
+            'email': f'{username}@example.com', 'password': password,
+            'profile': {'name': username.title(), 'username': username}})
+        self.assertEqual(response.status_code, 201)
+        return browser
+
+    def post_by(self, browser):
+        response = browser.post('/api/community/posts', json={'title': 'Hello', 'body': 'A post'})
+        self.assertEqual(response.status_code, 201)
+        return response.get_json()['post']['id']
+
+    def report(self, browser, post_id):
+        return browser.post(f'/api/community/posts/{post_id}/report')
+
+    # --- reports ---
+
+    def test_one_account_counts_once_however_often_it_clicks(self):
+        post_id = self.post_by(self.account('author'))
+        reporter = self.account('reporter')
+        self.assertEqual(self.report(reporter, post_id).get_json()['reportedCount'], 1)
+        again = self.report(reporter, post_id).get_json()
+        self.assertTrue(again['alreadyReported'])
+        self.assertEqual(again['reportedCount'], 1)
+
+    def test_guests_cannot_report(self):
+        post_id = self.post_by(self.account('author'))
+        self.assertEqual(self.report(app_module.app.test_client(), post_id).status_code, 401)
+
+    def test_nobody_reports_their_own_post(self):
+        author = self.account('author')
+        self.assertEqual(self.report(author, self.post_by(author)).status_code, 400)
+
+    def test_three_different_accounts_hide_a_post_until_review(self):
+        post_id = self.post_by(self.account('author'))
+        results = [self.report(self.account(f'reporter{i}'), post_id).get_json() for i in range(3)]
+        self.assertEqual([r['hidden'] for r in results], [False, False, True])
+        feed = app_module.app.test_client().get('/api/community/posts').get_json()['posts']
+        self.assertEqual(feed, [])
+
+    def test_a_post_the_admin_restored_is_not_hidden_again(self):
+        post_id = self.post_by(self.account('author'))
+        admin = app_module.app.test_client()
+        with admin.session_transaction() as cookie_session:
+            cookie_session['admin_authenticated'] = True
+        admin.put(f'/api/admin/community/posts/{post_id}/visibility', json={'hidden': False})
+        results = [self.report(self.account(f'reporter{i}'), post_id).get_json() for i in range(3)]
+        self.assertFalse(any(r['hidden'] for r in results))
+
+    def test_the_admin_hears_about_the_first_report_and_the_auto_hide(self):
+        post_id = self.post_by(self.account('author'))
+        reporters = [self.account(f'reporter{i}') for i in range(3)]
+        with (
+            mock.patch.object(app_module, 'email_enabled', return_value=True),
+            mock.patch.object(app_module, 'send_email', return_value=True) as send,
+        ):
+            for reporter in reporters:
+                self.report(reporter, post_id)
+        self.assertEqual(send.call_count, 2)
+        self.assertEqual(send.call_args_list[0].args[0], 'necspeaking@gmail.com')
+        self.assertIn('hidden automatically', send.call_args_list[1].args[2])
+
+    # --- sessions ---
+
+    def test_changing_the_password_logs_out_other_devices_but_not_this_one(self):
+        laptop = self.account('student', password='oldpassword1')
+        phone = app_module.app.test_client()
+        phone.post('/api/auth/login', json={'email': 'student@example.com', 'password': 'oldpassword1'})
+        self.assertTrue(phone.get('/api/auth/me').get_json()['authenticated'])
+
+        changed = laptop.put('/api/auth/password', json={'currentPassword': 'oldpassword1', 'newPassword': 'newpassword2'})
+        self.assertEqual(changed.status_code, 200)
+
+        self.assertTrue(laptop.get('/api/auth/me').get_json()['authenticated'])
+        self.assertFalse(phone.get('/api/auth/me').get_json()['authenticated'])
+        self.assertEqual(phone.get('/api/auth/practice-history').status_code, 401)
+
+    def test_resetting_a_forgotten_password_logs_out_everywhere_else(self):
+        laptop = self.account('student', password='oldpassword1')
+        sent = []
+        with (
+            mock.patch.object(app_module, 'email_enabled', return_value=True),
+            mock.patch.object(app_module, 'send_email', side_effect=lambda to, subject, text: sent.append(text) or True),
+        ):
+            phone = app_module.app.test_client()
+            phone.post('/api/auth/password/forgot', json={'email': 'student@example.com'})
+        code = CODE_PATTERN.search(sent[-1]).group(1)
+        phone.post('/api/auth/password/reset', json={'email': 'student@example.com', 'code': code, 'newPassword': 'newpassword2'})
+
+        self.assertTrue(phone.get('/api/auth/me').get_json()['authenticated'])
+        self.assertFalse(laptop.get('/api/auth/me').get_json()['authenticated'])
+
+    def test_sessions_from_before_versioning_stay_logged_in(self):
+        browser = self.account('student')
+        with browser.session_transaction() as cookie_session:
+            cookie_session.pop('session_version', None)
+        self.assertTrue(browser.get('/api/auth/me').get_json()['authenticated'])
 
 
 if __name__ == '__main__':
