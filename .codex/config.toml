@@ -1,0 +1,5 @@
+[mcp_servers.render]
+url = "https://mcp.render.com/mcp"
+
+[mcp_servers.vercel]
+url = "https://mcp.vercel.com"
