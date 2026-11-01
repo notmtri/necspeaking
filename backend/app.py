@@ -19,7 +19,7 @@ from werkzeug.exceptions import HTTPException, RequestEntityTooLarge
 from groq import Groq
 import re
 import random
-from sqlalchemy import inspect
+from sqlalchemy import inspect, update
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import configure_mappers, defer
 
@@ -27,6 +27,7 @@ from analysis_service import allowed_file, build_job_storage_path, cleanup_old_f
 from database import MAX_AVATAR_CHARS, AnalysisJob, AppAnnouncement, CommunityPost, Question, RateLimitEntry, Sample, User, UserPracticeSession, avatar_from_name, build_prompt_key, db, utcnow
 from job_worker import AnalysisWorker, should_start_embedded_worker
 from rate_limiter import client_ip, rate_limit, rate_limiter
+from user_progress import create_practice_session
 import cloudinary
 import cloudinary.uploader
 
@@ -502,6 +503,83 @@ def get_current_user():
     return db.session.get(User, user_id)
 
 
+# A guest's analysis exists only as a job row, deleted after
+# ANALYSIS_JOB_RETENTION_HOURS, so a guest who liked their result and then
+# signed up used to find an empty profile. The browser's signed session cookie
+# remembers its recent guest jobs; logging in or signing up on that browser
+# moves the finished ones into the account.
+GUEST_JOBS_SESSION_KEY = 'guest_job_ids'
+MAX_REMEMBERED_GUEST_JOBS = 5
+
+
+def remember_guest_job(job_id):
+    job_ids = [existing for existing in session.get(GUEST_JOBS_SESSION_KEY, []) if existing != job_id]
+    job_ids.append(job_id)
+    session[GUEST_JOBS_SESSION_KEY] = job_ids[-MAX_REMEMBERED_GUEST_JOBS:]
+
+
+def claim_guest_jobs(user):
+    """Save this browser's finished guest analyses to `user`; returns how many.
+
+    Unfinished jobs stay remembered and are claimed on a later request (the
+    page polls the job until it finishes). They are never handed to the user
+    early: the worker decides whether to save a session from job.user_id
+    part-way through, so a mid-flight claim could be lost or saved twice.
+    Failures are logged and swallowed -- a claim must never break a login.
+    """
+    job_ids = session.get(GUEST_JOBS_SESSION_KEY) or []
+    if not job_ids:
+        return 0
+
+    try:
+        still_running = []
+        claimed = 0
+        for job_id in job_ids:
+            job = db.session.get(AnalysisJob, job_id)
+            if not job or job.user_id is not None or job.status == 'failed':
+                continue
+            if job.status != 'completed':
+                still_running.append(job_id)
+                continue
+
+            # Conditional, so two concurrent requests cannot both save it.
+            won = db.session.execute(
+                update(AnalysisJob)
+                .where(AnalysisJob.id == job_id, AnalysisJob.user_id.is_(None))
+                .values(user_id=user.id)
+            ).rowcount
+            if not won:
+                continue
+
+            payload = dict(job.result_payload or {})
+            practice = create_practice_session(
+                user,
+                job.topic,
+                payload.get('transcript') or '',
+                payload.get('duration'),
+                payload.get('scores') or {},
+                metrics=payload.get('metrics'),
+                feedback=payload.get('feedback'),
+                sample_response=payload.get('sample_response'),
+                grader=payload.get('grader_model') or payload.get('grader'),
+            )
+            payload['practice_session_id'] = practice.id
+            payload['user'] = user.to_dict()  # stats now include this attempt
+            job.result_payload = payload
+            claimed += 1
+
+        db.session.commit()
+        if still_running:
+            session[GUEST_JOBS_SESSION_KEY] = still_running
+        else:
+            session.pop(GUEST_JOBS_SESSION_KEY, None)
+        return claimed
+    except Exception as error:
+        db.session.rollback()
+        print(f"[AUTH] Guest result claim failed: {type(error).__name__}: {error}" + chr(10) + traceback.format_exc(limit=20))
+        return 0
+
+
 def require_login():
     """Decorator to require user authentication"""
     def decorator(f):
@@ -579,8 +657,9 @@ def signup():
 
         session['user_id'] = user.id
         session.permanent = False
+        claimed = claim_guest_jobs(user)
 
-        return jsonify({"success": True, "user": user.to_dict()}), 201
+        return jsonify({"success": True, "user": user.to_dict(), "claimedResults": claimed}), 201
     except Exception as e:
         db.session.rollback()
         print(f"[AUTH] Signup error: {str(e)}")
@@ -602,8 +681,9 @@ def login():
 
         session['user_id'] = user.id
         session.permanent = False
+        claimed = claim_guest_jobs(user)
 
-        return jsonify({"success": True, "user": user.to_dict()})
+        return jsonify({"success": True, "user": user.to_dict(), "claimedResults": claimed})
     except Exception as e:
         print(f"[AUTH] Login error: {str(e)}")
         return jsonify({"error": "Login failed."}), 500
@@ -612,6 +692,9 @@ def login():
 @app.route('/api/auth/me', methods=['GET'])
 def auth_me():
     user = get_current_user()
+    if user:
+        # Picks up a guest analysis that was still running at login.
+        claim_guest_jobs(user)
     return jsonify({"authenticated": bool(user), "user": user.to_dict() if user else None})
 
 
@@ -800,6 +883,7 @@ def auth_practice_session_document(session_id):
 @app.route('/api/auth/logout', methods=['POST'])
 def auth_logout():
     session.pop('user_id', None)
+    session.pop(GUEST_JOBS_SESSION_KEY, None)
     return jsonify({"success": True})
 
 
@@ -855,6 +939,7 @@ def update_profile():
 
 
 @app.route('/api/auth/password', methods=['PUT'])
+@rate_limit('auth-password', max_requests=8, window_seconds=300)
 @require_login()
 def update_password():
     try:
@@ -1135,6 +1220,8 @@ def analyze_speech():
         )
         db.session.add(job)
         db.session.commit()
+        if not current_user:
+            remember_guest_job(job.id)
 
         return jsonify({
             "success": True,
@@ -1158,6 +1245,12 @@ def get_analysis_job(job_id):
     current_user = get_current_user()
     if job.user_id and (not current_user or job.user_id != current_user.id) and not session.get('admin_authenticated'):
         return jsonify({"error": "Unauthorized."}), 403
+
+    # The student logged in while this guest analysis was still running.
+    if current_user and job.user_id is None and job.status == 'completed' \
+            and job_id in (session.get(GUEST_JOBS_SESSION_KEY) or []):
+        if claim_guest_jobs(current_user):
+            db.session.refresh(job)
 
     return jsonify({"job": job.to_dict()})
 

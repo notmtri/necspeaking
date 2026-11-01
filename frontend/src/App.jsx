@@ -385,6 +385,11 @@ export default function SpeakUpApp() {
       await loadPracticeHistory();
       await refreshCommunityProfiles();
       navTo('profile');
+      if (data.claimedResults) {
+        pushToast(data.claimedResults === 1
+          ? 'Your guest result was saved to your profile.'
+          : `${data.claimedResults} guest results were saved to your profile.`, 'success');
+      }
       return true;
     } catch (error) {
       setAuthError(error.message || 'Could not reach the account endpoint. Make sure the backend is running.');
@@ -392,7 +397,7 @@ export default function SpeakUpApp() {
     } finally {
       setAuthSubmitting(false);
     }
-  }, [refreshCommunityProfiles, loadPracticeHistory, navTo]);
+  }, [refreshCommunityProfiles, loadPracticeHistory, navTo, pushToast]);
 
   const handleProfileSave = useCallback(async (updates) => {
     setAuthError('');
@@ -525,6 +530,7 @@ export default function SpeakUpApp() {
             onAnalysisUserUpdate={handleAnalysisUserUpdate}
             isOffline={isOffline}
             isLoggedIn={Boolean(currentUser)}
+            onOpenAuth={openAuth}
           />
         );
       case 'samples':
@@ -537,6 +543,7 @@ export default function SpeakUpApp() {
             notify={pushToast}
             isOffline={isOffline}
             isLoggedIn={Boolean(currentUser)}
+            onOpenAuth={openAuth}
           />
         );
       case 'home':

@@ -85,6 +85,18 @@ function ProfileOverlayModal({ profile, onClose }) {
   );
 }
 
+// An average over one or two attempts is mostly luck: before this rule four of
+// the top five "highest average" students had practised exactly once.
+export const MIN_RANKED_PRACTICES = 3;
+
+export function rankByAverage(profiles, limit = 5) {
+  return profiles
+    .filter((profile) => (profile.stats?.practices || 0) >= MIN_RANKED_PRACTICES)
+    .sort((a, b) => (b.stats?.avgScore || 0) - (a.stats?.avgScore || 0)
+      || (b.stats?.practices || 0) - (a.stats?.practices || 0))
+    .slice(0, limit);
+}
+
 function Leaderboard({ title, description, profiles, accent, valueOf, onSelect }) {
   const accentClasses = accent === 'amber'
     ? { rank: 'bg-amber-400/10 text-amber-200', value: 'text-amber-200' }
@@ -94,6 +106,9 @@ function Leaderboard({ title, description, profiles, accent, valueOf, onSelect }
     <div className="rounded-card border border-line bg-overlay p-4">
       <h3 className="text-sm font-semibold text-white">{title}</h3>
       <p className="mt-1 text-sm text-ink-muted">{description}</p>
+      {profiles.length === 0 && (
+        <p className="mt-4 text-sm text-ink-subtle">No one qualifies yet.</p>
+      )}
       <ol className="mt-4 space-y-3">
         {profiles.map((profile, index) => (
           <li key={profile.id}>
@@ -140,7 +155,7 @@ export default function CommunityPage({ profiles, selectedProfile, onSelectProfi
     [profiles],
   );
   const leaderboardByAverage = useMemo(
-    () => [...profiles].sort((a, b) => (b.stats?.avgScore || 0) - (a.stats?.avgScore || 0)).slice(0, 5),
+    () => rankByAverage(profiles),
     [profiles],
   );
 
@@ -415,9 +430,9 @@ export default function CommunityPage({ profiles, selectedProfile, onSelectProfi
                 <>
                   <Leaderboard
                     title="Highest average score all-time"
-                    description="Top students by overall average."
+                    description={`Top students by overall average, from ${MIN_RANKED_PRACTICES} or more practices.`}
                     profiles={leaderboardByAverage}
-                    valueOf={(profile) => profile.stats?.avgScore ?? 0}
+                    valueOf={(profile) => Number(profile.stats?.avgScore ?? 0).toFixed(2)}
                     onSelect={previewSelectedProfile}
                   />
                   <Leaderboard

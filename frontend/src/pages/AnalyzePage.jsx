@@ -9,7 +9,7 @@ import { useAnalysisJob } from '../useAnalysisJob';
 const MAX_RECORDING_SECONDS = 300;
 const MAX_AUDIO_BYTES = 50 * 1024 * 1024;
 
-export default function AnalyzePage({ onDownloadReport, onAnalysisUserUpdate, isOffline, isLoggedIn = false }) {
+export default function AnalyzePage({ onDownloadReport, onAnalysisUserUpdate, isOffline, isLoggedIn = false, onOpenAuth = null }) {
   const [step, setStep] = useState('input');
   const [topic, setTopic] = useState('');
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -500,6 +500,7 @@ export default function AnalyzePage({ onDownloadReport, onAnalysisUserUpdate, is
             resetLabel="New analysis"
             topic={topic}
             isLoggedIn={isLoggedIn}
+            onOpenAuth={onOpenAuth}
             onPracticeAgain={practiceAgain}
           />
         )}

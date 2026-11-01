@@ -21,7 +21,7 @@ os.environ['ADMIN_PASSWORD_HASH'] = generate_password_hash('admin-pass-123')
 os.environ['ENABLE_EMBEDDED_WORKER'] = 'false'
 
 import app as app_module  # noqa: E402
-from database import CommunityPost, Question, Sample, User, db  # noqa: E402
+from database import AnalysisJob, CommunityPost, Question, Sample, User, db  # noqa: E402
 from user_progress import create_practice_session  # noqa: E402
 
 
@@ -727,6 +727,134 @@ class ApiSmokeTests(unittest.TestCase):
         ])
         self.assertEqual([p['value'] for p in points], [0.8, 1.2, 1.6])
         self.assertEqual([p['label'] for p in points], ['Sep', 'Aug', 'Sep'])
+
+
+class GuestResultClaimTests(unittest.TestCase):
+    """A guest who signs up or logs in keeps the analyses they just ran."""
+
+    TOPIC = 'Cooperative learning is the most effective approach.'
+    SCORES = {'content': 0.7, 'accuracy': 0.5, 'delivery': 0.4, 'total': 1.6}
+
+    def setUp(self):
+        app_module.app.config.update(TESTING=True)
+        with app_module.app.app_context():
+            db.drop_all()
+            db.create_all()
+        self.browser = app_module.app.test_client()
+
+    def tearDown(self):
+        with app_module.app.app_context():
+            db.session.remove()
+        jobs_dir = BACKEND_DIR / 'uploads' / 'jobs'
+        for stored in jobs_dir.glob('*_response.mp3') if jobs_dir.exists() else []:
+            stored.unlink()
+
+    def queue_guest_job(self, browser=None):
+        response = (browser or self.browser).post('/api/analyze', data={
+            'topic': self.TOPIC,
+            'audio': (BytesIO(b'fake-audio-content'), 'response.mp3'),
+        }, content_type='multipart/form-data')
+        self.assertEqual(response.status_code, 202)
+        return response.get_json()['job']['id']
+
+    def finish_job(self, job_id, status='completed'):
+        with app_module.app.app_context():
+            job = db.session.get(AnalysisJob, job_id)
+            job.status = status
+            if status == 'completed':
+                job.result_payload = {
+                    'transcript': 'I agree with this view.',
+                    'duration': 182.0,
+                    'scores': dict(self.SCORES),
+                    'feedback': {'content': 'Clear position.'},
+                    'sample_response': 'A model answer.',
+                    'grader': 'gemini',
+                    'grader_model': 'gemini-3.5-flash',
+                    'user': None,
+                    'practice_session_id': None,
+                }
+            db.session.commit()
+
+    def signup(self, browser=None, email='guest@example.com', username='formerguest'):
+        return (browser or self.browser).post('/api/auth/signup', json={
+            'email': email,
+            'password': 'strongpass123',
+            'profile': {'name': 'Former Guest', 'username': username},
+        })
+
+    def history(self, browser=None):
+        return (browser or self.browser).get('/api/auth/practice-history').get_json()['sessions']
+
+    def test_signing_up_saves_the_guest_result_to_the_new_profile(self):
+        job_id = self.queue_guest_job()
+        self.finish_job(job_id)
+
+        response = self.signup()
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.get_json()['claimedResults'], 1)
+        self.assertEqual(response.get_json()['user']['stats']['practices'], 1)
+
+        sessions = self.history()
+        self.assertEqual(len(sessions), 1)
+        self.assertEqual(sessions[0]['scores']['total'], 1.6)
+        job = self.browser.get(f'/api/analyze/jobs/{job_id}').get_json()['job']
+        self.assertEqual(job['result']['practice_session_id'], sessions[0]['id'])
+
+    def test_logging_in_to_an_existing_account_also_claims_it(self):
+        signup_browser = app_module.app.test_client()
+        self.signup(browser=signup_browser)
+        job_id = self.queue_guest_job()
+        self.finish_job(job_id)
+
+        login = self.browser.post('/api/auth/login', json={
+            'email': 'guest@example.com', 'password': 'strongpass123'})
+        self.assertEqual(login.get_json()['claimedResults'], 1)
+        self.assertEqual(len(self.history()), 1)
+
+    def test_a_job_still_running_at_signup_is_claimed_when_it_finishes(self):
+        job_id = self.queue_guest_job()
+        self.assertEqual(self.signup().get_json()['claimedResults'], 0)
+        self.assertEqual(self.history(), [])
+
+        self.finish_job(job_id)
+        job = self.browser.get(f'/api/analyze/jobs/{job_id}').get_json()['job']
+        self.assertIsNotNone(job['result']['practice_session_id'])
+        self.assertEqual(len(self.history()), 1)
+
+    def test_claiming_twice_saves_one_session(self):
+        job_id = self.queue_guest_job()
+        self.finish_job(job_id)
+        self.signup()
+        self.browser.get('/api/auth/me')
+        self.browser.get(f'/api/analyze/jobs/{job_id}')
+        with self.browser.session_transaction() as cookie_session:
+            cookie_session[app_module.GUEST_JOBS_SESSION_KEY] = [job_id]
+        self.browser.get('/api/auth/me')
+        self.assertEqual(len(self.history()), 1)
+
+    def test_another_browser_cannot_claim_a_guests_result(self):
+        job_id = self.queue_guest_job()
+        self.finish_job(job_id)
+
+        stranger = app_module.app.test_client()
+        self.assertEqual(self.signup(browser=stranger).get_json()['claimedResults'], 0)
+        self.assertEqual(self.history(browser=stranger), [])
+
+    def test_failed_analyses_are_not_saved(self):
+        job_id = self.queue_guest_job()
+        self.finish_job(job_id, status='failed')
+        self.assertEqual(self.signup().get_json()['claimedResults'], 0)
+        self.assertEqual(self.history(), [])
+
+    def test_logging_out_forgets_unclaimed_guest_jobs(self):
+        job_id = self.queue_guest_job()
+        self.signup()
+        self.browser.post('/api/auth/logout')
+        self.finish_job(job_id)
+
+        self.signup(email='next@example.com', username='nextperson')
+        self.assertEqual(self.history(), [])
+
 
 if __name__ == '__main__':
     unittest.main()
