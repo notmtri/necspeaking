@@ -33,6 +33,17 @@ export const pageFromLocation = (location = window.location) => {
   return 'home';
 };
 
+// Browser tab and search-result titles; every page used to share one.
+export const PAGE_TITLES = {
+  home: 'necs. | NEC speaking practice',
+  analyze: 'Analyze your speaking | necs.',
+  samples: 'High-scoring NEC samples | necs.',
+  simulation: 'NEC speaking mock test | necs.',
+  community: 'Community | necs.',
+  profile: 'Your profile | necs.',
+  auth: 'Log in | necs.',
+};
+
 export const pathForPage = (page) => PAGE_PATHS[page] || PAGE_PATHS.home;
 
 export const isAdminProfile = (profile) => {

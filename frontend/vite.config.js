@@ -13,7 +13,9 @@ export default defineConfig({
     // Not Vite's default "dist": scripts/check-mobile-overflow.cjs and
     // vercel.json both expect the build in frontend/build.
     outDir: 'build',
-    sourcemap: true,
+    // Off: published maps let anyone download the original source. Stack
+    // traces from production are short enough to read without them.
+    sourcemap: false,
   },
   test: {
     environment: 'jsdom',
