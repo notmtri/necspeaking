@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { apiFetch } from '../apiClient';
+import { CODE_INPUT_CLASSNAME, cleanCode } from '../components/VerifyEmailNotice';
 import { Lock, LogIn, Mail, UserPlus, UserRound } from 'lucide-react';
 import { FIELD_CLASSNAME, LabeledInput } from '../components/ProfileBits';
 
@@ -12,27 +13,120 @@ const emptyForm = (currentUser) => ({
   bio: currentUser?.bio || '',
 });
 
-export default function AuthPage({ authMode, setAuthMode, onSubmit, onContinueAsGuest, currentUser, authError, authSubmitting, authChecking }) {
+/**
+ * Two steps on one card: email a 6-digit code, then type it with the new
+ * password. Codes replaced emailed links, whose token got lost on the way.
+ */
+function ForgotPasswordPanel({ email, onPasswordReset }) {
+  const [codeSent, setCodeSent] = useState(false);
+  const [code, setCode] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [status, setStatus] = useState(null);
+
+  const sendCode = async () => {
+    setBusy(true);
+    setStatus(null);
+    try {
+      await apiFetch('/api/auth/password/forgot', { method: 'POST', body: { email } });
+      setCodeSent(true);
+      setStatus({ tone: 'ok', text: `If ${email.trim()} has a necs. account, a 6-digit code is on its way. It works for 15 minutes; check spam too.` });
+    } catch (error) {
+      setStatus({ tone: 'error', text: error.message || 'Could not send the code.' });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const reset = async (event) => {
+    event.preventDefault();
+    if (newPassword.length < 8) {
+      setStatus({ tone: 'error', text: 'Your new password must be at least 8 characters.' });
+      return;
+    }
+    setBusy(true);
+    setStatus(null);
+    try {
+      const data = await apiFetch('/api/auth/password/reset', { method: 'POST', body: { email, code, newPassword } });
+      onPasswordReset?.(data.user);
+    } catch (error) {
+      setStatus({ tone: 'error', text: error.message || 'Could not reset your password.' });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="rounded-card border border-line bg-overlay p-4">
+      <div className="font-semibold text-white">Reset your password</div>
+      {!codeSent ? (
+        <>
+          <p className="mt-1 text-ink-muted">Enter your account email above, and we&apos;ll email you a 6-digit code.</p>
+          <button
+            type="button"
+            onClick={sendCode}
+            disabled={busy || !email.trim()}
+            className="mt-3 inline-flex items-center justify-center rounded-control bg-sky-500 px-4 py-2 font-semibold text-white transition hover:bg-sky-400 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {busy ? 'Sending...' : 'Email me a code'}
+          </button>
+        </>
+      ) : (
+        <form onSubmit={reset} className="mt-3 space-y-3">
+          <label className="block">
+            <span className="mb-2 block font-semibold text-ink-muted">6-digit code</span>
+            <input
+              value={code}
+              onChange={(event) => setCode(cleanCode(event.target.value))}
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              placeholder="000000"
+              className={CODE_INPUT_CLASSNAME}
+            />
+          </label>
+          <label className="block">
+            <span className="mb-2 block font-semibold text-ink-muted">New password</span>
+            <input
+              type="password"
+              value={newPassword}
+              onChange={(event) => setNewPassword(event.target.value)}
+              autoComplete="new-password"
+              placeholder="At least 8 characters"
+              className={FIELD_CLASSNAME}
+            />
+          </label>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="submit"
+              disabled={busy || code.length !== 6}
+              className="inline-flex items-center justify-center rounded-control bg-sky-500 px-4 py-2 font-semibold text-white transition hover:bg-sky-400 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {busy ? 'Saving...' : 'Set new password'}
+            </button>
+            <button
+              type="button"
+              onClick={sendCode}
+              disabled={busy}
+              className="rounded-control border border-line px-4 py-2 font-semibold text-slate-200 transition hover:bg-overlay-hover disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              Send a new code
+            </button>
+          </div>
+        </form>
+      )}
+      {status && (
+        <p className={`mt-3 ${status.tone === 'error' ? 'text-rose-200' : 'text-emerald-200'}`} role="status">{status.text}</p>
+      )}
+    </div>
+  );
+}
+
+export default function AuthPage({ authMode, setAuthMode, onSubmit, onContinueAsGuest, currentUser, authError, authSubmitting, authChecking, onPasswordReset }) {
   const [email, setEmail] = useState(currentUser?.email || '');
   const [password, setPassword] = useState('');
   const [form, setForm] = useState(() => emptyForm(currentUser));
   const isSignup = authMode === 'signup';
   const [forgotOpen, setForgotOpen] = useState(false);
-  const [forgotStatus, setForgotStatus] = useState(null);
-  const [forgotSending, setForgotSending] = useState(false);
-
-  const sendResetLink = async () => {
-    setForgotSending(true);
-    setForgotStatus(null);
-    try {
-      await apiFetch('/api/auth/password/forgot', { method: 'POST', body: { email } });
-      setForgotStatus({ tone: 'ok', text: `If ${email.trim()} has a necs. account, a reset link is on its way. It works for 1 hour; check spam too.` });
-    } catch (error) {
-      setForgotStatus({ tone: 'error', text: error.message || 'Could not send the reset link.' });
-    } finally {
-      setForgotSending(false);
-    }
-  };
 
   useEffect(() => {
     setEmail(currentUser?.email || '');
@@ -170,21 +264,7 @@ export default function AuthPage({ authMode, setAuthMode, onSubmit, onContinueAs
                   Forgot password?
                 </button>
               ) : (
-                <div className="rounded-card border border-line bg-overlay p-4">
-                  <div className="font-semibold text-white">Reset your password</div>
-                  <p className="mt-1 text-ink-muted">Enter your account email above, and we&apos;ll email you a link to choose a new password.</p>
-                  <button
-                    type="button"
-                    onClick={sendResetLink}
-                    disabled={forgotSending || !email.trim()}
-                    className="mt-3 inline-flex items-center justify-center rounded-control bg-sky-500 px-4 py-2 font-semibold text-white transition hover:bg-sky-400 disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {forgotSending ? 'Sending...' : 'Email me a reset link'}
-                  </button>
-                  {forgotStatus && (
-                    <p className={`mt-3 ${forgotStatus.tone === 'error' ? 'text-rose-200' : 'text-emerald-200'}`} role="status">{forgotStatus.text}</p>
-                  )}
-                </div>
+                <ForgotPasswordPanel email={email} onPasswordReset={onPasswordReset} />
               )}
             </div>
           )}

@@ -37,6 +37,10 @@ const createFetchMock = (overrides = {}) => vi.fn(async (url) => {
     });
   }
   if (target.includes('/api/auth/practice-history')) return createFetchResponse({ sessions: [] });
+  if (target.includes('/api/auth/password/reset')) return createFetchResponse({ success: true, user: overrides.resetUser });
+  if (target.includes('/api/auth/verify-email') && !target.includes('request')) {
+    return createFetchResponse({ success: true, user: overrides.verifiedUser });
+  }
   if (target.includes('/api/admin/check')) return createFetchResponse({ authenticated: false });
   if (target.includes('/api/auth/community')) return createFetchResponse({ profiles: overrides.profiles || [] });
   if (target.includes('/api/community/posts')) return createFetchResponse({ posts: overrides.posts || [] });
@@ -294,16 +298,38 @@ describe('App', () => {
     expect(container.querySelector('button[aria-label="Send feedback"]')).toBeNull();
   });
 
-  it('emails a reset link from the login form', async () => {
-    await renderApp('/auth');
+  it('resets a forgotten password with an emailed code and logs the student in', async () => {
+    await renderApp('/auth', { resetUser: newStudent(3) });
     await act(async () => buttonNamed('Forgot password?').click());
     await act(async () => typeInto(container.querySelector('input[type="email"]'), 'student@example.com'));
-    await act(async () => buttonNamed('Email me a reset link').click());
+    await act(async () => buttonNamed('Email me a code').click());
 
-    const sent = () => global.fetch.mock.calls.find(([url]) => String(url).includes('/api/auth/password/forgot'));
-    expect(await waitUntil(() => Boolean(sent()))).toBe(true);
-    expect(JSON.parse(sent()[1].body)).toEqual({ email: 'student@example.com' });
-    expect(await waitUntil(() => container.textContent.includes('a reset link is on its way'))).toBe(true);
+    const call = (path) => global.fetch.mock.calls.find(([url]) => String(url).includes(path));
+    expect(await waitUntil(() => Boolean(call('/api/auth/password/forgot')))).toBe(true);
+    expect(JSON.parse(call('/api/auth/password/forgot')[1].body)).toEqual({ email: 'student@example.com' });
+    expect(await waitUntil(() => container.textContent.includes('a 6-digit code is on its way'))).toBe(true);
+
+    await act(async () => typeInto(container.querySelector('input[autocomplete="one-time-code"]'), '482 913'));
+    await act(async () => typeInto(container.querySelector('input[autocomplete="new-password"]'), 'newpassword2'));
+    await act(async () => buttonNamed('Set new password').click());
+
+    expect(await waitUntil(() => Boolean(call('/api/auth/password/reset')))).toBe(true);
+    expect(JSON.parse(call('/api/auth/password/reset')[1].body))
+      .toEqual({ email: 'student@example.com', code: '482913', newPassword: 'newpassword2' });
+    expect(await waitUntil(() => container.textContent.includes('Your profile'))).toBe(true);
+    expect(container.textContent).toContain('Password changed. You are logged in.');
+  });
+
+  it('confirms an email with the code typed on the profile', async () => {
+    const unverified = { ...newStudent(2), emailVerified: false };
+    await renderApp('/profile', { user: unverified, emailEnabled: true, verifiedUser: { ...unverified, emailVerified: true } });
+    expect(await waitUntil(() => container.textContent.includes('Confirm your email'))).toBe(true);
+
+    await act(async () => typeInto(container.querySelector('input[autocomplete="one-time-code"]'), '123456'));
+    await act(async () => buttonNamed('Confirm').click());
+
+    expect(await waitUntil(() => container.textContent.includes('Email confirmed.'))).toBe(true);
+    expect(container.textContent).not.toContain('Enter the 6-digit code');
   });
 
   it('no longer offers a Teacher role at sign-up', async () => {

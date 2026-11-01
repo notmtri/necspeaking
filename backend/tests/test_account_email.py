@@ -29,8 +29,7 @@ import email_service  # noqa: E402
 from database import User, db  # noqa: E402
 
 
-# Tokens ride in the fragment (#token=) so analytics and server logs never see them.
-LINK = re.compile(r'https?://\S+#token=(\S+)')
+CODE = re.compile(r'\b(\d{6})\b')
 
 
 class AccountEmailTests(unittest.TestCase):
@@ -73,57 +72,77 @@ class AccountEmailTests(unittest.TestCase):
             'profile': {'name': 'Student One', 'username': username, 'role': 'Teacher'},
         })
 
-    def token_from(self, message):
-        return LINK.search(message['text']).group(1)
+    def code_from(self, message):
+        return CODE.search(message['text']).group(1)
+
+    def wrong(self, code):
+        return f'{(int(code) + 1) % 10 ** 6:06d}'
 
     def login(self, password, email='student@example.com'):
         return app_module.app.test_client().post('/api/auth/login', json={'email': email, 'password': password})
 
+    def reset(self, code, password='newpassword2', browser=None, email='student@example.com'):
+        return (browser or self.browser).post('/api/auth/password/reset', json={
+            'email': email, 'code': code, 'newPassword': password})
+
     # --- verification ---
 
-    def test_signup_sends_a_link_that_verifies_the_address(self):
+    def test_signup_emails_a_code_that_confirms_the_address(self):
         response = self.signup()
         self.assertTrue(response.get_json()['verificationSent'])
         self.assertFalse(response.get_json()['user']['emailVerified'])
         self.assertEqual(self.sent[0]['to'], 'student@example.com')
-        self.assertIn('/verify-email#token=', self.sent[0]['text'])
+        code = self.code_from(self.sent[0])
+        self.assertIn(code, self.sent[0]['subject'])
 
-        confirmed = self.browser.post('/api/auth/verify-email', json={'token': self.token_from(self.sent[0])})
+        confirmed = self.browser.post('/api/auth/verify-email', json={'code': code})
         self.assertEqual(confirmed.status_code, 200)
         self.assertTrue(confirmed.get_json()['user']['emailVerified'])
         self.assertTrue(self.browser.get('/api/auth/me').get_json()['user']['emailVerified'])
 
-    def test_the_link_works_in_a_browser_that_is_not_logged_in(self):
+    def test_a_code_typed_with_spaces_still_works(self):
         self.signup()
-        other_device = app_module.app.test_client()
-        confirmed = other_device.post('/api/auth/verify-email', json={'token': self.token_from(self.sent[0])})
-        self.assertEqual(confirmed.status_code, 200)
-        self.assertIsNone(confirmed.get_json()['user'])  # no profile handed to a stranger's browser
-        self.assertTrue(self.browser.get('/api/auth/me').get_json()['user']['emailVerified'])
+        code = self.code_from(self.sent[0])
+        spaced = f'{code[:3]} {code[3:]}'
+        self.assertEqual(self.browser.post('/api/auth/verify-email', json={'code': spaced}).status_code, 200)
 
-    def test_a_tampered_verification_link_is_refused(self):
+    def test_a_wrong_code_is_refused(self):
         self.signup()
-        token = self.token_from(self.sent[0])
-        refused = self.browser.post('/api/auth/verify-email', json={'token': token[:-2] + 'xx'})
+        refused = self.browser.post('/api/auth/verify-email', json={'code': self.wrong(self.code_from(self.sent[0]))})
         self.assertEqual(refused.status_code, 400)
         self.assertFalse(self.browser.get('/api/auth/me').get_json()['user']['emailVerified'])
 
-    def test_a_student_can_ask_for_another_verification_link(self):
+    def test_a_new_code_replaces_the_old_one(self):
         self.signup()
+        old_code = self.code_from(self.sent[0])
         self.assertEqual(self.browser.post('/api/auth/verify-email/request').status_code, 200)
-        self.assertEqual(len(self.sent), 2)
+        new_code = self.code_from(self.sent[1])
+        if old_code != new_code:
+            self.assertEqual(self.browser.post('/api/auth/verify-email', json={'code': old_code}).status_code, 400)
+        self.assertEqual(self.browser.post('/api/auth/verify-email', json={'code': new_code}).status_code, 200)
+
+    def test_confirming_needs_the_account_to_be_logged_in(self):
+        self.signup()
+        stranger = app_module.app.test_client()
+        self.assertEqual(stranger.post('/api/auth/verify-email', json={'code': self.code_from(self.sent[0])}).status_code, 401)
+
+    def test_the_stored_code_is_never_the_code_itself(self):
+        self.signup()
+        code = self.code_from(self.sent[0])
+        with app_module.app.app_context():
+            stored = User.query.filter_by(email='student@example.com').first().email_code_hash
+        self.assertNotIn(code, stored)
+        self.assertEqual(len(stored), 64)
 
     # --- forgotten password ---
 
-    def test_forgot_password_resets_with_the_emailed_link_and_logs_in(self):
+    def test_forgot_password_resets_with_the_emailed_code_and_logs_in(self):
         self.signup()
-        self.sent.clear()
         stranger = app_module.app.test_client()
         self.assertEqual(stranger.post('/api/auth/password/forgot', json={'email': ' Student@Example.com '}).status_code, 200)
-        self.assertIn('/reset-password#token=', self.sent[0]['text'])
+        self.assertIn('reset', self.sent[-1]['subject'])
 
-        reset = stranger.post('/api/auth/password/reset', json={
-            'token': self.token_from(self.sent[0]), 'newPassword': 'newpassword2'})
+        reset = self.reset(self.code_from(self.sent[-1]), browser=stranger, email='STUDENT@example.com')
         self.assertEqual(reset.status_code, 200)
         self.assertTrue(reset.get_json()['user']['emailVerified'])  # they proved they read the inbox
         self.assertTrue(stranger.get('/api/auth/me').get_json()['authenticated'])
@@ -131,42 +150,57 @@ class AccountEmailTests(unittest.TestCase):
         self.assertEqual(self.login('oldpassword1').status_code, 401)
         self.assertEqual(self.login('newpassword2').status_code, 200)
 
-    def test_a_reset_link_works_only_once(self):
+    def test_a_reset_code_works_only_once(self):
         self.signup()
         self.browser.post('/api/auth/password/forgot', json={'email': 'student@example.com'})
-        token = self.token_from(self.sent[-1])
-        first = self.browser.post('/api/auth/password/reset', json={'token': token, 'newPassword': 'newpassword2'})
-        self.assertEqual(first.status_code, 200)
-        again = self.browser.post('/api/auth/password/reset', json={'token': token, 'newPassword': 'hijacked99'})
-        self.assertEqual(again.status_code, 400)
+        code = self.code_from(self.sent[-1])
+        self.assertEqual(self.reset(code).status_code, 200)
+        self.assertEqual(self.reset(code, password='hijacked99').status_code, 400)
         self.assertEqual(self.login('newpassword2').status_code, 200)
 
-    def test_an_expired_reset_link_is_refused(self):
+    def test_five_wrong_guesses_kill_the_code(self):
         self.signup()
         self.browser.post('/api/auth/password/forgot', json={'email': 'student@example.com'})
-        with mock.patch.object(app_module, 'PASSWORD_RESET_MAX_AGE', -1):
-            expired = self.browser.post('/api/auth/password/reset', json={
-                'token': self.token_from(self.sent[-1]), 'newPassword': 'newpassword2'})
-        self.assertEqual(expired.status_code, 400)
-        self.assertIn('expired', expired.get_json()['error'])
+        code = self.code_from(self.sent[-1])
+        for _ in range(app_module.EMAIL_CODE_MAX_ATTEMPTS):
+            self.assertEqual(self.reset(self.wrong(code)).status_code, 400)
+        self.assertEqual(self.reset(code).status_code, 400)  # even the right one, now
+        self.assertEqual(self.login('oldpassword1').status_code, 200)
 
-    def test_a_verification_link_cannot_reset_a_password(self):
+    def test_an_expired_code_is_refused(self):
         self.signup()
-        wrong_kind = self.browser.post('/api/auth/password/reset', json={
-            'token': self.token_from(self.sent[0]), 'newPassword': 'newpassword2'})
-        self.assertEqual(wrong_kind.status_code, 400)
+        self.browser.post('/api/auth/password/forgot', json={'email': 'student@example.com'})
+        code = self.code_from(self.sent[-1])
+        with app_module.app.app_context():
+            user = User.query.filter_by(email='student@example.com').first()
+            user.email_code_expires_at = app_module.utcnow() - app_module.timedelta(seconds=1)
+            db.session.commit()
+        self.assertEqual(self.reset(code).status_code, 400)
+
+    def test_a_confirmation_code_cannot_reset_a_password(self):
+        self.signup()
+        self.assertEqual(self.reset(self.code_from(self.sent[0])).status_code, 400)
+        self.assertEqual(self.login('oldpassword1').status_code, 200)
+
+    def test_a_code_only_works_for_its_own_account(self):
+        self.signup()
+        other = app_module.app.test_client()
+        self.signup(browser=other, email='other@example.com', username='otherstudent')
+        self.browser.post('/api/auth/password/forgot', json={'email': 'student@example.com'})
+        code = self.code_from(self.sent[-1])
+        self.assertEqual(self.reset(code, email='other@example.com').status_code, 400)
 
     def test_forgot_password_does_not_reveal_whether_an_account_exists(self):
         response = self.browser.post('/api/auth/password/forgot', json={'email': 'nobody@example.com'})
         self.assertEqual(response.status_code, 200)
         self.assertEqual(self.sent, [])
+        unknown = self.reset('123456', email='nobody@example.com')
+        self.assertEqual(unknown.status_code, 400)
 
     def test_a_short_new_password_is_refused(self):
         self.signup()
         self.browser.post('/api/auth/password/forgot', json={'email': 'student@example.com'})
-        short = self.browser.post('/api/auth/password/reset', json={
-            'token': self.token_from(self.sent[-1]), 'newPassword': 'short'})
-        self.assertEqual(short.status_code, 400)
+        self.assertEqual(self.reset(self.code_from(self.sent[-1]), password='short').status_code, 400)
         self.assertEqual(self.login('oldpassword1').status_code, 200)
 
     # --- community posting ---
@@ -178,7 +212,7 @@ class AccountEmailTests(unittest.TestCase):
         self.assertEqual(blocked.status_code, 403)
         self.assertEqual(blocked.get_json()['code'], 'email_unverified')
 
-        self.browser.post('/api/auth/verify-email', json={'token': self.token_from(self.sent[0])})
+        self.browser.post('/api/auth/verify-email', json={'code': self.code_from(self.sent[0])})
         self.assertEqual(self.browser.post('/api/community/posts', json=post).status_code, 201)
 
     # --- roles ---
@@ -219,8 +253,8 @@ class EmailTurnedOffTests(unittest.TestCase):
     def test_production_never_prints_a_link_it_could_not_send(self):
         output = StringIO()
         with mock.patch.dict(os.environ, {'PRODUCTION': 'true'}), redirect_stdout(output):
-            self.assertFalse(email_service.send_email('a@example.com', 'Reset', 'https://x/reset-password?token=secret'))
-        self.assertNotIn('secret', output.getvalue())
+            self.assertFalse(email_service.send_email('a@example.com', 'Reset', 'Your code: 482913'))
+        self.assertNotIn('482913', output.getvalue())
 
 
 class ResendRequestTests(unittest.TestCase):

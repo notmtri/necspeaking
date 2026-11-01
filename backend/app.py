@@ -7,6 +7,7 @@ import os
 import sys
 import warnings
 import hashlib
+import hmac
 import secrets
 import traceback
 from functools import wraps
@@ -29,8 +30,7 @@ from database import MAX_AVATAR_CHARS, AnalysisJob, AppAnnouncement, CommunityPo
 from job_worker import AnalysisWorker, should_start_embedded_worker
 from rate_limiter import client_ip, rate_limit, rate_limiter
 from user_progress import create_practice_session
-from email_service import email_enabled, password_reset_email, public_site_url, send_email, verification_email
-from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
+from email_service import email_enabled, password_reset_email, send_email, verification_email
 import cloudinary
 import cloudinary.uploader
 
@@ -658,7 +658,7 @@ def signup():
         session['user_id'] = user.id
         session.permanent = False
         claimed = claim_guest_jobs(user)
-        verification_sent = send_verification_email(user) if email_enabled() else False
+        verification_sent = send_verification_code(user) if email_enabled() else False
 
         return jsonify({
             "success": True,
@@ -952,78 +952,105 @@ def update_profile():
 
 # ============= ACCOUNT EMAIL =============
 #
-# Links carry a signed, timed token instead of a stored one, so there is no
-# token table to clean up. A reset token also embeds a fingerprint of the
-# current password hash: once the password changes, every earlier reset link
-# stops working, which makes each one single-use.
+# Verification and password reset use a 6-digit code typed into the site
+# rather than a link. The first version emailed links with the token in the
+# URL fragment, and the token was lost on the way (mail click-tracking
+# rewrites links), so students reached the page with nothing to use. A code
+# also works when the email is read on a phone and the site is on a laptop.
+#
+# One code per account at a time, stored only as an HMAC (keyed with the app
+# secret, so a database copy cannot be brute-forced offline). It expires after
+# EMAIL_CODE_TTL and dies after EMAIL_CODE_MAX_ATTEMPTS wrong guesses, which
+# with a per-IP limit on asking for codes keeps guessing 1 in 1,000,000 out of
+# reach.
 
-VERIFY_EMAIL_MAX_AGE = 3 * 24 * 3600
-PASSWORD_RESET_MAX_AGE = 3600
+EMAIL_CODE_TTL = timedelta(minutes=15)
+EMAIL_CODE_MAX_ATTEMPTS = 5
 EMAIL_OFF_MESSAGE = "Email isn't set up on necs. yet. Contact the admin for help with your account."
+WRONG_CODE_MESSAGE = "That code isn't right or has expired. Check the latest email, or ask for a new code."
 
 
-def account_token_serializer(purpose):
-    return URLSafeTimedSerializer(app.secret_key, salt=f'necs-{purpose}')
+def email_code_digest(user, code):
+    key = app.secret_key.encode('utf-8') if isinstance(app.secret_key, str) else app.secret_key
+    return hmac.new(key, f'{user.id}:{code}'.encode('utf-8'), hashlib.sha256).hexdigest()
 
 
-def password_fingerprint(user):
-    return hashlib.sha256((user.password_hash or '').encode('utf-8')).hexdigest()[:16]
+def issue_email_code(user, purpose):
+    """Store a fresh code for `purpose` (replacing any other) and return it."""
+    code = f'{secrets.randbelow(10 ** 6):06d}'
+    user.email_code_hash = email_code_digest(user, code)
+    user.email_code_purpose = purpose
+    user.email_code_expires_at = utcnow() + EMAIL_CODE_TTL
+    user.email_code_attempts = 0
+    db.session.commit()
+    return code
 
 
-def load_account_token(purpose, token, max_age):
-    """The token's payload, or (None, message) when it can't be used."""
-    try:
-        return account_token_serializer(purpose).loads(token or '', max_age=max_age), None
-    except SignatureExpired:
-        return None, "This link has expired. Ask for a new one."
-    except BadSignature:
-        return None, "This link isn't valid. Check you copied all of it, or ask for a new one."
+def consume_email_code(user, purpose, code):
+    """True if `code` is the live code for `purpose`; it is cleared on success.
+
+    A wrong guess is counted and committed straight away. The caller commits
+    its own change together with the cleared code.
+    """
+    code = re.sub(r'\D', '', str(code or ''))
+    if (
+        not user
+        or len(code) != 6
+        or user.email_code_purpose != purpose
+        or not user.email_code_hash
+        or not user.email_code_expires_at
+        or user.email_code_expires_at < utcnow()
+        or (user.email_code_attempts or 0) >= EMAIL_CODE_MAX_ATTEMPTS
+    ):
+        return False
+    if not hmac.compare_digest(email_code_digest(user, code), user.email_code_hash):
+        user.email_code_attempts = (user.email_code_attempts or 0) + 1
+        db.session.commit()
+        return False
+    user.email_code_hash = None
+    user.email_code_purpose = None
+    user.email_code_expires_at = None
+    user.email_code_attempts = 0
+    return True
 
 
-def send_verification_email(user):
-    token = account_token_serializer('verify-email').dumps({'uid': user.id, 'email': user.email})
-    subject, text = verification_email(user.name, f"{public_site_url()}/verify-email#token={token}")
+def send_verification_code(user):
+    subject, text = verification_email(user.name, issue_email_code(user, 'verify'))
     return send_email(user.email, subject, text)
 
 
 @app.route('/api/auth/verify-email/request', methods=['POST'])
 @require_login()
-@rate_limit('verify-email-request', max_requests=3, window_seconds=3600)
+@rate_limit('verify-email-request', max_requests=5, window_seconds=3600)
 def request_email_verification():
     user = get_current_user()
     if user.email_verified_at:
         return jsonify({"success": True, "alreadyVerified": True})
     if not email_enabled():
         return jsonify({"error": EMAIL_OFF_MESSAGE}), 503
-    if not send_verification_email(user):
+    if not send_verification_code(user):
         return jsonify({"error": "Could not send the email. Try again in a few minutes."}), 502
     return jsonify({"success": True})
 
 
 @app.route('/api/auth/verify-email', methods=['POST'])
+@require_login()
 @rate_limit('verify-email-confirm', max_requests=20, window_seconds=3600)
 def confirm_email_verification():
-    token = (request.get_json(silent=True) or {}).get('token')
-    payload, error = load_account_token('verify-email', token, VERIFY_EMAIL_MAX_AGE)
-    if error:
-        return jsonify({"error": error}), 400
-
-    user = db.session.get(User, payload.get('uid'))
-    # The address must still be the one the link was sent to.
-    if not user or user.email != payload.get('email'):
-        return jsonify({"error": "This link isn't valid any more. Ask for a new one."}), 400
+    user = get_current_user()
+    if user.email_verified_at:
+        return jsonify({"success": True, "user": user.to_dict()})
+    if not consume_email_code(user, 'verify', (request.get_json(silent=True) or {}).get('code')):
+        return jsonify({"error": WRONG_CODE_MESSAGE}), 400
 
     try:
-        if not user.email_verified_at:
-            user.email_verified_at = utcnow()
-            db.session.commit()
+        user.email_verified_at = utcnow()
+        db.session.commit()
     except Exception as error:
         db.session.rollback()
         print(f"[AUTH] Email verification error: {error}")
-        return jsonify({"error": "Could not confirm your email. Try the link again."}), 500
-
-    current = get_current_user()
-    return jsonify({"success": True, "user": user.to_dict() if current and current.id == user.id else None})
+        return jsonify({"error": "Could not confirm your email. Try again."}), 500
+    return jsonify({"success": True, "user": user.to_dict()})
 
 
 @app.route('/api/auth/password/forgot', methods=['POST'])
@@ -1040,8 +1067,7 @@ def forgot_password():
     # to find out who has an account.
     user = User.query.filter_by(email=email).first()
     if user:
-        token = account_token_serializer('password-reset').dumps({'uid': user.id, 'pw': password_fingerprint(user)})
-        subject, text = password_reset_email(user.name, f"{public_site_url()}/reset-password#token={token}")
+        subject, text = password_reset_email(user.name, issue_email_code(user, 'reset'))
         send_email(user.email, subject, text)
     return jsonify({"success": True})
 
@@ -1050,21 +1076,17 @@ def forgot_password():
 @rate_limit('password-reset', max_requests=10, window_seconds=3600)
 def reset_password():
     data = request.get_json(silent=True) or {}
-    payload, error = load_account_token('password-reset', data.get('token'), PASSWORD_RESET_MAX_AGE)
-    if error:
-        return jsonify({"error": error}), 400
-
-    user = db.session.get(User, payload.get('uid'))
-    if not user or payload.get('pw') != password_fingerprint(user):
-        return jsonify({"error": "This link has already been used. Ask for a new one."}), 400
-
     new_password = data.get('newPassword') or ''
     if len(new_password) < 8:
         return jsonify({"error": "New password must be at least 8 characters."}), 400
 
+    user = User.query.filter_by(email=normalize_email(data.get('email'))).first()
+    if not consume_email_code(user, 'reset', data.get('code')):
+        return jsonify({"error": WRONG_CODE_MESSAGE}), 400
+
     try:
         user.password_hash = generate_password_hash(new_password)
-        # Opening the emailed link proves they read that inbox.
+        # Receiving the code proves they read that inbox.
         user.email_verified_at = user.email_verified_at or utcnow()
         db.session.commit()
     except Exception as error:

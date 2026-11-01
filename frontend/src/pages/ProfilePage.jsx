@@ -191,7 +191,7 @@ function FirstPracticeCard({ onStartPractice }) {
   );
 }
 
-export default function ProfilePage({ currentUser, practiceHistory, onSave, onLogout, onDeleteAccount, onPasswordUpdate, authError, passwordSubmitting, onStartPractice = null, emailEnabled = false }) {
+export default function ProfilePage({ currentUser, practiceHistory, onSave, onLogout, onDeleteAccount, onPasswordUpdate, authError, passwordSubmitting, onStartPractice = null, emailEnabled = false, onEmailVerified = null }) {
   const [draft, setDraft] = useState(currentUser);
   const [activeTab, setActiveTab] = useState('overview');
   const [deletePhrase, setDeletePhrase] = useState('');
@@ -299,6 +299,7 @@ export default function ProfilePage({ currentUser, practiceHistory, onSave, onLo
         <VerifyEmailNotice
           email={currentUser.email}
           reason="So you can reset your password if you forget it, and post in the community."
+          onVerified={onEmailVerified}
         />
       )}
 

@@ -19,7 +19,6 @@ const CommunityPage = lazy(() => import('./pages/CommunityPage'));
 const ProfilePage = lazy(() => import('./pages/ProfilePage'));
 const SampleLibrary = lazy(() => import('./pages/SampleLibrary'));
 const SimulationMode = lazy(() => import('./pages/SimulationMode'));
-const AccountLinkPage = lazy(() => import('./pages/AccountLinkPage'));
 
 function PageFallback() {
   return (
@@ -472,6 +471,22 @@ export default function SpeakUpApp() {
     await refreshCommunityProfiles();
   }, [loadPracticeHistory, refreshCommunityProfiles]);
 
+  const handleEmailVerified = useCallback((user) => {
+    if (!user) return;
+    setCurrentUser(user);
+    pushToast('Email confirmed.', 'success');
+  }, [pushToast]);
+
+  const handlePasswordReset = useCallback(async (user) => {
+    if (!user) return;
+    setCurrentUser(user);
+    setGuestMode(false);
+    setSelectedProfileId(user.id);
+    navTo('profile');
+    pushToast('Password changed. You are logged in.', 'success');
+    await loadPracticeHistory();
+  }, [loadPracticeHistory, navTo, pushToast]);
+
   const handleLogout = useCallback(async () => {
     try {
       await apiFetch('/api/auth/logout', { method: 'POST' });
@@ -522,6 +537,7 @@ export default function SpeakUpApp() {
             authError={authError}
             authSubmitting={authSubmitting}
             authChecking={authChecking}
+            onPasswordReset={handlePasswordReset}
           />
         );
       case 'profile':
@@ -535,6 +551,7 @@ export default function SpeakUpApp() {
             onPasswordUpdate={handlePasswordUpdate}
             onStartPractice={startPractice}
             emailEnabled={emailEnabled}
+            onEmailVerified={handleEmailVerified}
             authError={authError}
             passwordSubmitting={passwordSubmitting}
           />
@@ -548,6 +565,7 @@ export default function SpeakUpApp() {
             currentUser={currentUser}
             loading={communityLoading}
             emailEnabled={emailEnabled}
+            onEmailVerified={handleEmailVerified}
           />
         );
       case 'analyze':
@@ -560,16 +578,6 @@ export default function SpeakUpApp() {
             onOpenAuth={openAuth}
             randomQuestionRequest={randomQuestionRequest}
             onRandomQuestionHandled={handleRandomQuestionHandled}
-          />
-        );
-      case 'verify-email':
-      case 'reset-password':
-        return (
-          <AccountLinkPage
-            kind={currentPage}
-            onUserUpdate={handleAnalysisUserUpdate}
-            navTo={navTo}
-            notify={pushToast}
           />
         );
       case 'samples':

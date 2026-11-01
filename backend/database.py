@@ -56,8 +56,13 @@ class User(db.Model):
     email = db.Column(db.String(255), unique=True, nullable=False, index=True)
     username = db.Column(db.String(50), unique=True, nullable=False, index=True)
     password_hash = db.Column(db.String(255), nullable=False)
-    # Set when the owner opens the link in their verification or reset email.
+    # Set when the owner types a code we emailed them (verification or reset).
     email_verified_at = db.Column(db.DateTime, nullable=True)
+    # The one live emailed code, as an HMAC; see consume_email_code in app.py.
+    email_code_hash = db.Column(db.String(64), nullable=True)
+    email_code_purpose = db.Column(db.String(20), nullable=True)
+    email_code_expires_at = db.Column(db.DateTime, nullable=True)
+    email_code_attempts = db.Column(db.Integer, nullable=False, default=0)
     name = db.Column(db.String(255), nullable=False)
     class_name = db.Column(db.String(100), default='')
     school = db.Column(db.String(255), default='')

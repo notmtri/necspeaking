@@ -15,8 +15,6 @@ export const PAGE_PATHS = {
   analyze: '/analyze',
   samples: '/samples',
   simulation: '/simulation',
-  'verify-email': '/verify-email',
-  'reset-password': '/reset-password',
 };
 
 const PATH_PAGES = Object.entries(PAGE_PATHS).reduce((pages, [page, path]) => {

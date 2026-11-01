@@ -133,7 +133,7 @@ function Leaderboard({ title, description, profiles, accent, valueOf, onSelect }
   );
 }
 
-export default function CommunityPage({ profiles, selectedProfile, onSelectProfile, currentUser, loading, emailEnabled = false }) {
+export default function CommunityPage({ profiles, selectedProfile, onSelectProfile, currentUser, loading, emailEnabled = false, onEmailVerified = null }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [communityPosts, setCommunityPosts] = useState([]);
   const [postsLoading, setPostsLoading] = useState(true);
@@ -261,7 +261,8 @@ export default function CommunityPage({ profiles, selectedProfile, onSelectProfi
               <VerifyEmailNotice
                 email={currentUser.email}
                 title="Confirm your email to post"
-                reason="It keeps the community free of throwaway accounts. Open the link we email you, then come back."
+                reason="It keeps the community free of throwaway accounts."
+                onVerified={onEmailVerified}
               />
             ) : canCreatePost ? (
               <>

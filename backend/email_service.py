@@ -11,11 +11,10 @@ Configuration, all on the Render service:
     EMAIL_FROM       default "necs. <no-reply@necspeaking.com>"; the domain
                      must be verified in Resend.
     EMAIL_REPLY_TO   where replies go, default necspeaking@gmail.com.
-    PUBLIC_SITE_URL  where links point, e.g. https://www.necspeaking.com
 
 With no key the features that need email say so instead of pretending to
-send. Outside production the message is printed so links can be followed
-locally; in production it is not, since a printed reset link would let
+send. Outside production the message is printed so codes can be used
+locally; in production it is not, since a printed reset code would let
 anyone who can read the logs take over the account.
 """
 import os
@@ -35,13 +34,6 @@ def email_enabled():
 
 def _is_production():
     return os.getenv('PRODUCTION', '').strip().lower() == 'true'
-
-
-def public_site_url():
-    configured = os.getenv('PUBLIC_SITE_URL', '').strip().rstrip('/')
-    if configured:
-        return configured
-    return 'https://www.necspeaking.com' if _is_production() else 'http://localhost:3000'
 
 
 def send_email(to, subject, text):
@@ -77,25 +69,29 @@ def send_email(to, subject, text):
     return True
 
 
-def verification_email(name, link):
+def verification_email(name, code):
     return (
-        'Confirm your email for necs.',
+        f'{code} is your necs. confirmation code',
         f"Hi {name or 'there'},\n\n"
-        "Confirm this is your email address so you can reset your password if you forget it:\n\n"
-        f"{link}\n\n"
-        "The link works for 3 days. If you didn't create a necs. account, ignore this email.\n"
-        "Questions? Just reply to this email.\n\n"
+        "Enter this code on your necs. profile to confirm your email address:\n\n"
+        f"    {code}\n\n"
+        "It works for 15 minutes. Confirming lets you reset your password if you forget it "
+        "and post in the community.\n\n"
+        "If you didn't create a necs. account, ignore this email. Questions? Just reply.\n\n"
         "necs. - NEC speaking practice\n",
     )
 
 
-def password_reset_email(name, link):
+def password_reset_email(name, code):
     return (
-        'Reset your necs. password',
+        f'{code} is your necs. password reset code',
         f"Hi {name or 'there'},\n\n"
-        "Someone asked to reset the password for your necs. account. To choose a new one, open:\n\n"
-        f"{link}\n\n"
-        "The link works for 1 hour and only once. If it wasn't you, ignore this email; "
+        "Someone asked to reset the password for your necs. account. Enter this code on the "
+        "login page to choose a new password:\n\n"
+        f"    {code}\n\n"
+        "It works for 15 minutes and only once. If it wasn't you, ignore this email; "
         "your password stays the same.\n\n"
         "necs. - NEC speaking practice\n",
     )
+
+
