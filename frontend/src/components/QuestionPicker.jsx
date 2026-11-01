@@ -48,6 +48,12 @@ function loadBank() {
   return bankRequest;
 }
 
+/** One past question at random, for a student who does not know where to start. */
+export async function pickRandomQuestion(random = Math.random) {
+  const questions = await loadBank();
+  return questions.length ? questions[Math.floor(random() * questions.length)] : null;
+}
+
 export function resetQuestionBankCache() {
   bankRequest = null;
 }

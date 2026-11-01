@@ -29,7 +29,10 @@ const createFetchMock = (overrides = {}) => vi.fn(async (url) => {
     return createFetchResponse({ status: 'healthy' });
   }
   if (target.includes('/api/site/announcement')) return createFetchResponse({ announcement: defaultAnnouncement });
-  if (target.includes('/api/auth/me')) return createFetchResponse({ authenticated: false, user: null });
+  if (target.includes('/api/auth/me')) {
+    return createFetchResponse({ authenticated: Boolean(overrides.user), user: overrides.user || null });
+  }
+  if (target.includes('/api/auth/practice-history')) return createFetchResponse({ sessions: [] });
   if (target.includes('/api/admin/check')) return createFetchResponse({ authenticated: false });
   if (target.includes('/api/auth/community')) return createFetchResponse({ profiles: overrides.profiles || [] });
   if (target.includes('/api/community/posts')) return createFetchResponse({ posts: overrides.posts || [] });
@@ -227,5 +230,63 @@ describe('App', () => {
 
     await act(async () => { await new Promise((resolve) => setTimeout(resolve, 2100)); });
     expect(container.textContent).toContain('Connecting analysis service');
+  });
+
+  const waitUntil = async (check) => {
+    const deadline = Date.now() + 5000;
+    while (!check() && Date.now() < deadline) {
+      // eslint-disable-next-line no-await-in-loop
+      await act(async () => { await new Promise((resolve) => setTimeout(resolve, 10)); });
+    }
+    return check();
+  };
+  const buttonNamed = (name) => [...document.querySelectorAll('button')]
+    .find((button) => button.textContent.trim() === name || button.getAttribute('aria-label') === name);
+  const typeInto = (field, value) => {
+    const setter = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(field), 'value').set;
+    setter.call(field, value);
+    field.dispatchEvent(new Event('input', { bubbles: true }));
+  };
+  const newStudent = (practices) => ({
+    id: 'user-9', name: 'New Student', username: 'newbie', email: 'new@example.com',
+    avatar: '', stats: { practices, avgScore: 0, bestScore: 0, streak: 0 }, progress: [], commitWeeks: [],
+  });
+
+  it('walks a student with no practices from their profile into a ready question', async () => {
+    await renderApp('/profile', { user: newStudent(0), questions: [questionFixture] });
+    expect(await waitUntil(() => container.textContent.includes('Do your first practice'))).toBe(true);
+
+    await act(async () => buttonNamed('Start my first practice').click());
+    const prompt = () => container.querySelector('textarea');
+    expect(await waitUntil(() => prompt()?.value.includes('How can technology improve education?'))).toBe(true);
+    expect(container.textContent).toContain('random past NEC question to start with');
+  });
+
+  it('stops offering the first practice once the student has one', async () => {
+    await renderApp('/profile', { user: newStudent(4) });
+    await waitUntil(() => container.textContent.includes('Your profile'));
+    expect(container.textContent).toContain('Your profile');
+    expect(container.textContent).not.toContain('Do your first practice');
+  });
+
+  it('sends feedback from any page with the page it came from', async () => {
+    await renderApp('/samples', { samples: [sampleFixture] });
+
+    await act(async () => buttonNamed('Send feedback').click());
+    const box = document.querySelector('[role="dialog"] textarea');
+    await act(async () => typeInto(box, '  Please add more samples.  '));
+    await act(async () => [...document.querySelectorAll('[role="dialog"] button')]
+      .find((button) => button.textContent === 'Send feedback').click());
+
+    const sent = () => global.fetch.mock.calls.find(([url, init]) => String(url).includes('/api/feedback') && init?.method === 'POST');
+    expect(await waitUntil(() => Boolean(sent()))).toBe(true);
+    expect(JSON.parse(sent()[1].body)).toMatchObject({ message: 'Please add more samples.', page: 'samples' });
+    expect(await waitUntil(() => container.textContent.includes('Thanks! Your feedback was sent.'))).toBe(true);
+    expect(document.querySelector('[role="dialog"]')).toBeNull();
+  });
+
+  it('keeps the feedback button off the timed simulation', async () => {
+    await renderApp('/simulation', { questions: [questionFixture] });
+    expect(container.querySelector('button[aria-label="Send feedback"]')).toBeNull();
   });
 });

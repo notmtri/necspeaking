@@ -2,14 +2,14 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { AlertCircle, BookOpen, CheckCircle, ClipboardList, FileAudio, Loader, Mic, Pause, RotateCcw, Square, Upload, Volume2 } from 'lucide-react';
 import { PageHeader } from '../components/AppChrome';
 import ResultsPanel from '../components/ResultsPanel';
-import QuestionPicker from '../components/QuestionPicker';
+import QuestionPicker, { pickRandomQuestion } from '../components/QuestionPicker';
 import { formatTime } from '../appShared';
 import { useAnalysisJob } from '../useAnalysisJob';
 
 const MAX_RECORDING_SECONDS = 300;
 const MAX_AUDIO_BYTES = 50 * 1024 * 1024;
 
-export default function AnalyzePage({ onDownloadReport, onAnalysisUserUpdate, isOffline, isLoggedIn = false, onOpenAuth = null }) {
+export default function AnalyzePage({ onDownloadReport, onAnalysisUserUpdate, isOffline, isLoggedIn = false, onOpenAuth = null, randomQuestionRequest = 0, onRandomQuestionHandled = null }) {
   const [step, setStep] = useState('input');
   const [topic, setTopic] = useState('');
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -25,6 +25,31 @@ export default function AnalyzePage({ onDownloadReport, onAnalysisUserUpdate, is
   const [progressMessage, setProgressMessage] = useState('Queued for processing.');
   const audioFileRef = useRef(null);
   audioFileRef.current = audioFile;
+  const [starterQuestion, setStarterQuestion] = useState(false);
+  const topicRef = useRef(topic);
+  topicRef.current = topic;
+
+  // "Start my first practice" on the profile: fill in a random past question
+  // so a new student's first step is speaking, not choosing. Never replaces a
+  // prompt that is already there (a resumed analysis, or one they typed).
+  useEffect(() => {
+    if (!randomQuestionRequest) return undefined;
+    let cancelled = false;
+    pickRandomQuestion()
+      .then((question) => {
+        if (cancelled || !question || topicRef.current) return;
+        setTopic(question.promptText);
+        setPickedQuestion(question);
+        setStarterQuestion(true);
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) onRandomQuestionHandled?.();
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [randomQuestionRequest, onRandomQuestionHandled]);
 
   const { submit: submitAnalysis } = useAnalysisJob({
     source: 'analyze',
@@ -243,6 +268,7 @@ export default function AnalyzePage({ onDownloadReport, onAnalysisUserUpdate, is
     cancelRecording();
     setStep('input');
     setTopic('');
+    setStarterQuestion(false);
     clearAudio();
     setResults(null);
     setError(null);
@@ -326,6 +352,11 @@ export default function AnalyzePage({ onDownloadReport, onAnalysisUserUpdate, is
                   {pickerOpen ? 'Hide past questions' : 'Past NEC questions'}
                 </button>
               </div>
+              {starterQuestion && !pickerOpen && (
+                <p className="mb-4 rounded-control border border-sky-400/20 bg-sky-400/10 px-4 py-3 text-sm leading-6 text-sky-100">
+                  Here&apos;s a random past NEC question to start with. Take a minute to plan, then record your answer below, up to 5 minutes. Want a different one? Open Past NEC questions.
+                </p>
+              )}
               {pickerOpen && (
                 <div className="mb-4">
                   <QuestionPicker
@@ -334,6 +365,7 @@ export default function AnalyzePage({ onDownloadReport, onAnalysisUserUpdate, is
                       setTopic(question.promptText);
                       setPickedQuestion(question);
                       setPickerOpen(false);
+                      setStarterQuestion(false);
                     }}
                   />
                 </div>

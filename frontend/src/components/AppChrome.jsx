@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { AlertCircle, BookOpen, Coffee, Download, ExternalLink, Home, Loader, Menu, Mic, PlayCircle, Settings, User, UserPlus, Users, X } from 'lucide-react';
+import { AlertCircle, BookOpen, Coffee, Download, ExternalLink, Home, Loader, Menu, MessageSquare, Mic, PlayCircle, Settings, User, UserPlus, Users, X } from 'lucide-react';
 import { getDisplayRole, isAdminProfile } from '../appShared';
 
 const NAV_ITEMS = [
@@ -291,7 +291,7 @@ export function AppStatusStack({
   );
 }
 
-export function Footer({ navTo }) {
+export function Footer({ navTo, onFeedback }) {
   const contactLinks = [
     { label: 'Instagram', href: 'https://www.instagram.com/notmtri' },
     { label: 'Facebook', href: 'https://www.facebook.com/notmtri' },
@@ -326,6 +326,14 @@ export function Footer({ navTo }) {
           <nav aria-label="Contact links">
             <h2 className="mb-3 text-sm font-semibold text-slate-200">Contact</h2>
             <ul className="space-y-2 text-sm">
+              {onFeedback && (
+                <li>
+                  <button type="button" onClick={onFeedback} className="inline-flex items-center gap-2 font-semibold text-sky-200 transition hover:text-sky-100">
+                    Send feedback
+                    <MessageSquare size={13} />
+                  </button>
+                </li>
+              )}
               {contactLinks.map((link) => (
                 <li key={link.href}>
                   <a href={link.href} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-ink-muted transition hover:text-sky-200">

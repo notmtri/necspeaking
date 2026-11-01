@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Activity, Bell, Database, Edit3, Eye, EyeOff, FileAudio, HelpCircle, Loader, Lock, LogOut, MessageSquare, Trash2, X } from 'lucide-react';
+import { Activity, Bell, CheckCircle, Database, Edit3, Eye, EyeOff, FileAudio, HelpCircle, Inbox, Loader, Lock, LogOut, MessageSquare, RotateCcw, Trash2, X } from 'lucide-react';
 import { ConfirmModal, useOverlayDismiss } from '../components/AppOverlays';
 import { FIELD_CLASSNAME } from '../components/ProfileBits';
 import { apiFetch, isAbortError } from '../apiClient';
@@ -13,6 +13,7 @@ const ADMIN_TABS = [
   { id: 'questions', label: 'Questions', icon: HelpCircle },
   { id: 'announcement', label: 'Announcement', icon: Bell },
   { id: 'moderation', label: 'Moderation', icon: MessageSquare },
+  { id: 'feedback', label: 'Feedback', icon: Inbox },
   { id: 'runtime', label: 'Runtime', icon: Activity },
 ];
 
@@ -90,6 +91,8 @@ export default function AdminPanel({ onClose, onLogout, notify, announcement, on
   const [announcementSaving, setAnnouncementSaving] = useState(false);
   const [communityPosts, setCommunityPosts] = useState([]);
   const [loadingCommunityPosts, setLoadingCommunityPosts] = useState(false);
+  const [feedbackItems, setFeedbackItems] = useState([]);
+  const [loadingFeedback, setLoadingFeedback] = useState(false);
   const [runtimeStatus, setRuntimeStatus] = useState(null);
   const [loadingRuntime, setLoadingRuntime] = useState(false);
   const [confirmState, setConfirmState] = useState(null);
@@ -167,6 +170,29 @@ export default function AdminPanel({ onClose, onLogout, notify, announcement, on
     }
   }, [setScopedStatus]);
 
+  const fetchFeedback = useCallback(async (signal) => {
+    setLoadingFeedback(true);
+    try {
+      const data = await apiFetch('/api/admin/feedback', { signal });
+      setFeedbackItems(data.feedback || []);
+    } catch (error) {
+      if (!isAbortError(error)) setScopedStatus('feedback', error.message || 'Could not load feedback.', 'error');
+    } finally {
+      if (!signal?.aborted) setLoadingFeedback(false);
+    }
+  }, [setScopedStatus]);
+
+  const setFeedbackResolved = useCallback(async (feedbackId, resolved) => {
+    try {
+      const data = await apiFetch(`/api/admin/feedback/${feedbackId}`, { method: 'PUT', body: { resolved } });
+      if (data.feedback) {
+        setFeedbackItems((current) => current.map((item) => (item.id === feedbackId ? data.feedback : item)));
+      }
+    } catch (error) {
+      setScopedStatus('feedback', error.message || 'Could not update feedback.', 'error');
+    }
+  }, [setScopedStatus]);
+
   const fetchRuntimeStatus = useCallback(async (signal) => {
     setLoadingRuntime(true);
     try {
@@ -184,9 +210,10 @@ export default function AdminPanel({ onClose, onLogout, notify, announcement, on
     if (activeTab === 'manage') fetchSamples(controller.signal);
     if (activeTab === 'questions') fetchQuestions(controller.signal);
     if (activeTab === 'moderation') fetchCommunityPosts(controller.signal);
+    if (activeTab === 'feedback') fetchFeedback(controller.signal);
     if (activeTab === 'runtime') fetchRuntimeStatus(controller.signal);
     return () => controller.abort();
-  }, [activeTab, fetchCommunityPosts, fetchQuestions, fetchRuntimeStatus, fetchSamples]);
+  }, [activeTab, fetchCommunityPosts, fetchFeedback, fetchQuestions, fetchRuntimeStatus, fetchSamples]);
 
   const handleUpload = useCallback(async () => {
     if (!audioFile || !topic || !speaker || !transcript || !feedback) {
@@ -751,6 +778,45 @@ export default function AdminPanel({ onClose, onLogout, notify, announcement, on
                       <p className="mt-3 whitespace-pre-line text-sm leading-6 text-ink-muted">{post.body}</p>
                       <div className="mt-3 text-xs text-ink-subtle">
                         Status: {post.hidden ? `hidden${post.hiddenReason ? ` - ${post.hiddenReason}` : ''}` : 'visible'}
+                      </div>
+                    </AdminCard>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'feedback' && (
+            <div className="space-y-5">
+              {renderStatus('feedback')}
+              {loadingFeedback ? (
+                <div className="py-8 text-center text-ink-muted">
+                  <Loader className="mx-auto mb-2 animate-spin text-sky-300" size={36} />
+                  <div>Loading feedback...</div>
+                </div>
+              ) : feedbackItems.length === 0 ? (
+                <div className="rounded-card border border-dashed border-line bg-overlay p-5 text-sm text-ink-muted">
+                  No feedback yet. It arrives here from the Feedback button on every page.
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div className="text-sm text-ink-muted">{feedbackItems.filter((item) => !item.resolved).length} open, newest first.</div>
+                  {feedbackItems.map((item) => (
+                    <AdminCard key={item.id}>
+                      <div className={item.resolved ? 'opacity-60' : ''}>
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                          <div className="min-w-0 text-xs text-ink-subtle">
+                            {item.author ? `${item.author.name} (@${item.author.username}, ${item.author.email})` : 'Guest'}
+                            {item.contact && ` | reply to: ${item.contact}`}
+                            {item.page && ` | from ${item.page}`}
+                            {item.createdAt && ` | ${new Date(`${item.createdAt}Z`).toLocaleString()}`}
+                          </div>
+                          <AdminButton tone={item.resolved ? 'neutral' : 'success'} onClick={() => setFeedbackResolved(item.id, !item.resolved)}>
+                            {item.resolved ? <RotateCcw size={14} /> : <CheckCircle size={14} />}
+                            {item.resolved ? 'Reopen' : 'Mark done'}
+                          </AdminButton>
+                        </div>
+                        <p className="mt-3 whitespace-pre-line break-words text-sm leading-6 text-white">{item.message}</p>
                       </div>
                     </AdminCard>
                   ))}

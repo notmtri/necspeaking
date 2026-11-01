@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef, lazy, Suspense } from 'react';
 import { Analytics } from '@vercel/analytics/react';
-import { Loader } from 'lucide-react';
-import { AdminLoginModal, ToastViewport } from './components/AppOverlays';
+import { Loader, MessageSquare } from 'lucide-react';
+import { AdminLoginModal, FeedbackModal, ToastViewport } from './components/AppOverlays';
 import { AppHeader, AppStatusStack, Footer } from './components/AppChrome';
 import ErrorBoundary from './components/ErrorBoundary';
 import { API_BASE_URL, DEFAULT_ANNOUNCEMENT, downloadDocumentFromBase64, pageFromLocation, pathForPage, readGuestModePreference, writeGuestModePreference } from './appShared';
@@ -357,6 +357,26 @@ export default function SpeakUpApp() {
     navTo('auth');
   }, [navTo]);
 
+  // Bumped by "Start my first practice"; Analyze fills in a random question.
+  const [randomQuestionRequest, setRandomQuestionRequest] = useState(0);
+  const handleRandomQuestionHandled = useCallback(() => setRandomQuestionRequest(0), []);
+  const startPractice = useCallback((mode) => {
+    if (mode === 'simulation') {
+      navTo('simulation');
+      return;
+    }
+    setRandomQuestionRequest((count) => count + 1);
+    navTo('analyze');
+  }, [navTo]);
+
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
+  const openFeedback = useCallback(() => setFeedbackOpen(true), []);
+  const closeFeedback = useCallback(() => setFeedbackOpen(false), []);
+  const sendFeedback = useCallback(async ({ message, contact }) => {
+    await apiFetch('/api/feedback', { method: 'POST', body: { message, contact, page: currentPage } });
+    pushToast('Thanks! Your feedback was sent.', 'success');
+  }, [currentPage, pushToast]);
+
   const continueAsGuest = useCallback(() => {
     setAuthError('');
     setGuestMode(true);
@@ -509,6 +529,7 @@ export default function SpeakUpApp() {
             onLogout={handleLogout}
             onDeleteAccount={handleDeleteAccount}
             onPasswordUpdate={handlePasswordUpdate}
+            onStartPractice={startPractice}
             authError={authError}
             passwordSubmitting={passwordSubmitting}
           />
@@ -531,6 +552,8 @@ export default function SpeakUpApp() {
             isOffline={isOffline}
             isLoggedIn={Boolean(currentUser)}
             onOpenAuth={openAuth}
+            randomQuestionRequest={randomQuestionRequest}
+            onRandomQuestionHandled={handleRandomQuestionHandled}
           />
         );
       case 'samples':
@@ -594,7 +617,7 @@ export default function SpeakUpApp() {
         </ErrorBoundary>
       </main>
 
-      <Footer navTo={navTo} />
+      <Footer navTo={navTo} onFeedback={openFeedback} />
       <Analytics />
 
       {showAdminPanel && adminAuthenticated && (
@@ -622,6 +645,19 @@ export default function SpeakUpApp() {
         error={adminLoginError}
         submitting={adminLoginSubmitting}
       />
+      {/* Kept off the simulation, where it would sit on top of a timed test. */}
+      {currentPage !== 'simulation' && (
+        <button
+          type="button"
+          onClick={openFeedback}
+          className="fixed bottom-4 right-4 z-[60] inline-flex items-center gap-2 rounded-full border border-sky-400/30 bg-surface-raised/95 p-3 text-sm font-semibold text-sky-100 shadow-lg backdrop-blur transition hover:bg-overlay-hover sm:px-4 sm:py-2.5"
+          aria-label="Send feedback"
+        >
+          <MessageSquare size={16} aria-hidden="true" />
+          <span className="hidden sm:inline">Feedback</span>
+        </button>
+      )}
+      <FeedbackModal open={feedbackOpen} onClose={closeFeedback} onSubmit={sendFeedback} isLoggedIn={Boolean(currentUser)} />
       <ToastViewport toasts={toasts} dismissToast={dismissToast} />
     </div>
   );

@@ -292,6 +292,43 @@ class AppAnnouncement(db.Model):
         }
 
 
+class FeedbackMessage(db.Model):
+    """A suggestion or bug report sent from the site's "Send feedback" form.
+
+    Feedback used to go through a Google Form linked at the foot of the page,
+    which students missed. Guests may send it too; `contact` is an optional
+    way to reply to them.
+    """
+    __tablename__ = 'feedback_messages'
+
+    MAX_MESSAGE_CHARS = 2000
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='SET NULL'), nullable=True, index=True)
+    message = db.Column(db.Text, nullable=False)
+    contact = db.Column(db.String(255), nullable=False, default='')
+    page = db.Column(db.String(40), nullable=False, default='')
+    resolved = db.Column(db.Boolean, nullable=False, default=False, index=True)
+    created_at = db.Column(db.DateTime, default=utcnow, index=True)
+
+    user = db.relationship('User')
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'message': self.message,
+            'contact': self.contact or '',
+            'page': self.page or '',
+            'resolved': bool(self.resolved),
+            'createdAt': self.created_at.isoformat() if self.created_at else None,
+            'author': {
+                'name': self.user.name,
+                'username': self.user.username,
+                'email': self.user.email,
+            } if self.user else None,
+        }
+
+
 class AnalysisJob(db.Model):
     __tablename__ = 'analysis_jobs'
 

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Trash2, X } from 'lucide-react';
 
 /**
@@ -79,6 +79,109 @@ export function AdminLoginModal({ open, password, onPasswordChange, onClose, onS
             </button>
             <button type="button" onClick={onSubmit} disabled={submitting} className="flex-1 rounded-control bg-sky-500 px-4 py-3 font-semibold text-white transition hover:bg-sky-400 disabled:cursor-not-allowed disabled:opacity-60">
               {submitting ? 'Checking...' : 'Continue'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export const FEEDBACK_MAX_CHARS = 2000;
+
+/**
+ * Suggestions and bug reports, saved to the backend and read in the admin
+ * panel. Guests can leave an optional contact so they can be answered.
+ */
+export function FeedbackModal({ open, onClose, onSubmit, isLoggedIn }) {
+  const [message, setMessage] = useState('');
+  const [contact, setContact] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
+  useOverlayDismiss(open, onClose, { disabled: submitting });
+
+  if (!open) return null;
+
+  const trimmed = message.trim();
+  const send = async () => {
+    if (trimmed.length < 3) {
+      setError('Write a few words before sending.');
+      return;
+    }
+    setSubmitting(true);
+    setError('');
+    try {
+      await onSubmit({ message: trimmed, contact: contact.trim() });
+      setMessage('');
+      setContact('');
+      onClose();
+    } catch (requestError) {
+      setError(requestError?.message || 'Could not send feedback. Try again in a moment.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/75 p-4 backdrop-blur-sm">
+      <div
+        className="w-full max-w-lg rounded-panel border border-line bg-surface-raised p-5 sm:p-6"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="feedback-title"
+      >
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <div className="text-xs font-semibold uppercase tracking-[0.16em] text-sky-300">Feedback</div>
+            <h2 id="feedback-title" className="mt-2 text-xl font-semibold text-white">What should necs. add or fix?</h2>
+            <p className="mt-1 text-sm text-ink-muted">Ideas, bugs, wrong scores: anything helps. It goes straight to the founder.</p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={submitting}
+            className="rounded-full border border-line bg-overlay p-2 text-ink-muted transition hover:bg-overlay-hover hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+            aria-label="Close feedback"
+          >
+            <X size={16} />
+          </button>
+        </div>
+
+        <div className="mt-5 space-y-4">
+          <label className="block">
+            <span className="sr-only">Your feedback</span>
+            <textarea
+              value={message}
+              onChange={(event) => setMessage(event.target.value.slice(0, FEEDBACK_MAX_CHARS))}
+              rows="5"
+              autoFocus
+              placeholder="e.g. The timer should beep before recording ends."
+              className="w-full resize-y rounded-control border border-line bg-overlay px-4 py-3 text-white outline-none transition placeholder:text-ink-subtle focus:border-sky-400/50"
+            />
+            <span className="mt-1 block text-right text-xs text-ink-subtle">{message.length}/{FEEDBACK_MAX_CHARS}</span>
+          </label>
+          {!isLoggedIn && (
+            <label className="block">
+              <span className="mb-2 block text-sm font-semibold text-ink-muted">Email or Facebook, if you'd like a reply (optional)</span>
+              <input
+                type="text"
+                value={contact}
+                onChange={(event) => setContact(event.target.value.slice(0, 255))}
+                className="w-full rounded-control border border-line bg-overlay px-4 py-3 text-white outline-none transition placeholder:text-ink-subtle focus:border-sky-400/50"
+              />
+            </label>
+          )}
+          {error && (
+            <div className="rounded-control border border-rose-400/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-100" role="alert">
+              {error}
+            </div>
+          )}
+          <div className="flex gap-3">
+            <button type="button" onClick={onClose} disabled={submitting} className="flex-1 rounded-control border border-line bg-overlay px-4 py-3 font-semibold text-slate-200 transition hover:bg-overlay-hover disabled:cursor-not-allowed disabled:opacity-60">
+              Cancel
+            </button>
+            <button type="button" onClick={send} disabled={submitting} className="flex-1 rounded-control bg-sky-500 px-4 py-3 font-semibold text-white transition hover:bg-sky-400 disabled:cursor-not-allowed disabled:opacity-60">
+              {submitting ? 'Sending...' : 'Send feedback'}
             </button>
           </div>
         </div>

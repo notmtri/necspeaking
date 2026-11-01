@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Award, BarChart3, CheckCircle, Flame, Lock, LogOut, Target, Trash2, TrendingUp, Trophy, Upload, User } from 'lucide-react';
+import { Award, BarChart3, CheckCircle, Flame, Lock, LogOut, Mic, Target, Trash2, TrendingUp, Trophy, Upload, User } from 'lucide-react';
 import { getDisplayRole, isAdminProfile, readImageAsResizedDataUri } from '../appShared';
 import { PageHeader } from '../components/AppChrome';
 import { FIELD_CLASSNAME, LabeledInput, ProfileDetailRow, ProfileMetricCard, ProfileSectionCard } from '../components/ProfileBits';
@@ -147,7 +147,50 @@ function ProfileTabButton({ active, onClick, children }) {
   );
 }
 
-export default function ProfilePage({ currentUser, practiceHistory, onSave, onLogout, onDeleteAccount, onPasswordUpdate, authError, passwordSubmitting }) {
+/**
+ * Shown until the first practice is saved. 59% of accounts had never practised
+ * once: signing up landed them on an empty dashboard with no obvious next step.
+ */
+function FirstPracticeCard({ onStartPractice }) {
+  const steps = [
+    'We pick a past NEC question for you.',
+    'Plan for a minute, then record up to 5 minutes. A phone mic is fine.',
+    'Get scored on Content, Accuracy and Delivery, with written feedback.',
+  ];
+  return (
+    <section className="rounded-panel border border-sky-400/25 bg-sky-400/10 p-5 sm:p-6" aria-labelledby="first-practice-title">
+      <div className="text-xs font-semibold uppercase tracking-[0.16em] text-sky-300">Start here</div>
+      <h2 id="first-practice-title" className="mt-2 text-xl font-semibold text-white">Do your first practice</h2>
+      <ol className="mt-4 space-y-2 text-sm leading-6 text-slate-100">
+        {steps.map((step, index) => (
+          <li key={step} className="flex gap-3">
+            <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-sky-400/20 text-xs font-semibold text-sky-100">{index + 1}</span>
+            <span>{step}</span>
+          </li>
+        ))}
+      </ol>
+      <div className="mt-5 flex flex-col gap-3 sm:flex-row">
+        <button
+          type="button"
+          onClick={() => onStartPractice('analyze')}
+          className="inline-flex items-center justify-center gap-2 rounded-control bg-sky-500 px-5 py-3 font-semibold text-white transition hover:bg-sky-400"
+        >
+          <Mic size={17} />
+          Start my first practice
+        </button>
+        <button
+          type="button"
+          onClick={() => onStartPractice('simulation')}
+          className="inline-flex items-center justify-center gap-2 rounded-control border border-line bg-overlay px-5 py-3 font-semibold text-white transition hover:bg-overlay-hover"
+        >
+          Try the timed test instead
+        </button>
+      </div>
+    </section>
+  );
+}
+
+export default function ProfilePage({ currentUser, practiceHistory, onSave, onLogout, onDeleteAccount, onPasswordUpdate, authError, passwordSubmitting, onStartPractice = null }) {
   const [draft, setDraft] = useState(currentUser);
   const [activeTab, setActiveTab] = useState('overview');
   const [deletePhrase, setDeletePhrase] = useState('');
@@ -249,6 +292,10 @@ export default function ProfilePage({ currentUser, practiceHistory, onSave, onLo
         <div className="rounded-card border border-rose-400/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-100" role="alert">
           {authError}
         </div>
+      )}
+
+      {activeTab === 'overview' && onStartPractice && !(stats.practices > 0) && !practiceHistory?.length && (
+        <FirstPracticeCard onStartPractice={onStartPractice} />
       )}
 
       {activeTab === 'overview' ? (

@@ -856,5 +856,65 @@ class GuestResultClaimTests(unittest.TestCase):
         self.assertEqual(self.history(), [])
 
 
+
+class FeedbackTests(unittest.TestCase):
+    def setUp(self):
+        app_module.app.config.update(TESTING=True)
+        with app_module.app.app_context():
+            db.drop_all()
+            db.create_all()
+        self.browser = app_module.app.test_client()
+
+    def tearDown(self):
+        with app_module.app.app_context():
+            db.session.remove()
+
+    def admin(self):
+        admin = app_module.app.test_client()
+        with admin.session_transaction() as cookie_session:
+            cookie_session['admin_authenticated'] = True
+        return admin
+
+    def test_a_guest_can_send_feedback_and_the_admin_sees_it(self):
+        sent = self.browser.post('/api/feedback', json={
+            'message': '  Please add more samples.  ', 'contact': 'me@example.com', 'page': 'samples'})
+        self.assertEqual(sent.status_code, 201)
+
+        inbox = self.admin().get('/api/admin/feedback').get_json()
+        self.assertEqual(inbox['openCount'], 1)
+        item = inbox['feedback'][0]
+        self.assertEqual(item['message'], 'Please add more samples.')
+        self.assertEqual(item['contact'], 'me@example.com')
+        self.assertEqual(item['page'], 'samples')
+        self.assertIsNone(item['author'])
+
+    def test_feedback_from_a_logged_in_student_names_them(self):
+        self.browser.post('/api/auth/signup', json={
+            'email': 'fb@example.com', 'password': 'strongpass123',
+            'profile': {'name': 'Feedback Student', 'username': 'fbstudent'}})
+        self.browser.post('/api/feedback', json={'message': 'The timer is great.'})
+
+        item = self.admin().get('/api/admin/feedback').get_json()['feedback'][0]
+        self.assertEqual(item['author']['username'], 'fbstudent')
+        self.assertEqual(item['author']['email'], 'fb@example.com')
+
+    def test_empty_or_huge_feedback_is_rejected(self):
+        self.assertEqual(self.browser.post('/api/feedback', json={'message': '  '}).status_code, 400)
+        self.assertEqual(self.browser.post('/api/feedback', json={'message': 'x' * 2001}).status_code, 400)
+
+    def test_only_the_admin_can_read_feedback(self):
+        self.assertEqual(self.browser.get('/api/admin/feedback').status_code, 401)
+
+    def test_admin_can_mark_feedback_resolved(self):
+        self.browser.post('/api/feedback', json={'message': 'Bug on the profile page.'})
+        admin = self.admin()
+        feedback_id = admin.get('/api/admin/feedback').get_json()['feedback'][0]['id']
+
+        resolved = admin.put(f'/api/admin/feedback/{feedback_id}', json={'resolved': True})
+        self.assertTrue(resolved.get_json()['feedback']['resolved'])
+        self.assertEqual(admin.get('/api/admin/feedback').get_json()['openCount'], 0)
+        self.assertEqual(admin.put('/api/admin/feedback/999', json={'resolved': True}).status_code, 404)
+
+
 if __name__ == '__main__':
     unittest.main()

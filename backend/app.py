@@ -24,7 +24,7 @@ from sqlalchemy.engine import make_url
 from sqlalchemy.orm import configure_mappers, defer
 
 from analysis_service import allowed_file, build_job_storage_path, cleanup_old_files, generate_docx, get_audio_duration
-from database import MAX_AVATAR_CHARS, AnalysisJob, AppAnnouncement, CommunityPost, Question, RateLimitEntry, Sample, User, UserPracticeSession, avatar_from_name, build_prompt_key, db, utcnow
+from database import MAX_AVATAR_CHARS, AnalysisJob, AppAnnouncement, CommunityPost, FeedbackMessage, Question, RateLimitEntry, Sample, User, UserPracticeSession, avatar_from_name, build_prompt_key, db, utcnow
 from job_worker import AnalysisWorker, should_start_embedded_worker
 from rate_limiter import client_ip, rate_limit, rate_limiter
 from user_progress import create_practice_session
@@ -219,6 +219,7 @@ def ensure_runtime_tables():
                 ('rate_limit_entries', RateLimitEntry.__table__),
                 ('questions', Question.__table__),
                 ('samples', Sample.__table__),
+                ('feedback_messages', FeedbackMessage.__table__),
             ]
             for table_name, table in managed_tables:
                 if table_name not in table_names:
@@ -1180,6 +1181,69 @@ def admin_delete_community_post(post_id):
         db.session.rollback()
         print(f"[ADMIN] Community delete error: {error}")
         return jsonify({"error": "Could not delete post."}), 500
+
+# ============= FEEDBACK =============
+
+@app.route('/api/feedback', methods=['POST'])
+@rate_limit('feedback', max_requests=5, window_seconds=3600)
+def send_feedback():
+    data = request.get_json(silent=True) or {}
+    message = (data.get('message') or '').strip()
+    contact = (data.get('contact') or '').strip()[:255]
+    page = (data.get('page') or '').strip()[:40]
+
+    if len(message) < 3:
+        return jsonify({"error": "Write a few words before sending."}), 400
+    if len(message) > FeedbackMessage.MAX_MESSAGE_CHARS:
+        return jsonify({"error": f"Keep it under {FeedbackMessage.MAX_MESSAGE_CHARS} characters."}), 400
+
+    try:
+        user = get_current_user()
+        db.session.add(FeedbackMessage(
+            user_id=user.id if user else None,
+            message=message,
+            contact=contact,
+            page=page,
+        ))
+        db.session.commit()
+        return jsonify({"success": True}), 201
+    except Exception as error:
+        db.session.rollback()
+        print(f"[FEEDBACK] Save error: {type(error).__name__}: {error}")
+        return jsonify({"error": "Could not send feedback."}), 500
+
+
+@app.route('/api/admin/feedback', methods=['GET'])
+@require_admin()
+def admin_feedback():
+    messages = (
+        FeedbackMessage.query
+        .order_by(FeedbackMessage.resolved.asc(), FeedbackMessage.created_at.desc())
+        .limit(200)
+        .all()
+    )
+    return jsonify({
+        "feedback": [message.to_dict() for message in messages],
+        "openCount": FeedbackMessage.query.filter_by(resolved=False).count(),
+    })
+
+
+@app.route('/api/admin/feedback/<int:feedback_id>', methods=['PUT'])
+@require_admin()
+def admin_update_feedback(feedback_id):
+    message = db.session.get(FeedbackMessage, feedback_id)
+    if not message:
+        return jsonify({"error": "Feedback not found."}), 404
+
+    try:
+        message.resolved = bool((request.get_json(silent=True) or {}).get('resolved'))
+        db.session.commit()
+        return jsonify({"success": True, "feedback": message.to_dict()})
+    except Exception as error:
+        db.session.rollback()
+        print(f"[ADMIN] Feedback update error: {error}")
+        return jsonify({"error": "Could not update feedback."}), 500
+
 
 @app.route('/api/analyze', methods=['POST'])
 @rate_limit('analysis-create', max_requests=10, window_seconds=3600)
