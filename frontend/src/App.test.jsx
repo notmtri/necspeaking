@@ -30,7 +30,11 @@ const createFetchMock = (overrides = {}) => vi.fn(async (url) => {
   }
   if (target.includes('/api/site/announcement')) return createFetchResponse({ announcement: defaultAnnouncement });
   if (target.includes('/api/auth/me')) {
-    return createFetchResponse({ authenticated: Boolean(overrides.user), user: overrides.user || null });
+    return createFetchResponse({
+      authenticated: Boolean(overrides.user),
+      user: overrides.user || null,
+      emailEnabled: Boolean(overrides.emailEnabled),
+    });
   }
   if (target.includes('/api/auth/practice-history')) return createFetchResponse({ sessions: [] });
   if (target.includes('/api/admin/check')) return createFetchResponse({ authenticated: false });
@@ -288,5 +292,37 @@ describe('App', () => {
   it('keeps the feedback button off the timed simulation', async () => {
     await renderApp('/simulation', { questions: [questionFixture] });
     expect(container.querySelector('button[aria-label="Send feedback"]')).toBeNull();
+  });
+
+  it('emails a reset link from the login form', async () => {
+    await renderApp('/auth');
+    await act(async () => buttonNamed('Forgot password?').click());
+    await act(async () => typeInto(container.querySelector('input[type="email"]'), 'student@example.com'));
+    await act(async () => buttonNamed('Email me a reset link').click());
+
+    const sent = () => global.fetch.mock.calls.find(([url]) => String(url).includes('/api/auth/password/forgot'));
+    expect(await waitUntil(() => Boolean(sent()))).toBe(true);
+    expect(JSON.parse(sent()[1].body)).toEqual({ email: 'student@example.com' });
+    expect(await waitUntil(() => container.textContent.includes('a reset link is on its way'))).toBe(true);
+  });
+
+  it('no longer offers a Teacher role at sign-up', async () => {
+    await renderApp('/auth');
+    await act(async () => buttonNamed('Create one').click());
+    expect(container.textContent).toContain('Create your necs. profile');
+    expect(container.textContent).toContain('Cohort');
+    expect(container.textContent).not.toContain('Teacher');
+  });
+
+  it('asks an unconfirmed student to confirm their email before posting', async () => {
+    await renderApp('/community', { user: { ...newStudent(2), emailVerified: false }, emailEnabled: true });
+    expect(await waitUntil(() => container.textContent.includes('Confirm your email to post'))).toBe(true);
+    expect(container.textContent).not.toContain('Publish post');
+  });
+
+  it('keeps posting open while email is not set up', async () => {
+    await renderApp('/community', { user: { ...newStudent(2), emailVerified: false }, emailEnabled: false });
+    expect(await waitUntil(() => container.textContent.includes('Publish post'))).toBe(true);
+    expect(container.textContent).not.toContain('Confirm your email');
   });
 });

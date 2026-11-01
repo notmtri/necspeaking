@@ -5,6 +5,7 @@ import { apiFetch, isAbortError } from '../apiClient';
 import { PageHeader } from '../components/AppChrome';
 import { useOverlayDismiss } from '../components/AppOverlays';
 import { FIELD_CLASSNAME, ProfileDetailRow, ProfileMetricCard, ProfileSectionCard } from '../components/ProfileBits';
+import VerifyEmailNotice from '../components/VerifyEmailNotice';
 
 const MAX_TITLE_LENGTH = 180;
 const MAX_BODY_LENGTH = 4000;
@@ -132,7 +133,7 @@ function Leaderboard({ title, description, profiles, accent, valueOf, onSelect }
   );
 }
 
-export default function CommunityPage({ profiles, selectedProfile, onSelectProfile, currentUser, loading }) {
+export default function CommunityPage({ profiles, selectedProfile, onSelectProfile, currentUser, loading, emailEnabled = false }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [communityPosts, setCommunityPosts] = useState([]);
   const [postsLoading, setPostsLoading] = useState(true);
@@ -159,7 +160,9 @@ export default function CommunityPage({ profiles, selectedProfile, onSelectProfi
     [profiles],
   );
 
-  const canCreatePost = Boolean(currentUser);
+  // Matches the backend: posting needs a confirmed email once email is set up.
+  const needsVerification = Boolean(currentUser) && emailEnabled && !currentUser.emailVerified;
+  const canCreatePost = Boolean(currentUser) && !needsVerification;
   const trimmedTitle = postDraft.title.trim();
   const trimmedBody = postDraft.body.trim();
   const canSubmitPost = canCreatePost && trimmedTitle.length > 0 && trimmedBody.length > 0 && !postSubmitting;
@@ -254,7 +257,13 @@ export default function CommunityPage({ profiles, selectedProfile, onSelectProfi
           </div>
 
           <div className="mt-5 rounded-card border border-line bg-overlay p-4">
-            {canCreatePost ? (
+            {needsVerification ? (
+              <VerifyEmailNotice
+                email={currentUser.email}
+                title="Confirm your email to post"
+                reason="It keeps the community free of throwaway accounts. Open the link we email you, then come back."
+              />
+            ) : canCreatePost ? (
               <>
                 <div className="grid gap-3">
                   <label className="block">
@@ -281,7 +290,7 @@ export default function CommunityPage({ profiles, selectedProfile, onSelectProfi
                 </div>
                 <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div className="text-xs leading-6 text-ink-muted">
-                    {trimmedBody.length}/{MAX_BODY_LENGTH} characters. Posting is available to every logged-in account.
+                    {trimmedBody.length}/{MAX_BODY_LENGTH} characters.
                   </div>
                   <button
                     type="button"

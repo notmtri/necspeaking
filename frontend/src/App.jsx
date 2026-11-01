@@ -19,6 +19,7 @@ const CommunityPage = lazy(() => import('./pages/CommunityPage'));
 const ProfilePage = lazy(() => import('./pages/ProfilePage'));
 const SampleLibrary = lazy(() => import('./pages/SampleLibrary'));
 const SimulationMode = lazy(() => import('./pages/SimulationMode'));
+const AccountLinkPage = lazy(() => import('./pages/AccountLinkPage'));
 
 function PageFallback() {
   return (
@@ -42,6 +43,8 @@ export default function SpeakUpApp() {
   const [authError, setAuthError] = useState('');
   const [authSubmitting, setAuthSubmitting] = useState(false);
   const [authChecking, setAuthChecking] = useState(true);
+  // Whether the backend can send email (RESEND_API_KEY set); hides prompts that would fail.
+  const [emailEnabled, setEmailEnabled] = useState(false);
   const [passwordSubmitting, setPasswordSubmitting] = useState(false);
   const [communityLoading, setCommunityLoading] = useState(true);
   const communityLoadedRef = useRef(false);
@@ -228,6 +231,7 @@ export default function SpeakUpApp() {
     const loadCurrentUser = async () => {
       try {
         const data = await apiFetch('/api/auth/me', { signal: controller.signal });
+        setEmailEnabled(Boolean(data.emailEnabled));
         if (data.authenticated && data.user) {
           setCurrentUser(data.user);
           setSelectedProfileId(data.user.id);
@@ -530,6 +534,7 @@ export default function SpeakUpApp() {
             onDeleteAccount={handleDeleteAccount}
             onPasswordUpdate={handlePasswordUpdate}
             onStartPractice={startPractice}
+            emailEnabled={emailEnabled}
             authError={authError}
             passwordSubmitting={passwordSubmitting}
           />
@@ -542,6 +547,7 @@ export default function SpeakUpApp() {
             onSelectProfile={handleProfileSelect}
             currentUser={currentUser}
             loading={communityLoading}
+            emailEnabled={emailEnabled}
           />
         );
       case 'analyze':
@@ -554,6 +560,16 @@ export default function SpeakUpApp() {
             onOpenAuth={openAuth}
             randomQuestionRequest={randomQuestionRequest}
             onRandomQuestionHandled={handleRandomQuestionHandled}
+          />
+        );
+      case 'verify-email':
+      case 'reset-password':
+        return (
+          <AccountLinkPage
+            kind={currentPage}
+            onUserUpdate={handleAnalysisUserUpdate}
+            navTo={navTo}
+            notify={pushToast}
           />
         );
       case 'samples':

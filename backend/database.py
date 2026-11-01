@@ -56,10 +56,14 @@ class User(db.Model):
     email = db.Column(db.String(255), unique=True, nullable=False, index=True)
     username = db.Column(db.String(50), unique=True, nullable=False, index=True)
     password_hash = db.Column(db.String(255), nullable=False)
+    # Set when the owner opens the link in their verification or reset email.
+    email_verified_at = db.Column(db.DateTime, nullable=True)
     name = db.Column(db.String(255), nullable=False)
     class_name = db.Column(db.String(100), default='')
     school = db.Column(db.String(255), default='')
     cohort = db.Column(db.String(100), default='')
+    # Only 'Student' is assigned now; a self-chosen 'Teacher' badge meant
+    # nothing, since anyone could pick it (see migration g7b8c9d0e1f2).
     role = db.Column(db.String(50), default='Student')
     bio = db.Column(db.Text, default='')
     avatar = db.Column(db.Text, default='')
@@ -122,6 +126,7 @@ class User(db.Model):
     def to_dict(self):
         data = self._base_profile()
         data['email'] = self.email
+        data['emailVerified'] = self.email_verified_at is not None
         return data
 
     def to_public_dict(self, stored_avatar=None):

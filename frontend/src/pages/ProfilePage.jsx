@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Award, BarChart3, CheckCircle, Flame, Lock, LogOut, Mic, Target, Trash2, TrendingUp, Trophy, Upload, User } from 'lucide-react';
 import { getDisplayRole, isAdminProfile, readImageAsResizedDataUri } from '../appShared';
 import { PageHeader } from '../components/AppChrome';
+import VerifyEmailNotice from '../components/VerifyEmailNotice';
 import { FIELD_CLASSNAME, LabeledInput, ProfileDetailRow, ProfileMetricCard, ProfileSectionCard } from '../components/ProfileBits';
 import PracticeHistoryItem from '../components/PracticeHistoryItem';
 
@@ -190,7 +191,7 @@ function FirstPracticeCard({ onStartPractice }) {
   );
 }
 
-export default function ProfilePage({ currentUser, practiceHistory, onSave, onLogout, onDeleteAccount, onPasswordUpdate, authError, passwordSubmitting, onStartPractice = null }) {
+export default function ProfilePage({ currentUser, practiceHistory, onSave, onLogout, onDeleteAccount, onPasswordUpdate, authError, passwordSubmitting, onStartPractice = null, emailEnabled = false }) {
   const [draft, setDraft] = useState(currentUser);
   const [activeTab, setActiveTab] = useState('overview');
   const [deletePhrase, setDeletePhrase] = useState('');
@@ -292,6 +293,13 @@ export default function ProfilePage({ currentUser, practiceHistory, onSave, onLo
         <div className="rounded-card border border-rose-400/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-100" role="alert">
           {authError}
         </div>
+      )}
+
+      {emailEnabled && !currentUser.emailVerified && (
+        <VerifyEmailNotice
+          email={currentUser.email}
+          reason="So you can reset your password if you forget it, and post in the community."
+        />
       )}
 
       {activeTab === 'overview' && onStartPractice && !(stats.practices > 0) && !practiceHistory?.length && (
@@ -403,19 +411,6 @@ export default function ProfilePage({ currentUser, practiceHistory, onSave, onLo
               <LabeledInput label="Class" value={draft.className} onChange={(value) => updateField('className', value)} placeholder="12A1" />
               <LabeledInput label="School" value={draft.school} onChange={(value) => updateField('school', value)} placeholder="Your school" />
               <LabeledInput label="Cohort" value={draft.cohort} onChange={(value) => updateField('cohort', value)} placeholder="NEC 25-26" />
-              <label className="block">
-                <span className="mb-2 block text-sm font-semibold text-ink-muted">Role</span>
-                <select
-                  value={adminProfile ? 'Admin' : draft.role}
-                  onChange={(event) => updateField('role', event.target.value)}
-                  disabled={adminProfile}
-                  className={`${FIELD_CLASSNAME} disabled:cursor-not-allowed disabled:opacity-70`}
-                >
-                  {adminProfile && <option>Admin</option>}
-                  <option>Student</option>
-                  <option>Teacher</option>
-                </select>
-              </label>
             </div>
             <label className="mt-4 block">
               <span className="mb-2 block text-sm font-semibold text-ink-muted">Bio</span>

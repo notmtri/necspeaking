@@ -101,7 +101,8 @@ class ApiSmokeTests(unittest.TestCase):
         })
         self.assertEqual(profile_update.status_code, 200)
         self.assertEqual(profile_update.get_json()['user']['username'], 'updatedstudent')
-        self.assertEqual(profile_update.get_json()['user']['role'], 'Teacher')
+        # The Teacher badge was retired: nobody can give themselves a role.
+        self.assertEqual(profile_update.get_json()['user']['role'], 'Student')
 
         logout = self.client.post('/api/auth/logout')
         self.assertEqual(logout.status_code, 200)

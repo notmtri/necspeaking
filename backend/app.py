@@ -6,6 +6,7 @@ import logging
 import os
 import sys
 import warnings
+import hashlib
 import secrets
 import traceback
 from functools import wraps
@@ -28,6 +29,8 @@ from database import MAX_AVATAR_CHARS, AnalysisJob, AppAnnouncement, CommunityPo
 from job_worker import AnalysisWorker, should_start_embedded_worker
 from rate_limiter import client_ip, rate_limit, rate_limiter
 from user_progress import create_practice_session
+from email_service import email_enabled, password_reset_email, public_site_url, send_email, verification_email
+from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 import cloudinary
 import cloudinary.uploader
 
@@ -481,12 +484,8 @@ def validate_account_payload(data, is_signup=False):
         "class_name": (profile.get('className') or '').strip(),
         "school": (profile.get('school') or '').strip(),
         "cohort": (profile.get('cohort') or '').strip(),
-        "role": (profile.get('role') or 'Student').strip(),
         "bio": (profile.get('bio') or '').strip()
     }
-
-    if payload["role"] not in ["Student", "Teacher"]:
-        payload["role"] = "Student"
 
     if is_signup:
         if not payload["name"]:
@@ -645,7 +644,7 @@ def signup():
             class_name=payload["class_name"],
             school=payload["school"],
             cohort=payload["cohort"],
-            role=payload["role"],
+            role='Student',
             bio=payload["bio"] or 'Practicing consistently and tracking progress on necs.',
             avatar=avatar_from_name(payload["name"]),
             stats=dict(DEFAULT_USER_STATS),
@@ -659,8 +658,14 @@ def signup():
         session['user_id'] = user.id
         session.permanent = False
         claimed = claim_guest_jobs(user)
+        verification_sent = send_verification_email(user) if email_enabled() else False
 
-        return jsonify({"success": True, "user": user.to_dict(), "claimedResults": claimed}), 201
+        return jsonify({
+            "success": True,
+            "user": user.to_dict(),
+            "claimedResults": claimed,
+            "verificationSent": verification_sent,
+        }), 201
     except Exception as e:
         db.session.rollback()
         print(f"[AUTH] Signup error: {str(e)}")
@@ -696,7 +701,11 @@ def auth_me():
     if user:
         # Picks up a guest analysis that was still running at login.
         claim_guest_jobs(user)
-    return jsonify({"authenticated": bool(user), "user": user.to_dict() if user else None})
+    return jsonify({
+        "authenticated": bool(user),
+        "user": user.to_dict() if user else None,
+        "emailEnabled": email_enabled(),
+    })
 
 
 @app.route('/api/auth/community', methods=['GET'])
@@ -750,6 +759,12 @@ def get_community_posts():
 def create_community_post():
     try:
         user = get_current_user()
+        # Only once email is configured; until then nobody could verify.
+        if email_enabled() and not user.email_verified_at:
+            return jsonify({
+                "error": "Confirm your email before posting. You can send the link from your profile.",
+                "code": "email_unverified",
+            }), 403
         data = request.get_json(silent=True) or {}
         title = (data.get('title') or '').strip()
         body = (data.get('body') or '').strip()
@@ -897,14 +912,11 @@ def update_profile():
 
         name = (data.get('name') or user.name).strip()
         username = normalize_username(data.get('username', user.username))
-        role = (data.get('role') or user.role or 'Student').strip()
 
         if not name:
             return jsonify({"error": "Name is required."}), 400
         if not username or len(username) < 3:
             return jsonify({"error": "Username must be at least 3 characters."}), 400
-        if role not in ["Student", "Teacher"]:
-            role = "Student"
 
         username_owner = User.query.filter(User.username == username, User.id != user.id).first()
         if username_owner:
@@ -921,7 +933,6 @@ def update_profile():
         user.class_name = optional_field('className', user.class_name)
         user.school = optional_field('school', user.school)
         user.cohort = optional_field('cohort', user.cohort)
-        user.role = role
         user.bio = optional_field('bio', user.bio)
 
         avatar = (data.get('avatar') or '').strip()
@@ -937,6 +948,134 @@ def update_profile():
         db.session.rollback()
         print(f"[AUTH] Profile update error: {str(e)}")
         return jsonify({"error": "Profile update failed."}), 500
+
+
+# ============= ACCOUNT EMAIL =============
+#
+# Links carry a signed, timed token instead of a stored one, so there is no
+# token table to clean up. A reset token also embeds a fingerprint of the
+# current password hash: once the password changes, every earlier reset link
+# stops working, which makes each one single-use.
+
+VERIFY_EMAIL_MAX_AGE = 3 * 24 * 3600
+PASSWORD_RESET_MAX_AGE = 3600
+EMAIL_OFF_MESSAGE = "Email isn't set up on necs. yet. Contact the admin for help with your account."
+
+
+def account_token_serializer(purpose):
+    return URLSafeTimedSerializer(app.secret_key, salt=f'necs-{purpose}')
+
+
+def password_fingerprint(user):
+    return hashlib.sha256((user.password_hash or '').encode('utf-8')).hexdigest()[:16]
+
+
+def load_account_token(purpose, token, max_age):
+    """The token's payload, or (None, message) when it can't be used."""
+    try:
+        return account_token_serializer(purpose).loads(token or '', max_age=max_age), None
+    except SignatureExpired:
+        return None, "This link has expired. Ask for a new one."
+    except BadSignature:
+        return None, "This link isn't valid. Check you copied all of it, or ask for a new one."
+
+
+def send_verification_email(user):
+    token = account_token_serializer('verify-email').dumps({'uid': user.id, 'email': user.email})
+    subject, text = verification_email(user.name, f"{public_site_url()}/verify-email#token={token}")
+    return send_email(user.email, subject, text)
+
+
+@app.route('/api/auth/verify-email/request', methods=['POST'])
+@require_login()
+@rate_limit('verify-email-request', max_requests=3, window_seconds=3600)
+def request_email_verification():
+    user = get_current_user()
+    if user.email_verified_at:
+        return jsonify({"success": True, "alreadyVerified": True})
+    if not email_enabled():
+        return jsonify({"error": EMAIL_OFF_MESSAGE}), 503
+    if not send_verification_email(user):
+        return jsonify({"error": "Could not send the email. Try again in a few minutes."}), 502
+    return jsonify({"success": True})
+
+
+@app.route('/api/auth/verify-email', methods=['POST'])
+@rate_limit('verify-email-confirm', max_requests=20, window_seconds=3600)
+def confirm_email_verification():
+    token = (request.get_json(silent=True) or {}).get('token')
+    payload, error = load_account_token('verify-email', token, VERIFY_EMAIL_MAX_AGE)
+    if error:
+        return jsonify({"error": error}), 400
+
+    user = db.session.get(User, payload.get('uid'))
+    # The address must still be the one the link was sent to.
+    if not user or user.email != payload.get('email'):
+        return jsonify({"error": "This link isn't valid any more. Ask for a new one."}), 400
+
+    try:
+        if not user.email_verified_at:
+            user.email_verified_at = utcnow()
+            db.session.commit()
+    except Exception as error:
+        db.session.rollback()
+        print(f"[AUTH] Email verification error: {error}")
+        return jsonify({"error": "Could not confirm your email. Try the link again."}), 500
+
+    current = get_current_user()
+    return jsonify({"success": True, "user": user.to_dict() if current and current.id == user.id else None})
+
+
+@app.route('/api/auth/password/forgot', methods=['POST'])
+@rate_limit('password-forgot', max_requests=5, window_seconds=3600)
+def forgot_password():
+    if not email_enabled():
+        return jsonify({"error": EMAIL_OFF_MESSAGE}), 503
+
+    email = normalize_email((request.get_json(silent=True) or {}).get('email'))
+    if not re.fullmatch(r'^[^@\s]+@[^@\s]+\.[^@\s]+$', email):
+        return jsonify({"error": "Enter a valid email address."}), 400
+
+    # Same answer whether or not the account exists, so this can't be used
+    # to find out who has an account.
+    user = User.query.filter_by(email=email).first()
+    if user:
+        token = account_token_serializer('password-reset').dumps({'uid': user.id, 'pw': password_fingerprint(user)})
+        subject, text = password_reset_email(user.name, f"{public_site_url()}/reset-password#token={token}")
+        send_email(user.email, subject, text)
+    return jsonify({"success": True})
+
+
+@app.route('/api/auth/password/reset', methods=['POST'])
+@rate_limit('password-reset', max_requests=10, window_seconds=3600)
+def reset_password():
+    data = request.get_json(silent=True) or {}
+    payload, error = load_account_token('password-reset', data.get('token'), PASSWORD_RESET_MAX_AGE)
+    if error:
+        return jsonify({"error": error}), 400
+
+    user = db.session.get(User, payload.get('uid'))
+    if not user or payload.get('pw') != password_fingerprint(user):
+        return jsonify({"error": "This link has already been used. Ask for a new one."}), 400
+
+    new_password = data.get('newPassword') or ''
+    if len(new_password) < 8:
+        return jsonify({"error": "New password must be at least 8 characters."}), 400
+
+    try:
+        user.password_hash = generate_password_hash(new_password)
+        # Opening the emailed link proves they read that inbox.
+        user.email_verified_at = user.email_verified_at or utcnow()
+        db.session.commit()
+    except Exception as error:
+        db.session.rollback()
+        print(f"[AUTH] Password reset error: {error}")
+        return jsonify({"error": "Could not reset the password. Try again."}), 500
+
+    session['user_id'] = user.id
+    session.permanent = False
+    claim_guest_jobs(user)
+    return jsonify({"success": True, "user": user.to_dict()})
 
 
 @app.route('/api/auth/password', methods=['PUT'])

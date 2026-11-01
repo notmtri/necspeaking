@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { apiFetch } from '../apiClient';
 import { Lock, LogIn, Mail, UserPlus, UserRound } from 'lucide-react';
 import { FIELD_CLASSNAME, LabeledInput } from '../components/ProfileBits';
 
@@ -8,7 +9,6 @@ const emptyForm = (currentUser) => ({
   className: currentUser?.className || '',
   school: currentUser?.school || '',
   cohort: currentUser?.cohort || '',
-  role: currentUser?.role || 'Student',
   bio: currentUser?.bio || '',
 });
 
@@ -17,6 +17,22 @@ export default function AuthPage({ authMode, setAuthMode, onSubmit, onContinueAs
   const [password, setPassword] = useState('');
   const [form, setForm] = useState(() => emptyForm(currentUser));
   const isSignup = authMode === 'signup';
+  const [forgotOpen, setForgotOpen] = useState(false);
+  const [forgotStatus, setForgotStatus] = useState(null);
+  const [forgotSending, setForgotSending] = useState(false);
+
+  const sendResetLink = async () => {
+    setForgotSending(true);
+    setForgotStatus(null);
+    try {
+      await apiFetch('/api/auth/password/forgot', { method: 'POST', body: { email } });
+      setForgotStatus({ tone: 'ok', text: `If ${email.trim()} has a necs. account, a reset link is on its way. It works for 1 hour; check spam too.` });
+    } catch (error) {
+      setForgotStatus({ tone: 'error', text: error.message || 'Could not send the reset link.' });
+    } finally {
+      setForgotSending(false);
+    }
+  };
 
   useEffect(() => {
     setEmail(currentUser?.email || '');
@@ -52,7 +68,7 @@ export default function AuthPage({ authMode, setAuthMode, onSubmit, onContinueAs
           <div className="mt-6 space-y-3">
             <div className="rounded-card border border-line bg-overlay p-4 text-sm text-ink-muted">
               <div className="font-semibold text-white">Consistent account data</div>
-              <div className="mt-2">Your email, username, role, and profile details stay tied to one account.</div>
+              <div className="mt-2">Your email, username and profile details stay tied to one account.</div>
             </div>
             <div className="rounded-card border border-line bg-overlay p-4 text-sm text-ink-muted">
               <div className="font-semibold text-white">Saved practice history</div>
@@ -123,13 +139,6 @@ export default function AuthPage({ authMode, setAuthMode, onSubmit, onContinueAs
                 </div>
                 <div className="grid gap-4 md:grid-cols-2">
                   <LabeledInput label="Cohort" value={form.cohort} onChange={(value) => updateField('cohort', value)} placeholder="26-27" />
-                  <label className="block">
-                    <span className="mb-2 block text-sm font-semibold text-ink-muted">Role</span>
-                    <select value={form.role} onChange={(event) => updateField('role', event.target.value)} className={FIELD_CLASSNAME}>
-                      <option>Student</option>
-                      <option>Teacher</option>
-                    </select>
-                  </label>
                 </div>
                 <label className="block">
                   <span className="mb-2 block text-sm font-semibold text-ink-muted">Bio</span>
@@ -153,6 +162,32 @@ export default function AuthPage({ authMode, setAuthMode, onSubmit, onContinueAs
               {authSubmitting ? 'Please wait...' : isSignup ? 'Create account' : 'Log in'}
             </button>
           </form>
+
+          {!isSignup && (
+            <div className="mt-4 text-sm">
+              {!forgotOpen ? (
+                <button type="button" onClick={() => setForgotOpen(true)} className="font-semibold text-sky-300 transition hover:text-sky-200">
+                  Forgot password?
+                </button>
+              ) : (
+                <div className="rounded-card border border-line bg-overlay p-4">
+                  <div className="font-semibold text-white">Reset your password</div>
+                  <p className="mt-1 text-ink-muted">Enter your account email above, and we&apos;ll email you a link to choose a new password.</p>
+                  <button
+                    type="button"
+                    onClick={sendResetLink}
+                    disabled={forgotSending || !email.trim()}
+                    className="mt-3 inline-flex items-center justify-center rounded-control bg-sky-500 px-4 py-2 font-semibold text-white transition hover:bg-sky-400 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {forgotSending ? 'Sending...' : 'Email me a reset link'}
+                  </button>
+                  {forgotStatus && (
+                    <p className={`mt-3 ${forgotStatus.tone === 'error' ? 'text-rose-200' : 'text-emerald-200'}`} role="status">{forgotStatus.text}</p>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="mt-5 text-center text-sm text-ink-muted">
             {isSignup ? 'Already have an account?' : "Don't have an account yet?"}{' '}
