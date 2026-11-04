@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BADGE_LOOKS, progressHint, progressShare } from './AchievementBadge';
+import { BADGE_LOOKS, progressHint, progressShare, takeNewlyEarned } from './AchievementBadge';
 
 const item = (overrides) => ({ key: 'practices', unit: 'practices', thresholds: [1, 10, 30], tier: 1, value: 7, nextTarget: 10, ...overrides });
 
@@ -39,5 +39,24 @@ describe('progressShare', () => {
 describe('BADGE_LOOKS', () => {
   it('covers all fifteen badges', () => {
     expect(Object.keys(BADGE_LOOKS)).toHaveLength(15);
+  });
+});
+
+describe('takeNewlyEarned', () => {
+  const list = (tiers) => Object.entries(tiers).map(([key, tier]) => ({ key, tier }));
+
+  it('celebrates each new tier once per browser', () => {
+    window.localStorage.clear();
+    expect([...takeNewlyEarned(7, list({ practices: 1, streak: 0 }))]).toEqual(['practices']);
+    // Same tiers again (a reload): nothing to celebrate.
+    expect(takeNewlyEarned(7, list({ practices: 1, streak: 0 })).size).toBe(0);
+    // Silver on practices and a first streak tier: both are new.
+    expect([...takeNewlyEarned(7, list({ practices: 2, streak: 1 }))]).toEqual(['practices', 'streak']);
+  });
+
+  it('keeps each account separate', () => {
+    window.localStorage.clear();
+    takeNewlyEarned(1, list({ posts: 1 }));
+    expect([...takeNewlyEarned(2, list({ posts: 1 }))]).toEqual(['posts']);
   });
 });

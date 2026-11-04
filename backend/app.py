@@ -495,10 +495,17 @@ def validate_account_payload(data, is_signup=False):
     if is_signup:
         if not payload["name"]:
             return None, "Full name is required."
+        if len(payload["name"]) > MAX_NAME_CHARS:
+            return None, f"Name must be {MAX_NAME_CHARS} characters or fewer."
         if not payload["username"] or len(payload["username"]) < 3:
             return None, "Username must be at least 3 characters."
 
     return payload, None
+
+
+# Display names: long enough for any real full name (Vietnamese names with
+# diacritics included), short enough to fit a post header and a leaderboard row.
+MAX_NAME_CHARS = 60
 
 
 def get_current_user():
@@ -1119,6 +1126,9 @@ def update_profile():
 
         if not name:
             return jsonify({"error": "Name is required."}), 400
+        # Checked only on change, so an older, longer name never blocks other edits.
+        if name != user.name and len(name) > MAX_NAME_CHARS:
+            return jsonify({"error": f"Name must be {MAX_NAME_CHARS} characters or fewer."}), 400
         if not username or len(username) < 3:
             return jsonify({"error": "Username must be at least 3 characters."}), 400
 

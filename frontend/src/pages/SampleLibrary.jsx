@@ -2,7 +2,8 @@ import React, { useCallback, useDeferredValue, useEffect, useMemo, useState } fr
 import { Download, Eye, Loader, Play, Search, X } from 'lucide-react';
 import { PageHeader } from '../components/AppChrome';
 import AudioPlayer from '../components/AudioPlayer';
-import { useOverlayDismiss } from '../components/AppOverlays';
+import { AnimatePresence } from 'motion/react';
+import Sheet from '../components/Sheet';
 import { apiFetch, isAbortError } from '../apiClient';
 
 function SampleActionButton({ tone = 'ghost', onClick, children }) {
@@ -37,16 +38,8 @@ const extraTags = (sample) => (Array.isArray(sample.tags) ? sample.tags : []).fi
 });
 
 function SampleDetailModal({ sample, onClose }) {
-  useOverlayDismiss(true, onClose);
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-neutral-900/40 dark:bg-black/60 p-3 backdrop-blur-sm sm:p-4">
-      <div
-        className="max-h-[85vh] w-full max-w-3xl overflow-y-auto rounded-panel border border-line bg-surface-raised p-5 sm:p-6"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="sample-details-title"
-      >
+    <Sheet onClose={onClose} labelledBy="sample-details-title" width="max-w-3xl" bodyClassName="p-5 sm:p-6">
         <div className="mb-4 flex items-start justify-between gap-3">
           <div className="min-w-0">
             <h2 id="sample-details-title" className="text-lg font-semibold text-ink sm:text-xl">{sample.topic}</h2>
@@ -73,8 +66,7 @@ function SampleDetailModal({ sample, onClose }) {
             <div className="rounded-card border border-line bg-overlay p-4 text-sm leading-6 text-ink-muted">{sample.feedback}</div>
           </section>
         )}
-      </div>
-    </div>
+    </Sheet>
   );
 }
 
@@ -228,9 +220,11 @@ export default function SampleLibrary() {
         />
       )}
 
-      {selectedSample && (
-        <SampleDetailModal sample={selectedSample} onClose={() => setSelectedSample(null)} />
-      )}
+      <AnimatePresence>
+        {selectedSample && (
+          <SampleDetailModal key={selectedSample.id ?? selectedSample.topic} sample={selectedSample} onClose={() => setSelectedSample(null)} />
+        )}
+      </AnimatePresence>
     </div>
   );
 }

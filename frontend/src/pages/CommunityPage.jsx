@@ -3,7 +3,9 @@ import { ImagePlus, Medal, Search, Send, SmilePlus, X } from 'lucide-react';
 import { POST_IMAGE_UPLOAD, TONES, apiAssetUrl, isAdminProfile, profileAvatar, profileCover, readImageAsResizedDataUri } from '../appShared';
 import { apiFetch, isAbortError } from '../apiClient';
 import { PageHeader } from '../components/AppChrome';
-import { useOverlayDismiss } from '../components/AppOverlays';
+import { AnimatePresence, MotionConfig, motion, useReducedMotion } from 'motion/react';
+import NumberFlow from '@number-flow/react';
+import Sheet, { EASE_OUT, fadeProps } from '../components/Sheet';
 import { FIELD_CLASSNAME } from '../components/ProfileBits';
 import VerifyEmailNotice from '../components/VerifyEmailNotice';
 import AchievementBadge, { TIER_LABELS } from '../components/AchievementBadge';
@@ -14,7 +16,7 @@ export const REACTIONS = ['👍', '🩷', '😆', '🥲', '😮'];
 
 function AdminBadge() {
   return (
-    <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-400/10 dark:text-amber-200">
+    <span className="shrink-0 whitespace-nowrap rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-400/10 dark:text-amber-200">
       Admin
     </span>
   );
@@ -65,7 +67,6 @@ function PublicBadges({ profileId }) {
 }
 
 function ProfileOverlayModal({ profile, onClose }) {
-  useOverlayDismiss(true, onClose);
   const cover = profileCover(profile);
   const details = [profile.school, profile.className, profile.cohort && `Cohort ${profile.cohort}`].filter(Boolean);
   const stats = [
@@ -76,8 +77,7 @@ function ProfileOverlayModal({ profile, onClose }) {
   ];
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-start justify-center overflow-y-auto bg-neutral-900/40 p-3 backdrop-blur-sm dark:bg-black/60 sm:items-center sm:p-6">
-      <div className="relative my-4 w-full max-w-2xl overflow-hidden rounded-panel border border-line bg-surface-raised" role="dialog" aria-modal="true" aria-labelledby="profile-overlay-title">
+    <Sheet onClose={onClose} labelledBy="profile-overlay-title" width="max-w-2xl">
         <div className="relative h-28 bg-gradient-to-r from-sky-200 via-violet-200 to-amber-200 dark:from-sky-400/25 dark:via-violet-400/20 dark:to-amber-400/20 sm:aspect-[4/1] sm:h-auto">
           {cover && <img src={cover} alt="" className="h-full w-full object-cover object-[50%_40%]" />}
           <button
@@ -92,7 +92,7 @@ function ProfileOverlayModal({ profile, onClose }) {
         <div className="px-5 pb-6 sm:px-7">
           <img src={profileAvatar(profile)} alt="" className="relative z-10 -mt-12 h-24 w-24 rounded-[1.75rem] border-4 border-surface-raised bg-surface-raised object-cover" />
           <div className="mt-3 flex flex-wrap items-center gap-2">
-            <h2 id="profile-overlay-title" className="text-2xl font-semibold text-ink">{profile.name}</h2>
+            <h2 id="profile-overlay-title" className="min-w-0 text-2xl font-semibold text-ink [overflow-wrap:anywhere]">{profile.name}</h2>
             {isAdminProfile(profile) && <AdminBadge />}
           </div>
           <div className="mt-0.5 text-sm text-ink-muted">
@@ -110,8 +110,7 @@ function ProfileOverlayModal({ profile, onClose }) {
             ))}
           </dl>
         </div>
-      </div>
-    </div>
+    </Sheet>
   );
 }
 
@@ -188,6 +187,10 @@ function Leaderboard({ title, description, profiles, valueOf, onSelect }) {
  */
 function ReactionBar({ post, onReact }) {
   const [pickerOpen, setPickerOpen] = useState(false);
+  const pickerFade = fadeProps(useReducedMotion(), {
+    hidden: { opacity: 0, scale: 0.95 }, shown: { opacity: 1, scale: 1 },
+    enter: { duration: 0.15, ease: EASE_OUT }, exit: { duration: 0.1, ease: EASE_OUT },
+  });
   const wrapperRef = useRef(null);
   const mine = new Set(post.myReactions || []);
   const used = REACTIONS.filter((emoji) => (post.reactions?.[emoji] || 0) > 0);
@@ -217,14 +220,14 @@ function ReactionBar({ post, onReact }) {
             onClick={() => onReact(post.id, emoji)}
             aria-pressed={active}
             aria-label={`React ${emoji}, ${count} ${count === 1 ? 'reaction' : 'reactions'}`}
-            className={`inline-flex h-8 items-center gap-1.5 rounded-full border px-2.5 text-sm transition-colors duration-200 ${
+            className={`pop-in inline-flex h-8 items-center gap-1.5 rounded-full border px-2.5 text-sm ${
               active
                 ? 'border-sky-400 bg-sky-50 text-sky-800 dark:border-sky-400/60 dark:bg-sky-400/15 dark:text-sky-100'
                 : 'border-line bg-surface-sunken text-ink-muted hover:border-overlay-hover'
             }`}
           >
             <span aria-hidden="true">{emoji}</span>
-            <span className="text-xs font-semibold tabular">{count}</span>
+            <NumberFlow value={count} className="text-xs font-semibold tabular" />
           </button>
         );
       })}
@@ -242,11 +245,17 @@ function ReactionBar({ post, onReact }) {
         <SmilePlus size={17} />
       </button>
 
+      {/* Grows out of the Add reaction button (bottom-left), leaves faster than it came. */}
+      <MotionConfig reducedMotion="user">
+      <AnimatePresence>
       {pickerOpen && (
-        <div
-          className="absolute bottom-full left-0 z-20 mb-2 flex gap-1 rounded-full border border-line bg-surface-raised p-1.5 shadow-[0_12px_32px_-12px_oklch(0.3_0.05_250/0.35)] dark:shadow-[0_12px_32px_-12px_oklch(0_0_0/0.8)]"
+        <motion.div
+          className={`absolute bottom-full left-0 z-20 mb-2 flex origin-bottom-left gap-1 rounded-full border border-line bg-surface-raised p-1.5 shadow-[0_12px_32px_-12px_oklch(0.3_0.05_250/0.35)] dark:shadow-[0_12px_32px_-12px_oklch(0_0_0/0.8)] ${pickerFade.className}`}
           role="group"
           aria-label="Choose a reaction"
+          initial={pickerFade.initial}
+          animate={pickerFade.animate}
+          exit={pickerFade.exit}
         >
           {REACTIONS.map((emoji) => (
             <button
@@ -263,8 +272,10 @@ function ReactionBar({ post, onReact }) {
               {emoji}
             </button>
           ))}
-        </div>
+        </motion.div>
       )}
+      </AnimatePresence>
+      </MotionConfig>
     </div>
   );
 }
@@ -277,8 +288,8 @@ function PostCard({ item, onReact, onReport, reporting, reported, onOpenAuthor }
           <img src={profileAvatar(item.author)} alt="" className="h-10 w-10 rounded-full object-cover" />
         </button>
         <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-            <span className="truncate text-sm font-semibold text-ink">{item.author?.name || 'Unknown user'}</span>
+          <div className="flex min-w-0 items-center gap-x-2">
+            <span className="min-w-0 truncate text-sm font-semibold text-ink" title={item.author?.name || undefined}>{item.author?.name || 'Unknown user'}</span>
             {isAdminProfile(item.author) && <AdminBadge />}
           </div>
           <div className="truncate text-xs text-ink-subtle">
@@ -287,8 +298,9 @@ function PostCard({ item, onReact, onReport, reporting, reported, onOpenAuthor }
           </div>
         </div>
       </div>
-      <h3 className="mt-4 text-base font-semibold text-ink">{item.title}</h3>
-      <p className="mt-1.5 whitespace-pre-line text-sm leading-6 text-ink-muted">{item.body}</p>
+      {/* A pasted link has no break points; let it wrap rather than run off a phone screen. */}
+      <h3 className="mt-4 text-base font-semibold text-ink [overflow-wrap:anywhere]">{item.title}</h3>
+      <p className="mt-1.5 whitespace-pre-line text-sm leading-6 text-ink-muted [overflow-wrap:anywhere]">{item.body}</p>
       {item.imageUrl && (
         <img
           src={apiAssetUrl(item.imageUrl)}
@@ -665,9 +677,11 @@ export default function CommunityPage({ profiles, selectedProfile, onSelectProfi
         </div>
       </div>
 
-      {overlayProfile && (
-        <ProfileOverlayModal profile={overlayProfile} onClose={() => setOverlayProfile(null)} />
-      )}
+      <AnimatePresence>
+        {overlayProfile && (
+          <ProfileOverlayModal key={overlayProfile.id} profile={overlayProfile} onClose={() => setOverlayProfile(null)} />
+        )}
+      </AnimatePresence>
     </div>
   );
 }

@@ -1,9 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Moon, Sun } from 'lucide-react';
-
-const STORAGE_KEY = 'necs.theme';
-
-const isDark = () => document.documentElement.classList.contains('dark');
+import { applyTheme, isDarkTheme, readSavedTheme, saveTheme } from '../theme';
 
 /**
  * Moon in light mode, sun in dark mode. Until it is pressed the site follows
@@ -11,17 +8,15 @@ const isDark = () => document.documentElement.classList.contains('dark');
  * paint); once pressed, the choice is saved for this browser.
  */
 export default function ThemeToggle({ className = '' }) {
-  const [dark, setDark] = useState(isDark);
+  const [dark, setDark] = useState(isDarkTheme);
 
   // Keep following the device while no choice has been saved.
   useEffect(() => {
     const query = window.matchMedia?.('(prefers-color-scheme: dark)');
     if (!query) return undefined;
     const follow = (event) => {
-      let saved = null;
-      try { saved = window.localStorage.getItem(STORAGE_KEY); } catch { /* private mode */ }
-      if (saved) return;
-      document.documentElement.classList.toggle('dark', event.matches);
+      if (readSavedTheme()) return;
+      applyTheme(event.matches);
       setDark(event.matches);
     };
     query.addEventListener?.('change', follow);
@@ -30,8 +25,8 @@ export default function ThemeToggle({ className = '' }) {
 
   const toggle = () => {
     const next = !dark;
-    document.documentElement.classList.toggle('dark', next);
-    try { window.localStorage.setItem(STORAGE_KEY, next ? 'dark' : 'light'); } catch { /* private mode */ }
+    applyTheme(next);
+    saveTheme(next);
     setDark(next);
   };
 

@@ -99,6 +99,25 @@ export function AppHeader({
     setAnnouncementDismissed(false);
   }, [announcement?.enabled, announcement?.message]);
 
+  // The divider under the header shows only once the page has scrolled under it.
+  const [scrolled, setScrolled] = useState(false);
+  useEffect(() => {
+    let frame = 0;
+    const check = () => {
+      frame = 0;
+      setScrolled(window.scrollY > 4);
+    };
+    const onScroll = () => {
+      if (!frame) frame = window.requestAnimationFrame(check);
+    };
+    check();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => {
+      window.removeEventListener('scroll', onScroll);
+      if (frame) window.cancelAnimationFrame(frame);
+    };
+  }, []);
+
   const utilityButtons = (
     <>
       <ThemeToggle className={ICON_BUTTON} />
@@ -125,7 +144,7 @@ export function AppHeader({
 
   return (
     <>
-      <header className="sticky top-0 z-40 border-b border-line bg-surface-base/90 backdrop-blur-md">
+      <header className="app-header sticky top-0 z-40 bg-surface-base/90 backdrop-blur-md" data-scrolled={scrolled || mobileMenuOpen ? 'true' : 'false'}>
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
           <Wordmark onClick={() => navTo('home')} />
 

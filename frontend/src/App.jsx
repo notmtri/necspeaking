@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef, lazy, Suspense } from 'react';
 import { Analytics } from '@vercel/analytics/react';
 import { Loader, MessageSquare } from 'lucide-react';
-import { AdminLoginModal, FeedbackModal, ToastViewport } from './components/AppOverlays';
 import { AppHeader, AppStatusStack, Footer } from './components/AppChrome';
 import ErrorBoundary from './components/ErrorBoundary';
 import { API_BASE_URL, DEFAULT_ANNOUNCEMENT, PAGE_TITLES, downloadDocumentFromBase64, pageFromLocation, pathForPage, readGuestModePreference, writeGuestModePreference } from './appShared';
@@ -13,6 +12,12 @@ import HomePage from './pages/HomePage';
 // visitors never open Simulation, and AdminPanel (the largest page in the app)
 // is useless to anyone who is not an admin.
 const AdminPanel = lazy(() => import('./pages/AdminPanel'));
+// Pop-ups and toasts (and the motion library they animate with) load in their
+// own chunk: fetched when the browser is idle, or the first time one is needed.
+const loadOverlays = () => import('./components/AppOverlays');
+const AdminLoginModal = lazy(() => loadOverlays().then((module) => ({ default: module.AdminLoginModal })));
+const FeedbackModal = lazy(() => loadOverlays().then((module) => ({ default: module.FeedbackModal })));
+const ToastViewport = lazy(() => loadOverlays().then((module) => ({ default: module.ToastViewport })));
 const AnalyzePage = lazy(() => import('./pages/AnalyzePage'));
 const AuthPage = lazy(() => import('./pages/AuthPage'));
 const CommunityPage = lazy(() => import('./pages/CommunityPage'));
@@ -377,6 +382,29 @@ export default function SpeakUpApp() {
   }, [navTo]);
 
   const [feedbackOpen, setFeedbackOpen] = useState(false);
+
+  // Mount the pop-up chunk once it is wanted (or prefetched), and keep it
+  // mounted so pop-ups can animate out.
+  const [overlaysMounted, setOverlaysMounted] = useState(false);
+  const overlaysWanted = overlaysMounted || feedbackOpen || adminLoginOpen || toasts.length > 0;
+  useEffect(() => {
+    if (overlaysWanted && !overlaysMounted) setOverlaysMounted(true);
+  }, [overlaysWanted, overlaysMounted]);
+  useEffect(() => {
+    const idle = window.requestIdleCallback || ((callback) => window.setTimeout(callback, 2000));
+    const cancel = window.cancelIdleCallback || window.clearTimeout;
+    const handle = idle(() => {
+      loadOverlays().then(() => setOverlaysMounted(true), () => {});
+    });
+    return () => cancel(handle);
+  }, []);
+
+  // The admin panel stays mounted until its exit animation has finished.
+  const [adminPanelMounted, setAdminPanelMounted] = useState(false);
+  const adminPanelOpen = showAdminPanel && adminAuthenticated;
+  useEffect(() => {
+    if (adminPanelOpen) setAdminPanelMounted(true);
+  }, [adminPanelOpen]);
   const openFeedback = useCallback(() => setFeedbackOpen(true), []);
   const closeFeedback = useCallback(() => setFeedbackOpen(false), []);
   const sendFeedback = useCallback(async ({ message, contact }) => {
@@ -439,12 +467,13 @@ export default function SpeakUpApp() {
       setCurrentUser(data.user);
       setSelectedProfileId(data.user.id);
       await refreshCommunityProfiles();
+      pushToast('Profile saved.', 'success');
       return true;
     } catch (error) {
       setAuthError(error.message || 'Could not save profile changes.');
       return false;
     }
-  }, [refreshCommunityProfiles]);
+  }, [refreshCommunityProfiles, pushToast]);
 
   const handlePasswordUpdate = useCallback(async ({ currentPassword, newPassword }) => {
     setPasswordSubmitting(true);
@@ -612,7 +641,7 @@ export default function SpeakUpApp() {
   };
 
   return (
-    <div className="min-h-screen bg-surface-base text-ink">
+    <div className="min-h-svh bg-surface-base text-ink">
       <a
         href="#main-content"
         className="sr-only rounded-control bg-ink px-4 py-2 font-semibold text-on-ink focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[100]"
@@ -656,9 +685,11 @@ export default function SpeakUpApp() {
       <Footer navTo={navTo} onFeedback={openFeedback} />
       <Analytics />
 
-      {showAdminPanel && adminAuthenticated && (
-        <Suspense fallback={<PageFallback />}>
+      {(adminPanelMounted || adminPanelOpen) && adminAuthenticated && (
+        <Suspense fallback={adminPanelOpen ? <PageFallback /> : null}>
           <AdminPanel
+            open={adminPanelOpen}
+            onExitComplete={() => setAdminPanelMounted(false)}
             onClose={() => setShowAdminPanel(false)}
             onLogout={handleAdminLogout}
             notify={pushToast}
@@ -667,6 +698,8 @@ export default function SpeakUpApp() {
           />
         </Suspense>
       )}
+      {overlaysWanted && (
+      <Suspense fallback={null}>
       <AdminLoginModal
         open={adminLoginOpen}
         password={adminPassword}
@@ -681,20 +714,26 @@ export default function SpeakUpApp() {
         error={adminLoginError}
         submitting={adminLoginSubmitting}
       />
+      </Suspense>
+      )}
       {/* Kept off the simulation, where it would sit on top of a timed test. */}
       {currentPage !== 'simulation' && (
         <button
           type="button"
           onClick={openFeedback}
-          className="fixed bottom-4 right-4 z-[60] inline-flex items-center gap-2 rounded-full border border-sky-200 dark:border-sky-400/25 bg-surface-raised/95 p-3 text-sm font-semibold text-sky-700 dark:text-sky-300 shadow-lg backdrop-blur transition hover:bg-overlay-hover sm:px-4 sm:py-2.5"
+          className="material fixed bottom-[calc(1rem+env(safe-area-inset-bottom,0px))] right-[calc(1rem+env(safe-area-inset-right,0px))] z-[60] inline-flex items-center gap-2 rounded-full border border-sky-200 dark:border-sky-400/25 bg-surface-raised/95 p-3 text-sm font-semibold text-sky-700 dark:text-sky-300 shadow-lg backdrop-blur transition hover:bg-overlay-hover sm:px-4 sm:py-2.5"
           aria-label="Send feedback"
         >
           <MessageSquare size={16} aria-hidden="true" />
           <span className="hidden sm:inline">Feedback</span>
         </button>
       )}
-      <FeedbackModal open={feedbackOpen} onClose={closeFeedback} onSubmit={sendFeedback} isLoggedIn={Boolean(currentUser)} />
-      <ToastViewport toasts={toasts} dismissToast={dismissToast} />
+      {overlaysWanted && (
+        <Suspense fallback={null}>
+          <FeedbackModal open={feedbackOpen} onClose={closeFeedback} onSubmit={sendFeedback} isLoggedIn={Boolean(currentUser)} />
+          <ToastViewport toasts={toasts} dismissToast={dismissToast} />
+        </Suspense>
+      )}
     </div>
   );
 }

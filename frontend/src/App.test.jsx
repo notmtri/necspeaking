@@ -293,7 +293,8 @@ describe('App', () => {
     expect(await waitUntil(() => Boolean(sent()))).toBe(true);
     expect(JSON.parse(sent()[1].body)).toMatchObject({ message: 'Please add more samples.', page: 'samples' });
     expect(await waitUntil(() => container.textContent.includes('Thanks! Your feedback was sent.'))).toBe(true);
-    expect(document.querySelector('[role="dialog"]')).toBeNull();
+    // It animates out, then unmounts.
+    expect(await waitUntil(() => !document.querySelector('[role="dialog"]'))).toBe(true);
   });
 
   const postFixture = {
@@ -344,7 +345,7 @@ describe('App', () => {
     const pill = [...document.querySelectorAll('button')].find((b) => b.getAttribute('aria-label') === 'React 😮, 1 reaction');
     expect(pill).toBeTruthy();
     expect(pill.getAttribute('aria-pressed')).toBe('true');
-    expect(buttonNamed('Add 😮')).toBeFalsy(); // the picker closed
+    expect(await waitUntil(() => !buttonNamed('Add 😮'))).toBe(true); // the picker closed (after its exit)
   });
 
   it('lists every badge with its tier and progress on the Achievements tab', async () => {
@@ -360,6 +361,19 @@ describe('App', () => {
     expect(container.textContent).toContain('Practice Makes Perfect');
     expect(container.textContent).toContain('Bronze');
     expect(container.textContent).toContain('4 / 10 practices');
+  });
+
+  it('opens every profile tab without crashing', async () => {
+    // Settings once shipped with a missing icon import and crashed on open.
+    await renderApp('/profile', { user: newStudent(4), achievements: [] });
+    await waitUntil(() => Boolean(buttonNamed('Settings')));
+    for (const tab of ['Achievements', 'Settings', 'Overview']) {
+      await act(async () => buttonNamed(tab).click());
+      expect(buttonNamed(tab).getAttribute('aria-selected')).toBe('true');
+    }
+    await act(async () => buttonNamed('Settings').click());
+    expect(await waitUntil(() => Boolean(buttonNamed('Save changes')))).toBe(true);
+    expect(container.textContent).not.toContain('Something went wrong');
   });
 
   it('shows earned badges on a public profile, name on tap', async () => {

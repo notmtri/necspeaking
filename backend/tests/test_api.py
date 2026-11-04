@@ -288,6 +288,30 @@ class ApiSmokeTests(unittest.TestCase):
             'profile': {'name': 'Attempts User', 'username': username},
         })
 
+    def test_names_are_limited_to_sixty_characters(self):
+        long_name = 'Nguyễn ' * 10  # 70 characters
+        response = self.client.post('/api/auth/signup', json={
+            'email': 'longname@example.com', 'password': 'strongpass123',
+            'profile': {'name': long_name, 'username': 'longname'},
+        })
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('60 characters', response.get_json()['error'])
+
+        self.assertEqual(self._signup().status_code, 201)
+        too_long = self.client.put('/api/auth/profile', json={'name': long_name})
+        self.assertEqual(too_long.status_code, 400)
+        fits = self.client.put('/api/auth/profile', json={'name': 'Nguyễn Hoàng Minh Trí'})
+        self.assertEqual(fits.status_code, 200)
+
+    def test_an_older_long_name_does_not_block_other_profile_edits(self):
+        self._signup()
+        with app_module.app.app_context():
+            user = User.query.filter_by(username='attemptsuser').one()
+            user.name = 'A' * 80  # saved before the limit existed
+            db.session.commit()
+        response = self.client.put('/api/auth/profile', json={'bio': 'Hello'})
+        self.assertEqual(response.status_code, 200)
+
     def test_practice_attempts_groups_repeat_attempts_at_one_prompt(self):
         self._signup()
         with app_module.app.app_context():

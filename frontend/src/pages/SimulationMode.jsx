@@ -426,7 +426,7 @@ export default function SimulationMode({ onAnalysisUserUpdate, onDownloadReport,
     <div
       ref={shellRef}
       className={focusMode
-        ? 'fixed inset-0 z-[80] overflow-y-auto bg-surface-base px-3 py-3 text-ink sm:px-5 sm:py-5'
+        ? 'fixed inset-0 z-[80] overflow-y-auto overscroll-contain bg-surface-base px-[max(0.75rem,env(safe-area-inset-left))] pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-[max(0.75rem,env(safe-area-inset-top))] text-ink sm:px-5 sm:py-5'
         : 'min-w-0'}
     >
       <div className={focusMode ? 'mx-auto max-w-6xl space-y-6' : 'min-w-0 space-y-8'}>

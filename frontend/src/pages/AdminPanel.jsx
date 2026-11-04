@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Activity, Bell, CheckCircle, Database, Edit3, Eye, EyeOff, FileAudio, HelpCircle, Inbox, Loader, Lock, LogOut, MessageSquare, RotateCcw, Trash2, X } from 'lucide-react';
-import { ConfirmModal, useOverlayDismiss } from '../components/AppOverlays';
+import { ConfirmModal } from '../components/AppOverlays';
+import Sheet from '../components/Sheet';
 import { FIELD_CLASSNAME } from '../components/ProfileBits';
 import { apiFetch, isAbortError } from '../apiClient';
 
@@ -66,7 +67,7 @@ function AdminButton({ tone = 'primary', onClick, disabled, className = '', chil
   );
 }
 
-export default function AdminPanel({ onClose, onLogout, notify, announcement, onAnnouncementChange }) {
+export default function AdminPanel({ open = true, onExitComplete, onClose, onLogout, notify, announcement, onAnnouncementChange }) {
   const [activeTab, setActiveTab] = useState('upload');
   const [audioFile, setAudioFile] = useState(null);
   const [topic, setTopic] = useState('');
@@ -97,7 +98,6 @@ export default function AdminPanel({ onClose, onLogout, notify, announcement, on
   const [loadingRuntime, setLoadingRuntime] = useState(false);
   const [confirmState, setConfirmState] = useState(null);
 
-  useOverlayDismiss(true, onClose, { disabled: Boolean(confirmState) });
 
   useEffect(() => {
     setAnnouncementDraft(announcement || EMPTY_ANNOUNCEMENT);
@@ -460,13 +460,8 @@ export default function AdminPanel({ onClose, onLogout, notify, announcement, on
   ] : [];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-neutral-900/40 dark:bg-black/60 p-3 backdrop-blur-sm sm:p-5">
-      <div
-        className="my-4 w-full max-w-7xl overflow-hidden rounded-panel border border-line bg-surface-raised"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="admin-panel-title"
-      >
+    <>
+      <Sheet open={open} onExitComplete={onExitComplete} onClose={onClose} dismissible={!confirmState} labelledBy="admin-panel-title" width="max-w-7xl" zIndex={50}>
         <div className="border-b border-line px-4 py-3 sm:px-6">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="inline-flex w-fit items-center gap-2 rounded-full border border-amber-200 dark:border-amber-400/25 bg-amber-50 dark:bg-amber-400/10 px-3 py-1 text-xs font-semibold tracking-normal text-amber-800 dark:text-amber-200">
@@ -847,7 +842,7 @@ export default function AdminPanel({ onClose, onLogout, notify, announcement, on
             </div>
           )}
         </div>
-      </div>
+      </Sheet>
 
       <ConfirmModal
         open={Boolean(confirmState)}
@@ -857,6 +852,6 @@ export default function AdminPanel({ onClose, onLogout, notify, announcement, on
         onConfirm={() => confirmState?.onConfirm?.()}
         onClose={() => setConfirmState(null)}
       />
-    </div>
+    </>
   );
 }

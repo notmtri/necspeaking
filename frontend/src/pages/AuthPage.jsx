@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { apiFetch } from '../apiClient';
 import { CODE_INPUT_CLASSNAME, cleanCode } from '../components/VerifyEmailNotice';
 import { Check, Lock, LogIn, Mail, UserPlus, UserRound } from 'lucide-react';
-import { FIELD_CLASSNAME, LabeledInput } from '../components/ProfileBits';
+import { FIELD_CLASSNAME, LabeledInput, MAX_NAME_LENGTH } from '../components/ProfileBits';
 
 const emptyForm = (currentUser) => ({
   name: currentUser?.name || '',
@@ -220,7 +220,7 @@ export default function AuthPage({ authMode, setAuthMode, onSubmit, onContinueAs
             {isSignup && (
               <>
                 <div className="grid gap-4 md:grid-cols-2">
-                  <LabeledInput label="Full name" value={form.name} onChange={(value) => updateField('name', value)} />
+                  <LabeledInput label="Full name" value={form.name} onChange={(value) => updateField('name', value)} maxLength={MAX_NAME_LENGTH} />
                   <LabeledInput label="Username" value={form.username} onChange={(value) => updateField('username', value)} />
                 </div>
                 <div className="grid gap-4 md:grid-cols-2">

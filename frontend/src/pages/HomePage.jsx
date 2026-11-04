@@ -1,4 +1,4 @@
-import React, { memo, useEffect, useState } from 'react';
+import React, { memo, useEffect, useRef, useState } from 'react';
 import { ArrowRight, ArrowUpRight, AudioLines, Check, Headphones, LineChart, Mic, Square, Timer, Users } from 'lucide-react';
 import { CRITERIA, FOUNDER_IMAGE, HOME_FEEDBACK, HOME_STATS, SITE_OWNER_NAME, TONES, createAvatarDataUri } from '../appShared';
 
@@ -145,7 +145,7 @@ function Hero({ navTo }) {
         aria-hidden="true"
       />
       <div className="max-w-[640px]">
-        <h1 className="rise-in text-[2.5rem] font-semibold leading-[1.08] text-ink sm:text-[3.25rem] lg:text-[3.4rem]">
+        <h1 className="rise-in text-[2.5rem] font-semibold leading-[1.08] tracking-[-0.035em] text-ink sm:text-[3.25rem] lg:text-[3.4rem]">
           Your{' '}
           <span className="underline decoration-sky-400 decoration-[4px] underline-offset-[10px]">free</span>{' '}
           NEC speaking practice assistant
@@ -307,13 +307,81 @@ function Testimonials() {
   // Advance every 4 s; hovering or focusing the band holds the quote so it can be read.
   useEffect(() => {
     if (paused || reduceMotion) return undefined;
-    const timer = window.setTimeout(() => setActive((index) => (index + 1) % HOME_FEEDBACK.length), ROTATE_MS);
+    const timer = window.setTimeout(() => {
+      setEnterX(0);
+      setActive((index) => (index + 1) % HOME_FEEDBACK.length);
+    }, ROTATE_MS);
     return () => window.clearTimeout(timer);
   }, [active, paused, reduceMotion]);
 
+  // Swipe between quotes on touch screens. The quote follows the finger
+  // sideways; a 60 px drag or a quick flick (> 0.11 px/ms) changes it, and the
+  // next one arrives from the side it was thrown toward.
+  const figureRef = useRef(null);
+  const swipeRef = useRef(null);
+  const [enterX, setEnterX] = useState(0);
+  const show = (index, fromX = 0) => {
+    setEnterX(fromX);
+    setActive((index + HOME_FEEDBACK.length) % HOME_FEEDBACK.length);
+  };
+
+  const onPointerDown = (event) => {
+    if (event.pointerType === 'mouse') return; // desktop keeps text selection and the dots
+    swipeRef.current = { id: event.pointerId, x: event.clientX, y: event.clientY, axis: null, samples: [] };
+  };
+  const onPointerMove = (event) => {
+    const swipe = swipeRef.current;
+    const figure = figureRef.current;
+    if (!swipe || swipe.id !== event.pointerId || !figure) return;
+    const dx = event.clientX - swipe.x;
+    const dy = event.clientY - swipe.y;
+    if (!swipe.axis) {
+      // 10 px of travel before committing, so a vertical scroll is never taken over.
+      if (Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy)) {
+        swipe.axis = 'x';
+        // Throws if the pointer is already gone (an OS-cancelled touch); tracking still works.
+        try { event.currentTarget.setPointerCapture(event.pointerId); } catch { /* not capturable */ }
+        setPaused(true);
+      } else if (Math.abs(dy) > 10) {
+        swipeRef.current = null;
+        return;
+      } else {
+        return;
+      }
+    }
+    figure.style.transition = 'none';
+    figure.style.transform = `translateX(${dx}px)`;
+    figure.style.opacity = String(1 - Math.min(Math.abs(dx) / 320, 0.5));
+    swipe.samples.push({ x: event.clientX, t: event.timeStamp });
+    if (swipe.samples.length > 5) swipe.samples.shift();
+  };
+  const onPointerUp = (event) => {
+    const swipe = swipeRef.current;
+    swipeRef.current = null;
+    const figure = figureRef.current;
+    if (!swipe || swipe.axis !== 'x' || !figure) return;
+    setPaused(false);
+    const dx = event.clientX - swipe.x;
+    const [first, last] = [swipe.samples[0], swipe.samples[swipe.samples.length - 1]];
+    const velocity = first && last && event.timeStamp - last.t < 100 ? (last.x - first.x) / Math.max(1, last.t - first.t) : 0;
+    if (Math.abs(dx) > 60 || Math.abs(velocity) > 0.11) {
+      const direction = (Math.abs(velocity) > 0.11 ? velocity : dx) < 0 ? 1 : -1;
+      show(active + direction, direction * 40);
+      return;
+    }
+    // Not far enough: settle back where it was.
+    figure.style.transition = 'transform 300ms var(--ease-out), opacity 300ms var(--ease-out)';
+    figure.style.transform = '';
+    figure.style.opacity = '';
+  };
+
   return (
     <section
-      className="relative mt-24 overflow-hidden rounded-[2rem] bg-gradient-to-br from-sky-100 via-sky-50 to-violet-100 px-5 py-14 dark:from-sky-400/15 dark:via-surface-raised dark:to-violet-400/15 sm:mt-32 sm:px-12 sm:py-20"
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+      onPointerCancel={onPointerUp}
+      className="relative mt-24 touch-pan-y overflow-hidden rounded-[2rem] bg-gradient-to-br from-sky-100 via-sky-50 to-violet-100 px-5 py-14 dark:from-sky-400/15 dark:via-surface-raised dark:to-violet-400/15 sm:mt-32 sm:px-12 sm:py-20"
       aria-labelledby="testimonials"
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
@@ -325,7 +393,11 @@ function Testimonials() {
       <div className="pointer-events-none absolute right-0 -top-16 h-48 w-72 sm:-right-10 rounded-full bg-white/60 blur-2xl dark:bg-white/5" aria-hidden="true" />
 
       <h2 id="testimonials" className="sr-only">What students say</h2>
-      <figure key={active} className="fade-in relative mx-auto min-h-[12rem] max-w-3xl text-center sm:min-h-[11rem]">
+      <figure
+        key={active}
+        ref={figureRef}
+        style={{ '--enter-x': `${enterX}px`, '--enter-y': enterX ? '0px' : '6px' }}
+        className="fade-in relative mx-auto min-h-[12rem] max-w-3xl text-center sm:min-h-[11rem]">
         <blockquote className="font-display text-[1.5rem] font-medium leading-[1.35] tracking-[-0.02em] text-ink sm:text-[2rem]">
           {current.quote.replace(/^"|"$/g, '')}
         </blockquote>
@@ -343,10 +415,10 @@ function Testimonials() {
           <button
             key={item.name}
             type="button"
-            onClick={() => setActive(index)}
+            onClick={() => show(index)}
             aria-pressed={index === active}
             aria-label={`Show ${item.name}'s review`}
-            className={`relative h-2 overflow-hidden rounded-full transition-all duration-300 ${index === active ? 'w-10 bg-sky-200 dark:bg-sky-400/25' : 'w-2 bg-sky-300/70 hover:bg-sky-400 dark:bg-sky-400/30'}`}
+            className={`relative h-2 overflow-hidden rounded-full transition-[width,background-color,transform] duration-200 ease-out ${index === active ? 'w-10 bg-sky-200 dark:bg-sky-400/25' : 'w-2 bg-sky-300/70 hover:bg-sky-400 dark:bg-sky-400/30'}`}
           >
             {index === active && (
               <span

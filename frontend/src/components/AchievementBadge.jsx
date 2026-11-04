@@ -80,11 +80,43 @@ export function progressShare(achievement) {
   return Math.max(0, Math.min(1, (value - floor) / (nextTarget - floor || 1)));
 }
 
+const SEEN_KEY_PREFIX = 'necs.seenBadges.';
+
+/**
+ * Keys of badges whose tier is higher than the last one this browser showed
+ * this user, so each new tier is celebrated once. Records the current tiers as
+ * seen straight away: a reload doesn't replay it.
+ */
+export function takeNewlyEarned(userId, achievements) {
+  const fresh = new Set();
+  if (!userId || !Array.isArray(achievements)) return fresh;
+  const storageKey = `${SEEN_KEY_PREFIX}${userId}`;
+  let seen = {};
+  try {
+    seen = JSON.parse(window.localStorage.getItem(storageKey) || '{}') || {};
+  } catch {
+    seen = {};
+  }
+  const next = {};
+  achievements.forEach((item) => {
+    next[item.key] = item.tier || 0;
+    if ((item.tier || 0) > (seen[item.key] || 0)) fresh.add(item.key);
+  });
+  try {
+    window.localStorage.setItem(storageKey, JSON.stringify(next));
+  } catch {
+    // private mode: it may celebrate again next visit, which is harmless
+  }
+  return fresh;
+}
+
 /**
  * A round medal. Earned: the badge colour with a bronze/silver/gold rim.
  * Locked: grey, with a ring that fills toward the next tier (when `progress`).
+ * `celebrate`: a tier earned since the last visit; the rim sweeps round and
+ * the disc settles (index.css .badge-celebrate). `celebrateIndex` staggers it.
  */
-export default function AchievementBadge({ achievement, size = 'lg', progress = false }) {
+export default function AchievementBadge({ achievement, size = 'lg', progress = false, celebrate = false, celebrateIndex = 0 }) {
   const look = BADGE_LOOKS[achievement.key] || BADGE_LOOKS.practices;
   const Icon = look.icon;
   const earned = achievement.tier > 0;
@@ -94,13 +126,21 @@ export default function AchievementBadge({ achievement, size = 'lg', progress = 
   const share = progress ? progressShare(achievement) : 0;
 
   // Earned: solid metal rim. Locked: a grey track with the progress arc in sky.
-  const ring = earned
-    ? `conic-gradient(${rim} 0turn, ${rim} 1turn)`
-    : `conic-gradient(oklch(0.68 0.15 237) ${share}turn, oklch(var(--overlay-hover)) ${share}turn)`;
+  const celebrating = earned && celebrate;
+  const track = 'oklch(var(--overlay-hover))';
+  const ring = celebrating
+    ? `conic-gradient(${rim} var(--rim-sweep), ${track} var(--rim-sweep))`
+    : earned
+      ? `conic-gradient(${rim} 0turn, ${rim} 1turn)`
+      : `conic-gradient(oklch(0.68 0.15 237) ${share}turn, ${track} ${share}turn)`;
 
   return (
-    <span className={`relative inline-flex shrink-0 rounded-full ${dimension}`} style={{ background: ring }} aria-hidden="true">
-      <span className={`absolute ${inner} flex items-center justify-center rounded-full ${earned ? look.disc : 'bg-overlay text-ink-subtle'}`}>
+    <span
+      className={`relative inline-flex shrink-0 rounded-full ${dimension} ${celebrating ? 'badge-celebrate' : ''}`}
+      style={{ background: ring, '--badge-index': celebrateIndex }}
+      aria-hidden="true"
+    >
+      <span className={`badge-disc absolute ${inner} flex items-center justify-center rounded-full ${earned ? look.disc : 'bg-overlay text-ink-subtle'}`}>
         <Icon size={size === 'lg' ? 26 : 16} strokeWidth={1.9} />
       </span>
     </span>

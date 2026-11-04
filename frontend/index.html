@@ -1,6 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
+    <!-- Before the theme script, which re-points them at a saved choice. -->
+    <meta name="theme-color" content="#fcfdfe" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#14171d" media="(prefers-color-scheme: dark)" />
     <script>
       // Theme before first paint, so a dark-mode visitor never sees a white flash.
       // necs.theme is 'light', 'dark' or absent (follow the system).
@@ -9,6 +12,12 @@
         try { saved = localStorage.getItem('necs.theme'); } catch (e) {}
         var dark = saved === 'dark' || (saved !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches);
         document.documentElement.classList.toggle('dark', dark);
+        // A saved choice can differ from the phone's own setting: point both
+        // theme-color tags at it so the status bar matches the page.
+        if (saved) {
+          var colour = dark ? '#14171d' : '#fcfdfe';
+          document.querySelectorAll('meta[name="theme-color"]').forEach(function (tag) { tag.setAttribute('content', colour); });
+        }
       })();
     </script>
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-SVVNDLE9GJ"></script>
@@ -22,9 +31,7 @@
     <meta charset="utf-8" />
     <link rel="icon" href="/favicon.ico" />
     <link rel="manifest" href="/manifest.json" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#fcfdfe" media="(prefers-color-scheme: light)" />
-    <meta name="theme-color" content="#14171d" media="(prefers-color-scheme: dark)" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content" />
     <meta
       name="description"
       content="Practice NEC speaking with audio analysis, sample responses, and mock simulation workflows in one focused web app."

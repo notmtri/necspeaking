@@ -7,6 +7,10 @@ import '@fontsource/be-vietnam-pro/700.css';
 import './index.css';
 import App from './App';
 
+// iOS Safari only applies :active (the press feedback) when the page has a
+// touchstart listener somewhere. An empty passive one is enough.
+document.addEventListener('touchstart', () => {}, { passive: true });
+
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
   <React.StrictMode>

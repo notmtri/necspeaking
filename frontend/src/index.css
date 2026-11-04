@@ -39,7 +39,12 @@
      Vietnamese, so student names keep their diacritics in one typeface. */
   --font-display: 'Be Vietnam Pro', 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
 
-  --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
+  /* Motion. ease-out for anything entering, leaving or answering a press;
+     ease-in-out for things moving on screen; drawer for sheets. The built-in
+     CSS curves are too weak to read as deliberate. */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
 
   /* Layers: sticky header 40, floating button 50, modal 70, confirm 80, toast 90. */
 }
@@ -69,6 +74,14 @@ html, body, #root {
   min-height: 100%;
 }
 
+html {
+  /* Phones: no grey flash over tapped controls (each has its own :active
+     state) and no font inflation in landscape. */
+  -webkit-tap-highlight-color: transparent;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
 html, body {
   max-width: 100%;
   overflow-x: hidden;
@@ -87,16 +100,31 @@ html, body {
 
 body {
   position: relative;
+  /* Landscape iPhones: keep content clear of the notch. Zero everywhere else. */
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
 }
 
 *, *::before, *::after {
   box-sizing: border-box;
 }
 
+/* Tracking is size-specific: the bigger the type, the tighter. */
 h1, h2 {
   font-family: var(--font-display);
-  letter-spacing: -0.025em;
   text-wrap: balance;
+}
+
+h1 {
+  letter-spacing: -0.03em;
+}
+
+h2 {
+  letter-spacing: -0.02em;
+}
+
+h2:is(.text-sm, .text-base, .text-lg) {
+  letter-spacing: -0.01em;
 }
 
 h3 {
@@ -121,17 +149,49 @@ select {
 
 button {
   min-width: 0;
-  -webkit-tap-highlight-color: transparent;
+  /* Fallback for buttons with no transition utility, so a press releases
+     smoothly; utilities override it and also carry transform (tailwind config). */
+  transition-property: transform;
+  transition-duration: 160ms;
+  transition-timing-function: var(--ease-out);
+}
+
+/* Controls: no double-tap-zoom wait, and a long press doesn't select the
+   label or pop the iOS callout. Content text stays selectable. */
+button,
+[role='button'],
+[role='tab'],
+label:has(> input[type='file']) {
+  touch-action: manipulation;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+/* iPhones zoom into any field under 16px and stay zoomed. Touch screens get
+   16px; mouse users keep the compact size. */
+@media (pointer: coarse) {
+  input,
+  textarea,
+  select {
+    font-size: max(16px, 1em);
+  }
+
+  :is(input, textarea, select):is(.text-xs, .text-sm) {
+    font-size: 16px;
+  }
 }
 
 button:not(:disabled) {
   cursor: pointer;
 }
 
-/* Tactile press on every enabled button; transforms only, so layout stays put. */
+/* Press feedback on every enabled button, the moment the finger lands.
+   Large pressables (the profile cover) set --press-scale closer to 1. */
 button:not(:disabled):active,
 a[role='button']:active {
-  transform: translateY(1px);
+  transform: scale(var(--press-scale, 0.97));
+  transition-duration: 100ms;
 }
 
 img,
@@ -172,29 +232,32 @@ input[type="range"] {
   color: oklch(var(--ink));
 }
 
-/* Home page entrance: content is visible by default; motion only adds a lift. */
+/* Home page entrance: content is visible by default; motion only adds a lift.
+   Marketing, seen once a visit, so it may run longer than UI motion. */
 @media (prefers-reduced-motion: no-preference) {
   .rise-in {
-    animation: rise-in 0.7s var(--ease-out-quart) both;
-    animation-delay: calc(var(--rise-index, 0) * 90ms);
+    animation: rise-in 500ms var(--ease-out) both;
+    animation-delay: calc(var(--rise-index, 0) * 60ms);
   }
 
   @keyframes rise-in {
     from {
       opacity: 0;
-      transform: translateY(14px);
+      transform: translateY(12px);
     }
   }
 
-  /* A new quote replacing the last one in the review carousel. */
+  /* A new quote replacing the last one in the review carousel. --enter-x is
+     set by a swipe so the next quote arrives from the side it was thrown to. */
+  /* backwards, not both: once settled, a swipe can move it with inline styles. */
   .fade-in {
-    animation: fade-in 0.5s var(--ease-out-quart) both;
+    animation: fade-in 400ms var(--ease-out) backwards;
   }
 
   @keyframes fade-in {
     from {
       opacity: 0;
-      transform: translateY(6px);
+      transform: translate(var(--enter-x, 0px), var(--enter-y, 6px));
     }
   }
 }
@@ -212,6 +275,101 @@ input[type="range"] {
   }
 }
 
+/* Theme switch: one 200 ms cross-fade of the whole page (View Transitions),
+   and no per-element colour fades while it happens, so nothing lags behind. */
+.theme-switching,
+.theme-switching *,
+.theme-switching *::before,
+.theme-switching *::after {
+  transition: none !important;
+}
+
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 200ms;
+  animation-timing-function: ease;
+}
+
+/* Sticky header: the divider appears only once content slides under it. */
+.app-header {
+  padding-top: env(safe-area-inset-top, 0px);
+  border-bottom: 1px solid transparent;
+  transition: border-color 200ms ease;
+}
+
+.app-header[data-scrolled='true'] {
+  border-bottom-color: oklch(var(--line));
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .app-header,
+  .material {
+    background-color: oklch(var(--surface-base));
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+
+/* A reaction pill (or a count) that just appeared grows in from 90%. */
+.pop-in {
+  transition-property: color, background-color, border-color, transform, opacity;
+  transition-duration: 150ms;
+  transition-timing-function: var(--ease-out);
+}
+
+@starting-style {
+  .pop-in {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+}
+
+/* Result bars fill from the left once, 60 ms apart (--bar-index). */
+.bar-reveal {
+  animation: bar-reveal 400ms var(--ease-out) both;
+  animation-delay: calc(var(--bar-index, 0) * 60ms + 120ms);
+}
+
+@keyframes bar-reveal {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+}
+
+/*
+ * A newly earned badge tier: the metal rim sweeps round (300 ms), then the
+ * disc settles with a soft spring. --badge-index staggers several at once.
+ */
+@property --rim-sweep {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 360deg;
+}
+
+.badge-celebrate {
+  animation: rim-sweep 300ms var(--ease-out) both;
+  animation-delay: calc(var(--badge-index, 0) * 80ms);
+}
+
+.badge-celebrate > .badge-disc {
+  animation: badge-settle 600ms both;
+  animation-delay: calc(var(--badge-index, 0) * 80ms + 220ms);
+  /* Spring, damping ~0.75: one small overshoot, then rest. */
+  animation-timing-function: linear(0, 0.18 6%, 0.6 16%, 0.94 27%, 1.06 36%, 1.08 42%, 1.04 52%, 0.99 65%, 1);
+}
+
+@keyframes rim-sweep {
+  from {
+    --rim-sweep: 0deg;
+  }
+}
+
+@keyframes badge-settle {
+  from {
+    transform: scale(0.82);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -220,5 +378,24 @@ input[type="range"] {
     animation-iteration-count: 1 !important;
     scroll-behavior: auto !important;
     transition-duration: 0.01ms !important;
+  }
+}
+
+/* Reduced motion: no movement, but keep short opacity fades that explain a change. */
+@media (prefers-reduced-motion: reduce) {
+  .rm-fade,
+  .bar-reveal,
+  .badge-celebrate {
+    animation: rm-fade 250ms ease both !important;
+  }
+
+  .badge-celebrate > .badge-disc {
+    animation: none !important;
+  }
+
+  @keyframes rm-fade {
+    from {
+      opacity: 0;
+    }
   }
 }

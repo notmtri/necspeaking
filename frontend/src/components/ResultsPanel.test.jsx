@@ -40,6 +40,13 @@ describe('ResultsPanel guest notice', () => {
     expect(onOpenAuth).toHaveBeenCalledWith('signup');
   });
 
+  it('fills each criterion bar once, one after another', () => {
+    render({ isLoggedIn: true, onOpenAuth: vi.fn() });
+    const bars = [...container.querySelectorAll('.bar-reveal')];
+    expect(bars).toHaveLength(3);
+    expect(bars.map((bar) => bar.style.getPropertyValue('--bar-index'))).toEqual(['0', '1', '2']);
+  });
+
   it('says nothing about saving once the result is in a profile', () => {
     render({ isLoggedIn: true, onOpenAuth: vi.fn(), results: { ...RESULTS, practice_session_id: 7 } });
     expect(container.textContent).not.toContain("isn't saved yet");

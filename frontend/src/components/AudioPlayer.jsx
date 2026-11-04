@@ -68,7 +68,7 @@ const AudioPlayer = memo(function AudioPlayer({ audioUrl, variant = 'inline', au
 
   const isDocked = variant === 'docked';
   const containerClassName = isDocked
-    ? 'fixed bottom-0 left-0 right-0 z-50 flex items-center gap-3 border-t border-line bg-surface-raised/95 p-3 backdrop-blur-xl sm:gap-4'
+    ? 'material fixed bottom-0 left-0 right-0 z-50 flex items-center gap-3 border-t border-line bg-surface-raised/95 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-xl sm:gap-4'
     : 'flex items-center gap-4 rounded-card border border-line bg-overlay p-4';
 
   return (

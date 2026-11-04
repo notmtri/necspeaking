@@ -4,7 +4,10 @@ const FIELD_CLASSNAME = 'w-full rounded-control border border-line bg-surface-ra
 
 export { FIELD_CLASSNAME };
 
-export function LabeledInput({ label, value, onChange, placeholder, type = 'text' }) {
+// Matches MAX_NAME_CHARS in backend/app.py.
+export const MAX_NAME_LENGTH = 60;
+
+export function LabeledInput({ label, value, onChange, placeholder, type = 'text', maxLength }) {
   return (
     <label className="block">
       <span className="mb-2 block text-sm font-medium text-ink">{label}</span>
@@ -13,6 +16,7 @@ export function LabeledInput({ label, value, onChange, placeholder, type = 'text
         value={value}
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
+        maxLength={maxLength}
         className={FIELD_CLASSNAME}
       />
     </label>

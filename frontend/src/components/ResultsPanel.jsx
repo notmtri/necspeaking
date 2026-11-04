@@ -41,7 +41,7 @@ export default function ResultsPanel({
             </div>
           </div>
           <dl className="grid gap-3 sm:grid-cols-3">
-            {CRITERIA.map((criterion) => {
+            {CRITERIA.map((criterion, index) => {
               const score = Number(scores[criterion.key] || 0);
               const tone = TONES[criterion.tone];
               return (
@@ -52,7 +52,8 @@ export default function ResultsPanel({
                     <span className="font-sans text-sm font-normal tracking-normal text-ink-subtle"> / {criterion.max.toFixed(1)}</span>
                   </dd>
                   <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-surface-raised/70" aria-hidden="true">
-                    <div className={`h-full rounded-full ${tone.fill}`} style={{ width: `${Math.min(100, (score / criterion.max) * 100)}%` }} />
+                    {/* Fills from the left once, so the wait for grading resolves into the result. */}
+                    <div className={`bar-reveal h-full rounded-full ${tone.fill}`} style={{ width: `${Math.min(100, (score / criterion.max) * 100)}%`, '--bar-index': index }} />
                   </div>
                 </div>
               );

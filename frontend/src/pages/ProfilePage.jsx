@@ -1,10 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Camera, Loader, Lock, LogOut, Mic, Pencil, Trash2, Upload, User } from 'lucide-react';
+import { Camera, CheckCircle, Loader, Lock, LogOut, Mic, Pencil, Trash2, Upload, User } from 'lucide-react';
 import { COVER_UPLOAD, CRITERIA, IMAGE_GUIDANCE, TONES, isAdminProfile, profileAvatar, profileCover, readImageAsResizedDataUri } from '../appShared';
 import { apiFetch, isAbortError } from '../apiClient';
-import AchievementBadge, { TIER_LABELS, progressHint } from '../components/AchievementBadge';
+import AchievementBadge, { TIER_LABELS, progressHint, takeNewlyEarned } from '../components/AchievementBadge';
 import VerifyEmailNotice from '../components/VerifyEmailNotice';
-import { FIELD_CLASSNAME, LabeledInput, ProfileSectionCard } from '../components/ProfileBits';
+import { FIELD_CLASSNAME, LabeledInput, MAX_NAME_LENGTH, ProfileSectionCard } from '../components/ProfileBits';
 import PracticeHistoryItem from '../components/PracticeHistoryItem';
 
 
@@ -91,7 +91,7 @@ function CriteriaBars({ averages }) {
   );
 }
 
-function AchievementSummary({ achievements, onSeeAll }) {
+function AchievementSummary({ achievements, onSeeAll, celebrating = new Set() }) {
   if (!achievements) {
     return <div className="h-16 animate-pulse rounded-card bg-overlay" aria-hidden="true" />;
   }
@@ -110,7 +110,7 @@ function AchievementSummary({ achievements, onSeeAll }) {
         <ul className="mt-4 flex flex-wrap gap-2">
           {earned.map((item) => (
             <li key={item.key} title={`${item.name} (${TIER_LABELS[item.tierName]})`}>
-              <AchievementBadge achievement={item} size="sm" />
+              <AchievementBadge achievement={item} size="sm" celebrate={celebrating.has(item.key)} celebrateIndex={[...celebrating].indexOf(item.key)} />
               <span className="sr-only">{item.name}, {TIER_LABELS[item.tierName]}</span>
             </li>
           ))}
@@ -129,7 +129,7 @@ const TIER_TEXT = {
 };
 
 /** All fifteen badges, always in the same order so each one keeps its place. */
-function AchievementGrid({ achievements }) {
+function AchievementGrid({ achievements, celebrating = new Set() }) {
   if (!achievements) {
     return (
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3" aria-hidden="true">
@@ -148,7 +148,7 @@ function AchievementGrid({ achievements }) {
       <ul className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {achievements.map((item) => (
           <li key={item.key} className="flex gap-4 rounded-panel border border-line bg-surface-raised p-4">
-            <AchievementBadge achievement={item} progress />
+            <AchievementBadge achievement={item} progress celebrate={celebrating.has(item.key)} celebrateIndex={[...celebrating].indexOf(item.key)} />
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-x-2">
                 <h3 className={`text-sm font-semibold ${item.tier ? 'text-ink' : 'text-ink-muted'}`}>{item.name}</h3>
@@ -177,6 +177,8 @@ function EditableImage({ label, hint = '', onPick, busy, className = '', overlay
       disabled={busy}
       aria-label={label}
       className={`group relative block overflow-hidden ${className}`}
+      // A large surface: the full 0.97 press would look like the page lurching.
+      style={{ '--press-scale': 0.99 }}
     >
       {children}
       <span
@@ -259,13 +261,25 @@ export default function ProfilePage({ currentUser, practiceHistory, onSave, onLo
   const [photoError, setPhotoError] = useState('');
   const [mediaSaving, setMediaSaving] = useState('');
   const [achievements, setAchievements] = useState(null);
+  const [profileSaving, setProfileSaving] = useState(false);
+  // Badge tiers earned since this browser last showed them: revealed once.
+  const [celebrating, setCelebrating] = useState(() => new Set());
+  useEffect(() => {
+    if (celebrating.size === 0) return undefined;
+    const timer = window.setTimeout(() => setCelebrating(new Set()), 2500);
+    return () => window.clearTimeout(timer);
+  }, [celebrating]);
   const practiceCount = currentUser?.stats?.practices || 0;
 
   useEffect(() => {
     if (!currentUser) return undefined;
     const controller = new AbortController();
     apiFetch('/api/auth/achievements', { signal: controller.signal })
-      .then((data) => setAchievements(data.achievements || []))
+      .then((data) => {
+        const list = data.achievements || [];
+        setCelebrating(takeNewlyEarned(currentUser.id, list));
+        setAchievements(list);
+      })
       .catch((error) => { if (!isAbortError(error)) setAchievements([]); });
     return () => controller.abort();
   }, [currentUser, practiceCount]);
@@ -389,7 +403,7 @@ export default function ProfilePage({ currentUser, practiceHistory, onSave, onLo
               </EditableImage>
               <div className="min-w-0 sm:pb-1">
                 <div className="flex flex-wrap items-center gap-2">
-                  <h2 className="truncate text-2xl font-semibold text-ink sm:text-[1.75rem]">{draft.name}</h2>
+                  <h2 className="truncate text-2xl font-semibold text-ink sm:text-[1.75rem]" title={draft.name}>{draft.name}</h2>
                   {adminProfile && (
                     <span className="rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-400/10 dark:text-amber-200">
                       Admin
@@ -493,12 +507,12 @@ export default function ProfilePage({ currentUser, practiceHistory, onSave, onLo
             )}
 
             <ProfileSectionCard title="Achievements">
-              <AchievementSummary achievements={achievements} onSeeAll={() => setActiveTab('achievements')} />
+              <AchievementSummary achievements={achievements} celebrating={celebrating} onSeeAll={() => setActiveTab('achievements')} />
             </ProfileSectionCard>
           </div>
         </div>
       ) : activeTab === 'achievements' ? (
-        <AchievementGrid achievements={achievements} />
+        <AchievementGrid achievements={achievements} celebrating={celebrating} />
       ) : (
         <div className="space-y-5 sm:space-y-6">
           <ProfileSectionCard title="Settings" eyebrow="Personal info">
@@ -537,7 +551,7 @@ export default function ProfilePage({ currentUser, practiceHistory, onSave, onLo
               )}
             </div>
             <div className="grid gap-4 md:grid-cols-2">
-              <LabeledInput label="Name" value={draft.name} onChange={(value) => updateField('name', value)} placeholder="Your full name" />
+              <LabeledInput label="Name" value={draft.name} onChange={(value) => updateField('name', value)} placeholder="Your full name" maxLength={MAX_NAME_LENGTH} />
               <LabeledInput label="Username" value={draft.username} onChange={(value) => updateField('username', value.toLowerCase())} placeholder="unique username" />
               <LabeledInput label="Class" value={draft.className} onChange={(value) => updateField('className', value)} placeholder="12A1" />
               <LabeledInput label="School" value={draft.school} onChange={(value) => updateField('school', value)} placeholder="Your school" />
@@ -549,11 +563,15 @@ export default function ProfilePage({ currentUser, practiceHistory, onSave, onLo
             </label>
             <button
               type="button"
-              onClick={() => onSave(draft)}
-              className="mt-4 inline-flex items-center justify-center gap-2 rounded-full bg-ink px-5 py-3 font-medium text-on-ink transition hover:bg-ink/85"
+              onClick={async () => {
+                setProfileSaving(true);
+                try { await onSave(draft); } finally { setProfileSaving(false); }
+              }}
+              disabled={profileSaving}
+              className="mt-4 inline-flex items-center justify-center gap-2 rounded-full bg-ink px-5 py-3 font-medium text-on-ink transition hover:bg-ink/85 disabled:cursor-wait disabled:opacity-70"
             >
-              <CheckCircle size={17} />
-              Save changes
+              {profileSaving ? <Loader size={17} className="animate-spin" /> : <CheckCircle size={17} />}
+              {profileSaving ? 'Saving...' : 'Save changes'}
             </button>
           </ProfileSectionCard>
 

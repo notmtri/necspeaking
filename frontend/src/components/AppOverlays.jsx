@@ -1,44 +1,13 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useState } from 'react';
+import { AnimatePresence, MotionConfig, motion, useReducedMotion } from 'motion/react';
 import { Trash2, X } from 'lucide-react';
+import Sheet, { EASE_OUT, fadeProps } from './Sheet';
 
-/**
- * Closes on Escape and restores focus to whatever was focused before the
- * overlay opened, so keyboard users are not dropped at the top of the page.
- */
-export function useOverlayDismiss(open, onClose, { disabled = false } = {}) {
-  const previouslyFocusedRef = useRef(null);
-
-  useEffect(() => {
-    if (!open) return undefined;
-
-    previouslyFocusedRef.current = document.activeElement;
-
-    const handleKeyDown = (event) => {
-      if (event.key === 'Escape' && !disabled) onClose?.();
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-      const previous = previouslyFocusedRef.current;
-      if (previous && typeof previous.focus === 'function') previous.focus();
-    };
-  }, [disabled, onClose, open]);
-}
+export { useOverlayDismiss } from './useOverlayDismiss';
 
 export function AdminLoginModal({ open, password, onPasswordChange, onClose, onSubmit, error, submitting }) {
-  useOverlayDismiss(open, onClose, { disabled: submitting });
-
-  if (!open) return null;
-
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-neutral-900/40 dark:bg-black/60 p-4 backdrop-blur-sm">
-      <div
-        className="w-full max-w-md rounded-panel border border-line bg-surface-raised p-5 sm:p-6"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="admin-login-title"
-      >
+    <Sheet open={open} onClose={onClose} dismissible={!submitting} labelledBy="admin-login-title" width="max-w-md" bodyClassName="p-5 sm:p-6">
         <div className="flex items-center justify-between gap-3">
           <div>
             <div className="text-xs font-semibold tracking-normal text-sky-600 dark:text-sky-300">Admin access</div>
@@ -82,8 +51,7 @@ export function AdminLoginModal({ open, password, onPasswordChange, onClose, onS
             </button>
           </div>
         </div>
-      </div>
-    </div>
+    </Sheet>
   );
 }
 
@@ -98,10 +66,6 @@ export function FeedbackModal({ open, onClose, onSubmit, isLoggedIn }) {
   const [contact, setContact] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
-  useOverlayDismiss(open, onClose, { disabled: submitting });
-
-  if (!open) return null;
-
   const trimmed = message.trim();
   const send = async () => {
     if (trimmed.length < 3) {
@@ -123,13 +87,7 @@ export function FeedbackModal({ open, onClose, onSubmit, isLoggedIn }) {
   };
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-neutral-900/40 dark:bg-black/60 p-4 backdrop-blur-sm">
-      <div
-        className="w-full max-w-lg rounded-panel border border-line bg-surface-raised p-5 sm:p-6"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="feedback-title"
-      >
+    <Sheet open={open} onClose={onClose} dismissible={!submitting} labelledBy="feedback-title" width="max-w-lg" bodyClassName="p-5 sm:p-6">
         <div className="flex items-start justify-between gap-3">
           <div>
             <div className="text-xs font-semibold tracking-normal text-sky-600 dark:text-sky-300">Feedback</div>
@@ -185,28 +143,17 @@ export function FeedbackModal({ open, onClose, onSubmit, isLoggedIn }) {
             </button>
           </div>
         </div>
-      </div>
-    </div>
+    </Sheet>
   );
 }
 
 export function ConfirmModal({ open, title, message, confirmLabel = 'Confirm', tone = 'danger', onConfirm, onClose }) {
-  useOverlayDismiss(open, onClose);
-
-  if (!open) return null;
-
   const confirmClassName = tone === 'danger'
     ? 'bg-rose-500 text-white hover:bg-rose-400'
     : 'bg-ink text-on-ink hover:bg-ink/85';
 
   return (
-    <div className="fixed inset-0 z-[80] flex items-center justify-center bg-neutral-900/40 dark:bg-black/60 p-4 backdrop-blur-sm">
-      <div
-        className="w-full max-w-md rounded-panel border border-line bg-surface-raised p-5 sm:p-6"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="confirm-modal-title"
-      >
+    <Sheet open={open} onClose={onClose} labelledBy="confirm-modal-title" width="max-w-md" bodyClassName="p-5 sm:p-6" zIndex={80}>
         <div className="inline-flex h-11 w-11 items-center justify-center rounded-card border border-rose-200 dark:border-rose-400/25 bg-rose-50 dark:bg-rose-400/10 text-rose-700 dark:text-rose-300">
           <Trash2 size={18} aria-hidden="true" />
         </div>
@@ -220,16 +167,23 @@ export function ConfirmModal({ open, title, message, confirmLabel = 'Confirm', t
             {confirmLabel}
           </button>
         </div>
-      </div>
-    </div>
+    </Sheet>
   );
 }
 
+/**
+ * Toasts rise from the bottom edge and leave the same way; the others slide
+ * to close the gap (layout), so the stack never jumps.
+ */
 export function ToastViewport({ toasts, dismissToast }) {
-  if (toasts.length === 0) return null;
-
+  const toastFade = fadeProps(useReducedMotion(), {
+    hidden: { opacity: 0, y: 24 }, shown: { opacity: 1, y: 0 },
+    enter: { duration: 0.35, ease: EASE_OUT }, exit: { duration: 0.2, ease: EASE_OUT },
+  });
   return (
-    <div className="pointer-events-none fixed bottom-4 left-4 right-4 z-[90] flex w-auto max-w-none flex-col gap-3 sm:left-auto sm:w-full sm:max-w-sm">
+    <div className="pointer-events-none fixed bottom-[calc(1rem+env(safe-area-inset-bottom,0px))] left-4 right-4 z-[90] flex w-auto max-w-none flex-col gap-3 sm:left-auto sm:w-full sm:max-w-sm">
+      <MotionConfig reducedMotion="user">
+      <AnimatePresence initial={false}>
       {toasts.map((toast) => {
         const toneClasses = toast.tone === 'error'
           ? 'border-rose-200 dark:border-rose-400/25 bg-rose-50 dark:bg-rose-400/10 text-rose-700 dark:text-rose-300'
@@ -240,9 +194,14 @@ export function ToastViewport({ toasts, dismissToast }) {
               : 'border-sky-200 dark:border-sky-400/25 bg-sky-50 dark:bg-sky-400/10 text-sky-700 dark:text-sky-300';
 
         return (
-          <div
+          <motion.div
             key={toast.id}
-            className={`pointer-events-auto rounded-card border px-4 py-3 backdrop-blur ${toneClasses}`}
+            layout
+            initial={toastFade.initial}
+            animate={toastFade.animate}
+            exit={toastFade.exit}
+            transition={{ layout: { duration: 0.3, ease: EASE_OUT } }}
+            className={`pointer-events-auto rounded-card border px-4 py-3 backdrop-blur ${toneClasses} ${toastFade.className}`}
             role={toast.tone === 'error' ? 'alert' : 'status'}
             aria-live={toast.tone === 'error' ? 'assertive' : 'polite'}
           >
@@ -271,9 +230,11 @@ export function ToastViewport({ toasts, dismissToast }) {
                 <X size={14} />
               </button>
             </div>
-          </div>
+          </motion.div>
         );
       })}
+      </AnimatePresence>
+      </MotionConfig>
     </div>
   );
 }
