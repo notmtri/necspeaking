@@ -94,4 +94,15 @@ describe('Sheet', () => {
     expect(document.activeElement).toBe(field);
     trigger.remove();
   });
+
+  it('can refuse backdrop clicks and anchor to the top (the admin panel)', async () => {
+    const onClose = vi.fn();
+    await render(<Sheet onClose={onClose} backdropCloses={false} align="top" labelledBy="t"><p>Form</p></Sheet>);
+    const backdrop = document.querySelector('[role="dialog"]').parentElement;
+    expect(backdrop.className).toContain('items-start');
+    await act(async () => backdrop.dispatchEvent(new MouseEvent('click', { bubbles: true })));
+    expect(onClose).not.toHaveBeenCalled();
+    await act(async () => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' })));
+    expect(onClose).toHaveBeenCalledTimes(1); // Escape still closes it
+  });
 });

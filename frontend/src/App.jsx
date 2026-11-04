@@ -466,8 +466,10 @@ export default function SpeakUpApp() {
 
       setCurrentUser(data.user);
       setSelectedProfileId(data.user.id);
-      await refreshCommunityProfiles();
+      // Confirm as soon as the server has it; the community list (a slow
+      // request) catches up in the background.
       pushToast('Profile saved.', 'success');
+      refreshCommunityProfiles().catch(() => {});
       return true;
     } catch (error) {
       setAuthError(error.message || 'Could not save profile changes.');

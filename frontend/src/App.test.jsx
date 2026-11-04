@@ -20,7 +20,7 @@ const createFetchResponse = (payload) => ({
   json: async () => payload,
 });
 
-const createFetchMock = (overrides = {}) => vi.fn(async (url) => {
+const createFetchMock = (overrides = {}) => vi.fn(async (url, init) => {
   const target = String(url);
 
   if (target.includes('/api/health')) {
@@ -41,6 +41,10 @@ const createFetchMock = (overrides = {}) => vi.fn(async (url) => {
   if (target.includes('/api/auth/password/reset')) return createFetchResponse({ success: true, user: overrides.resetUser });
   if (target.includes('/api/auth/verify-email') && !target.includes('request')) {
     return createFetchResponse({ success: true, user: overrides.verifiedUser });
+  }
+  if (target.includes('/api/auth/profile') && init?.method === 'PUT') {
+    const body = JSON.parse(init.body || '{}');
+    return createFetchResponse({ user: { ...overrides.user, ...body } });
   }
   if (target.includes('/api/admin/check')) return createFetchResponse({ authenticated: false });
   if (target.includes('/api/auth/community')) return createFetchResponse({ profiles: overrides.profiles || [] });
@@ -374,6 +378,19 @@ describe('App', () => {
     await act(async () => buttonNamed('Settings').click());
     expect(await waitUntil(() => Boolean(buttonNamed('Save changes')))).toBe(true);
     expect(container.textContent).not.toContain('Something went wrong');
+  });
+
+  it('stays on Settings after saving and confirms the save', async () => {
+    // Saving used to reset the page to Overview, and the toast waited on a
+    // slow community refresh.
+    await renderApp('/profile', { user: newStudent(4), achievements: [] });
+    await waitUntil(() => Boolean(buttonNamed('Settings')));
+    await act(async () => buttonNamed('Settings').click());
+    await waitUntil(() => Boolean(buttonNamed('Save changes')));
+    await act(async () => buttonNamed('Save changes').click());
+    expect(await waitUntil(() => container.ownerDocument.body.textContent.includes('Profile saved.'))).toBe(true);
+    expect(buttonNamed('Settings').getAttribute('aria-selected')).toBe('true');
+    expect(Boolean(buttonNamed('Save changes'))).toBe(true);
   });
 
   it('shows earned badges on a public profile, name on tap', async () => {

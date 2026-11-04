@@ -461,7 +461,7 @@ export default function AdminPanel({ open = true, onExitComplete, onClose, onLog
 
   return (
     <>
-      <Sheet open={open} onExitComplete={onExitComplete} onClose={onClose} dismissible={!confirmState} labelledBy="admin-panel-title" width="max-w-7xl" zIndex={50}>
+      <Sheet open={open} onExitComplete={onExitComplete} onClose={onClose} dismissible={!confirmState} backdropCloses={false} align="top" labelledBy="admin-panel-title" width="max-w-7xl" zIndex={50}>
         <div className="border-b border-line px-4 py-3 sm:px-6">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="inline-flex w-fit items-center gap-2 rounded-full border border-amber-200 dark:border-amber-400/25 bg-amber-50 dark:bg-amber-400/10 px-3 py-1 text-xs font-semibold tracking-normal text-amber-800 dark:text-amber-200">
@@ -522,7 +522,7 @@ export default function AdminPanel({ open = true, onExitComplete, onClose, onLog
                       type="file"
                       accept="audio/*"
                       onChange={(event) => setAudioFile(event.target.files[0] || null)}
-                      className="w-full rounded-control border border-line bg-overlay px-4 py-3 text-sm text-ink-muted file:mr-3 file:rounded-control file:border-0 file:bg-ink file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-ink"
+                      className="w-full rounded-control border border-line bg-overlay px-4 py-3 text-sm text-ink-muted file:mr-3 file:rounded-control file:border-0 file:bg-ink file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-on-ink"
                     />
                   </AdminField>
                   <div className="grid gap-4 md:grid-cols-2">

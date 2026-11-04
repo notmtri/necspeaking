@@ -91,6 +91,12 @@ export default function Sheet({
   bodyClassName = '',
   zIndex = 70,
   onExitComplete,
+  // 'top' keeps a tall, tabbed panel anchored so its tabs don't move when a
+  // shorter tab is chosen; 'center' suits everything else.
+  align = 'center',
+  // false for panels holding work in progress (the admin CMS): only the close
+  // button or Escape closes them, never a stray click outside.
+  backdropCloses = true,
   children,
 }) {
   const isPhone = useMediaQuery(PHONE_QUERY);
@@ -99,14 +105,14 @@ export default function Sheet({
 
   if (typeof document === 'undefined') return null;
 
-  const shared = { onClose, labelledBy, dismissible, bodyClassName, zIndex, children };
+  const shared = { onClose, labelledBy, dismissible, backdropCloses: dismissible && backdropCloses, bodyClassName, zIndex, children };
   return createPortal(
     // Reduced motion: keep the fades, drop the movement.
     <MotionConfig reducedMotion="user">
       <AnimatePresence propagate onExitComplete={onExitComplete}>
         {open && (isPhone
           ? <PhoneSheet key="sheet" {...shared} />
-          : <CentredDialog key="dialog" width={width} {...shared} />)}
+          : <CentredDialog key="dialog" width={width} align={align} {...shared} />)}
       </AnimatePresence>
     </MotionConfig>,
     document.body,
@@ -114,7 +120,7 @@ export default function Sheet({
 }
 
 /** Desktop and tablet: scales up from 96% in the middle of the screen. */
-function CentredDialog({ onClose, labelledBy, dismissible, width, bodyClassName, zIndex, children }) {
+function CentredDialog({ onClose, labelledBy, backdropCloses, width, align, bodyClassName, zIndex, children }) {
   const fadeOnly = useReducedMotion();
   const scrim = fadeProps(fadeOnly, {
     hidden: { opacity: 0 }, shown: { opacity: 1 },
@@ -125,7 +131,7 @@ function CentredDialog({ onClose, labelledBy, dismissible, width, bodyClassName,
     enter: { duration: 0.2, ease: EASE_OUT }, exit: { duration: 0.15, ease: EASE_OUT },
   });
   const closeFromBackdrop = (event) => {
-    if (event.target === event.currentTarget && dismissible) onClose?.();
+    if (event.target === event.currentTarget && backdropCloses) onClose?.();
   };
 
   return (
@@ -137,7 +143,7 @@ function CentredDialog({ onClose, labelledBy, dismissible, width, bodyClassName,
         animate={scrim.animate}
         exit={scrim.exit}
       />
-      <div className="relative flex min-h-full items-center justify-center p-4 sm:p-6" onClick={closeFromBackdrop}>
+      <div className={`relative flex min-h-full justify-center p-4 sm:p-6 ${align === 'top' ? 'items-start sm:py-10' : 'items-center'}`} onClick={closeFromBackdrop}>
         <motion.div
           role="dialog"
           aria-modal="true"
@@ -160,7 +166,7 @@ function CentredDialog({ onClose, labelledBy, dismissible, width, bodyClassName,
  * closes if it would come to rest past half its height, carrying the finger's
  * speed into the animation. Dragging up past the top rubber-bands.
  */
-function PhoneSheet({ onClose, labelledBy, dismissible, bodyClassName, zIndex, children }) {
+function PhoneSheet({ onClose, labelledBy, dismissible, backdropCloses, bodyClassName, zIndex, children }) {
   const panelRef = useRef(null);
   const y = useMotionValue(0);
   const heightRef = useRef(0);
@@ -261,7 +267,7 @@ function PhoneSheet({ onClose, labelledBy, dismissible, bodyClassName, zIndex, c
         initial={scrimFade.initial}
         animate={scrimFade.animate}
         exit={scrimFade.exit}
-        onClick={() => dismissible && onClose?.()}
+        onClick={() => backdropCloses && onClose?.()}
       >
         <motion.div className="absolute inset-0 bg-neutral-900/40 dark:bg-black/60" style={{ opacity: scrimOpacity }} />
       </motion.div>

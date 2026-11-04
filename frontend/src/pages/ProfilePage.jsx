@@ -285,15 +285,21 @@ export default function ProfilePage({ currentUser, practiceHistory, onSave, onLo
   }, [currentUser, practiceCount]);
   const [mediaError, setMediaError] = useState('');
 
+  // Every save returns a fresh user object: refresh the form from it.
   useEffect(() => {
     setDraft(currentUser);
+  }, [currentUser]);
+
+  // Only a different account starts over on Overview. Resetting on every
+  // save threw people out of Settings each time they saved or changed a photo.
+  useEffect(() => {
     setActiveTab('overview');
     setDeletePhrase('');
     setDeleteError('');
     setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
     setPasswordMessage('');
     setPhotoError('');
-  }, [currentUser]);
+  }, [currentUser?.id]);
 
   const analytics = useMemo(
     () => getPracticeAnalytics(practiceHistory || [], draft?.stats || {}),
