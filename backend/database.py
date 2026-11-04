@@ -218,6 +218,8 @@ class UserPracticeSession(db.Model):
     feedback = db.Column(db.JSON, nullable=True)
     sample_response = db.Column(db.Text, nullable=True)
     grader = db.Column(db.String(64), nullable=True)
+    # 'analyze' or 'simulation'; NULL for attempts saved before Nov 2026.
+    source = db.Column(db.String(20), nullable=True)
     created_at = db.Column(db.DateTime, default=utcnow, index=True)
 
     user = db.relationship('User', backref=db.backref('practice_sessions', lazy=True, cascade='all, delete-orphan'))

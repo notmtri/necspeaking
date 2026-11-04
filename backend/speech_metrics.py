@@ -182,6 +182,8 @@ def build_speech_metrics(words, duration):
         'longPauseCount': len(pauses),
         'totalPauseSeconds': round(total_pause, 2),
         'paceSeries': build_pace_series(words),
+        # When the last word ended: speaking time, not recording length.
+        'lastWordSeconds': round(max(item['end'] for item in words), 2),
     }
 
 

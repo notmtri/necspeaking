@@ -169,6 +169,7 @@ class AnalysisWorker:
                             feedback=grading_result.get("feedback"),
                             sample_response=grading_result.get("sample_response"),
                             grader=grading_result.get("grader_model") or grading_result.get("grader"),
+                            source=job.source,
                         )
                         db.session.commit()
                         practice_session_id = practice.id

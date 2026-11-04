@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Award, Camera, CheckCircle, Flame, Loader, Lock, LogOut, Mic, Pencil, Target, Trash2, TrendingUp, Trophy, Upload, User } from 'lucide-react';
+import { Camera, Loader, Lock, LogOut, Mic, Pencil, Trash2, Upload, User } from 'lucide-react';
 import { COVER_UPLOAD, CRITERIA, IMAGE_GUIDANCE, TONES, isAdminProfile, profileAvatar, profileCover, readImageAsResizedDataUri } from '../appShared';
+import { apiFetch, isAbortError } from '../apiClient';
+import AchievementBadge, { TIER_LABELS, progressHint } from '../components/AchievementBadge';
 import VerifyEmailNotice from '../components/VerifyEmailNotice';
 import { FIELD_CLASSNAME, LabeledInput, ProfileSectionCard } from '../components/ProfileBits';
 import PracticeHistoryItem from '../components/PracticeHistoryItem';
@@ -89,39 +91,76 @@ function CriteriaBars({ averages }) {
   );
 }
 
-function AchievementBadges({ stats, analytics }) {
-  const practiceCount = Number(stats.practices || analytics.sessions.length || 0);
-  const avgScore = Number(stats.avgScore || analytics.averages.total || 0);
-  const bestScore = Number(stats.bestScore || analytics.bestSession?.scores?.total || 0);
-  const streak = Number(stats.streak || 0);
-  const badges = [
-    { label: 'First step', icon: CheckCircle, unlocked: practiceCount >= 1, note: 'Complete one practice.' },
-    { label: 'Ten attempts', icon: Target, unlocked: practiceCount >= 10, note: 'Reach 10 practices.' },
-    { label: 'Hot streak', icon: Flame, unlocked: streak >= 3, note: 'Hold a 3-day streak.' },
-    { label: 'Rising speaker', icon: TrendingUp, unlocked: avgScore >= 1.5, note: 'Average at least 1.50.' },
-    { label: 'Peak score', icon: Trophy, unlocked: bestScore >= 1.9, note: 'Score 1.90 or higher.' },
-    { label: 'Balanced skill', icon: Award, unlocked: CRITERIA.every((criterion) => (analytics.averages[criterion.key] || 0) / criterion.max >= 0.75), note: 'Reach 75% in all criteria.' },
-  ];
-
+function AchievementSummary({ achievements, onSeeAll }) {
+  if (!achievements) {
+    return <div className="h-16 animate-pulse rounded-card bg-overlay" aria-hidden="true" />;
+  }
+  const earned = achievements.filter((item) => item.tier > 0);
   return (
-    <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
-      {badges.map((badge) => {
-        const Icon = badge.icon;
-        return (
-          <div key={badge.label} className={`rounded-card p-3 ${badge.unlocked ? 'bg-amber-50 text-amber-900 dark:bg-amber-400/10 dark:text-amber-100' : 'text-ink-subtle'}`}>
-            <div className="flex items-center gap-3">
-              <div className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${badge.unlocked ? 'bg-amber-300 text-amber-950 dark:bg-amber-400/30 dark:text-amber-100' : 'bg-overlay'}`}>
-                <Icon size={16} />
-              </div>
-              <div className="min-w-0">
-                <div className={`text-sm font-medium ${badge.unlocked ? '' : 'text-ink-muted'}`}>{badge.label}</div>
-                <div className="text-xs">{badge.unlocked ? 'Unlocked' : badge.note}</div>
-              </div>
-            </div>
-          </div>
-        );
-      })}
+    <div>
+      <div className="flex items-baseline justify-between gap-3">
+        <p className="text-sm text-ink-muted">
+          <span className="font-display text-2xl font-semibold tracking-[-0.03em] text-ink tabular">{earned.length}</span> of {achievements.length} earned
+        </p>
+        <button type="button" onClick={onSeeAll} className="text-sm font-medium text-sky-700 hover:underline dark:text-sky-300">
+          See all
+        </button>
+      </div>
+      {earned.length > 0 ? (
+        <ul className="mt-4 flex flex-wrap gap-2">
+          {earned.map((item) => (
+            <li key={item.key} title={`${item.name} (${TIER_LABELS[item.tierName]})`}>
+              <AchievementBadge achievement={item} size="sm" />
+              <span className="sr-only">{item.name}, {TIER_LABELS[item.tierName]}</span>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="mt-3 text-sm text-ink-subtle">Your first practice earns your first badge.</p>
+      )}
     </div>
+  );
+}
+
+const TIER_TEXT = {
+  bronze: 'text-[#8a5523] dark:text-[#e0a46b]',
+  silver: 'text-slate-600 dark:text-slate-300',
+  gold: 'text-amber-700 dark:text-amber-300',
+};
+
+/** All fifteen badges, always in the same order so each one keeps its place. */
+function AchievementGrid({ achievements }) {
+  if (!achievements) {
+    return (
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3" aria-hidden="true">
+        {Array.from({ length: 6 }, (_, index) => <div key={index} className="h-28 animate-pulse rounded-panel bg-overlay" />)}
+      </div>
+    );
+  }
+  const earnedCount = achievements.filter((item) => item.tier > 0).length;
+  const practiceCount = achievements.find((item) => item.key === 'practices')?.value ?? null;
+  return (
+    <section aria-labelledby="achievements-heading">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h2 id="achievements-heading" className="text-xl font-semibold text-ink">Achievements</h2>
+        <p className="text-sm text-ink-muted">{earnedCount} of {achievements.length} earned. Each has Bronze, Silver and Gold.</p>
+      </div>
+      <ul className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {achievements.map((item) => (
+          <li key={item.key} className="flex gap-4 rounded-panel border border-line bg-surface-raised p-4">
+            <AchievementBadge achievement={item} progress />
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-x-2">
+                <h3 className={`text-sm font-semibold ${item.tier ? 'text-ink' : 'text-ink-muted'}`}>{item.name}</h3>
+                {item.tier > 0 && <span className={`text-xs font-semibold ${TIER_TEXT[item.tierName]}`}>{TIER_LABELS[item.tierName]}</span>}
+              </div>
+              <p className="mt-0.5 text-xs leading-5 text-ink-subtle">{item.description}</p>
+              <p className="mt-1.5 text-xs font-medium text-ink-muted tabular">{progressHint(item, practiceCount)}</p>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 
@@ -219,6 +258,17 @@ export default function ProfilePage({ currentUser, practiceHistory, onSave, onLo
   const [passwordMessage, setPasswordMessage] = useState('');
   const [photoError, setPhotoError] = useState('');
   const [mediaSaving, setMediaSaving] = useState('');
+  const [achievements, setAchievements] = useState(null);
+  const practiceCount = currentUser?.stats?.practices || 0;
+
+  useEffect(() => {
+    if (!currentUser) return undefined;
+    const controller = new AbortController();
+    apiFetch('/api/auth/achievements', { signal: controller.signal })
+      .then((data) => setAchievements(data.achievements || []))
+      .catch((error) => { if (!isAbortError(error)) setAchievements([]); });
+    return () => controller.abort();
+  }, [currentUser, practiceCount]);
   const [mediaError, setMediaError] = useState('');
 
   useEffect(() => {
@@ -375,7 +425,7 @@ export default function ProfilePage({ currentUser, practiceHistory, onSave, onLo
         </div>
 
         <div className="flex gap-6 border-t border-line px-5 sm:px-8" role="tablist" aria-label="Profile sections">
-          {[['overview', 'Overview'], ['settings', 'Settings']].map(([id, label]) => (
+          {[['overview', 'Overview'], ['achievements', 'Achievements'], ['settings', 'Settings']].map(([id, label]) => (
             <button
               key={id}
               type="button"
@@ -443,10 +493,12 @@ export default function ProfilePage({ currentUser, practiceHistory, onSave, onLo
             )}
 
             <ProfileSectionCard title="Achievements">
-              <AchievementBadges stats={stats} analytics={analytics} />
+              <AchievementSummary achievements={achievements} onSeeAll={() => setActiveTab('achievements')} />
             </ProfileSectionCard>
           </div>
         </div>
+      ) : activeTab === 'achievements' ? (
+        <AchievementGrid achievements={achievements} />
       ) : (
         <div className="space-y-5 sm:space-y-6">
           <ProfileSectionCard title="Settings" eyebrow="Personal info">

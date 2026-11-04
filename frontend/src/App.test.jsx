@@ -37,6 +37,7 @@ const createFetchMock = (overrides = {}) => vi.fn(async (url) => {
     });
   }
   if (target.includes('/api/auth/practice-history')) return createFetchResponse({ sessions: [] });
+  if (target.includes('/achievements')) return createFetchResponse({ achievements: overrides.achievements || [] });
   if (target.includes('/api/auth/password/reset')) return createFetchResponse({ success: true, user: overrides.resetUser });
   if (target.includes('/api/auth/verify-email') && !target.includes('request')) {
     return createFetchResponse({ success: true, user: overrides.verifiedUser });
@@ -344,6 +345,33 @@ describe('App', () => {
     expect(pill).toBeTruthy();
     expect(pill.getAttribute('aria-pressed')).toBe('true');
     expect(buttonNamed('Add 😮')).toBeFalsy(); // the picker closed
+  });
+
+  it('lists every badge with its tier and progress on the Achievements tab', async () => {
+    const achievements = [
+      { key: 'practices', name: 'Practice Makes Perfect', description: 'Saved practices.', unit: 'practices', thresholds: [1, 10, 30], tier: 1, tierName: 'bronze', value: 4, nextTarget: 10 },
+      { key: 'streak', name: 'The Owl Approves', description: 'Days in a row.', unit: 'days', thresholds: [3, 7, 14], tier: 0, tierName: null, value: 1, nextTarget: 3 },
+    ];
+    await renderApp('/profile', { user: newStudent(4), achievements });
+    await waitUntil(() => Boolean(buttonNamed('Achievements')));
+    expect(container.textContent).toContain('1 of 2 earned');
+    await act(async () => buttonNamed('Achievements').click());
+    expect(await waitUntil(() => container.textContent.includes('Best streak 1 / 3 days'))).toBe(true);
+    expect(container.textContent).toContain('Practice Makes Perfect');
+    expect(container.textContent).toContain('Bronze');
+    expect(container.textContent).toContain('4 / 10 practices');
+  });
+
+  it('shows earned badges on a public profile, name on tap', async () => {
+    const profile = { id: 'user-7', name: 'Ana', username: 'ana', stats: { practices: 12, avgScore: 1.6 } };
+    await renderApp('/community', { profiles: [profile], achievements: [{ key: 'practices', name: 'Practice Makes Perfect', tier: 2, tierName: 'silver' }] });
+    const leaderboardEntry = () => [...document.querySelectorAll('button')].find((b) => b.textContent.includes('@ana'));
+    await waitUntil(() => Boolean(leaderboardEntry()));
+    const open = leaderboardEntry();
+    await act(async () => open.click());
+    expect(await waitUntil(() => Boolean(buttonNamed('Practice Makes Perfect, Silver')))).toBe(true);
+    await act(async () => buttonNamed('Practice Makes Perfect, Silver').click());
+    expect(document.querySelector('[role="dialog"]').textContent).toContain('Practice Makes Perfect, Silver');
   });
 
   it('gives the top three medals instead of numbers', async () => {

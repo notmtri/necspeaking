@@ -87,7 +87,7 @@ def refresh_user_stats(user):
 
 
 def create_practice_session(user, topic, transcript_text, duration, scores, metrics=None,
-                            feedback=None, sample_response=None, grader=None):
+                            feedback=None, sample_response=None, grader=None, source=None):
     practice = UserPracticeSession(
         user_id=user.id,
         topic=topic,
@@ -98,6 +98,7 @@ def create_practice_session(user, topic, transcript_text, duration, scores, metr
         feedback=feedback or None,
         sample_response=sample_response or None,
         grader=grader or None,
+        source=source or None,
         scores={
             "content": round_score(scores.get("content")),
             "accuracy": round_score(scores.get("accuracy")),

@@ -6,6 +6,7 @@ import { PageHeader } from '../components/AppChrome';
 import { useOverlayDismiss } from '../components/AppOverlays';
 import { FIELD_CLASSNAME } from '../components/ProfileBits';
 import VerifyEmailNotice from '../components/VerifyEmailNotice';
+import AchievementBadge, { TIER_LABELS } from '../components/AchievementBadge';
 
 const MAX_TITLE_LENGTH = 180;
 const MAX_BODY_LENGTH = 4000;
@@ -16,6 +17,50 @@ function AdminBadge() {
     <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-400/10 dark:text-amber-200">
       Admin
     </span>
+  );
+}
+
+/** Earned badges only, icons only (as agreed): name and tier on hover or tap. */
+function PublicBadges({ profileId }) {
+  const [badges, setBadges] = useState(null);
+  const [selected, setSelected] = useState(null);
+  const userId = String(profileId || '').replace(/^user-/, '');
+
+  useEffect(() => {
+    if (!userId) return undefined;
+    const controller = new AbortController();
+    apiFetch(`/api/users/${userId}/achievements`, { signal: controller.signal })
+      .then((data) => setBadges(data.achievements || []))
+      .catch((error) => { if (!isAbortError(error)) setBadges([]); });
+    return () => controller.abort();
+  }, [userId]);
+
+  if (!badges?.length) return null;
+  const shown = badges.find((badge) => badge.key === selected);
+  return (
+    <div className="mt-5">
+      <ul className="flex flex-wrap gap-2" aria-label="Achievements">
+        {badges.map((badge) => (
+          <li key={badge.key}>
+            <button
+              type="button"
+              onClick={() => setSelected((current) => (current === badge.key ? null : badge.key))}
+              title={`${badge.name} (${TIER_LABELS[badge.tierName]})`}
+              aria-label={`${badge.name}, ${TIER_LABELS[badge.tierName]}`}
+              aria-pressed={selected === badge.key}
+              className={`rounded-full transition-transform duration-150 hover:scale-110 ${selected === badge.key ? 'scale-110' : ''}`}
+            >
+              <AchievementBadge achievement={badge} size="sm" />
+            </button>
+          </li>
+        ))}
+      </ul>
+      {shown && (
+        <p className="mt-2 text-sm text-ink-muted" role="status">
+          <span className="font-medium text-ink">{shown.name}</span>, {TIER_LABELS[shown.tierName]}
+        </p>
+      )}
+    </div>
   );
 }
 
@@ -55,6 +100,7 @@ function ProfileOverlayModal({ profile, onClose }) {
             {details.length > 0 && <span className="text-ink-subtle"> | {details.join(', ')}</span>}
           </div>
           {profile.bio && <p className="mt-4 text-sm leading-6 text-ink-muted">{profile.bio}</p>}
+          <PublicBadges profileId={profile.id} />
           <dl className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
             {stats.map((stat) => (
               <div key={stat.label} className={`rounded-card px-4 py-3 ${TONES[stat.tone].soft}`}>

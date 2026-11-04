@@ -32,6 +32,7 @@ from database import MAX_AVATAR_CHARS, MAX_COVER_CHARS, MAX_POST_IMAGE_CHARS, PO
 from job_worker import AnalysisWorker, should_start_embedded_worker
 from rate_limiter import client_ip, rate_limit, rate_limiter
 from user_progress import create_practice_session
+from achievements import compute_achievements, earned_badges
 from email_service import email_enabled, password_reset_email, send_email, verification_email
 import cloudinary
 import cloudinary.uploader
@@ -586,6 +587,7 @@ def claim_guest_jobs(user):
                 feedback=payload.get('feedback'),
                 sample_response=payload.get('sample_response'),
                 grader=payload.get('grader_model') or payload.get('grader'),
+                source=job.source,
             )
             payload['practice_session_id'] = practice.id
             payload['user'] = user.to_dict()  # stats now include this attempt
@@ -861,6 +863,34 @@ def toggle_community_post_reaction(post_id):
     counts, mine = reaction_summary([post.id], user)
     payload = post.to_dict(reactions=counts.get(post.id), my_reactions=mine.get(post.id))
     return jsonify({"success": True, "reactions": payload['reactions'], "myReactions": payload['myReactions']})
+
+
+def achievement_inputs(user):
+    practices = UserPracticeSession.query.filter_by(user_id=user.id).all()
+    posts = CommunityPost.query.filter_by(user_id=user.id, hidden=False).count()
+    reactions = (
+        db.session.query(db.func.count(CommunityPostReaction.id))
+        .join(CommunityPost, CommunityPost.id == CommunityPostReaction.post_id)
+        .filter(CommunityPost.user_id == user.id, CommunityPostReaction.user_id != user.id)
+        .scalar()
+    ) or 0
+    return practices, posts, reactions
+
+
+@app.route('/api/auth/achievements', methods=['GET'])
+@require_login()
+def my_achievements():
+    """All 15 badges with tiers and progress, for your own profile."""
+    return jsonify({"achievements": compute_achievements(*achievement_inputs(get_current_user()))})
+
+
+@app.route('/api/users/<int:user_id>/achievements', methods=['GET'])
+def public_achievements(user_id):
+    """Earned badges only (highest tier each), for a public profile."""
+    user = db.session.get(User, user_id)
+    if not user:
+        return jsonify({"error": "Profile not found."}), 404
+    return jsonify({"achievements": earned_badges(*achievement_inputs(user))})
 
 
 @app.route('/api/users/<int:user_id>/cover', methods=['GET'])
