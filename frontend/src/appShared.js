@@ -61,7 +61,7 @@ export const FOUNDER_IMAGE = '/founder.jpg';
  * (initials avatar, colour-band cover).
  */
 export const DEFAULT_AVATAR_IMAGE = '/default-avatar.webp';
-export const DEFAULT_COVER_IMAGE = null;
+export const DEFAULT_COVER_IMAGE = '/default-cover.webp';
 
 // What to tell people before they pick a picture. Covers show at 4:1 on
 // tablets and up, and a little taller (cropped at the sides) on phones.

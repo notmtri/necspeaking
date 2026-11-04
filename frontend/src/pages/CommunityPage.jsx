@@ -34,7 +34,7 @@ function ProfileOverlayModal({ profile, onClose }) {
     <div className="fixed inset-0 z-[70] flex items-start justify-center overflow-y-auto bg-neutral-900/40 p-3 backdrop-blur-sm dark:bg-black/60 sm:items-center sm:p-6">
       <div className="relative my-4 w-full max-w-2xl overflow-hidden rounded-panel border border-line bg-surface-raised" role="dialog" aria-modal="true" aria-labelledby="profile-overlay-title">
         <div className="relative h-28 bg-gradient-to-r from-sky-200 via-violet-200 to-amber-200 dark:from-sky-400/25 dark:via-violet-400/20 dark:to-amber-400/20 sm:aspect-[4/1] sm:h-auto">
-          {cover && <img src={cover} alt="" className="h-full w-full object-cover" />}
+          {cover && <img src={cover} alt="" className="h-full w-full object-cover object-[50%_40%]" />}
           <button
             type="button"
             onClick={onClose}

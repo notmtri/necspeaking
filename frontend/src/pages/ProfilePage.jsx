@@ -322,7 +322,7 @@ export default function ProfilePage({ currentUser, practiceHistory, onSave, onLo
           busy={mediaSaving === 'cover'}
           className="h-28 w-full bg-gradient-to-r from-sky-200 via-violet-200 to-amber-200 dark:from-sky-400/25 dark:via-violet-400/20 dark:to-amber-400/20 sm:aspect-[4/1] sm:h-auto"
         >
-          {cover && <img src={cover} alt="" className="h-full w-full object-cover" />}
+          {cover && <img src={cover} alt="" className="h-full w-full object-cover object-[50%_40%]" />}
         </EditableImage>
         <div className="px-5 pb-6 sm:px-8">
           <div className="-mt-12 flex flex-col gap-5 sm:-mt-14 lg:flex-row lg:items-end lg:justify-between">
@@ -462,7 +462,7 @@ export default function ProfilePage({ currentUser, practiceHistory, onSave, onLo
                 </label>
               </div>
               <div className="h-20 w-20 overflow-hidden rounded-[1.25rem] bg-gradient-to-r from-sky-200 via-violet-200 to-amber-200 dark:from-sky-400/25 dark:via-violet-400/20 dark:to-amber-400/20 sm:h-auto sm:w-48 sm:aspect-[4/1] sm:rounded-control">
-                {cover && <img src={cover} alt="" className="h-full w-full object-cover" />}
+                {cover && <img src={cover} alt="" className="h-full w-full object-cover object-[50%_40%]" />}
               </div>
               <div>
                 <div className="text-sm font-medium text-ink">Cover photo</div>
