@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { AlertCircle, ArrowUpRight, Download, Loader, Menu, Settings, UserPlus, X } from 'lucide-react';
-import { getDisplayRole, isAdminProfile } from '../appShared';
-import ThemeSelect from './ThemeSelect';
+import { isAdminProfile, profileAvatar } from '../appShared';
+import ThemeToggle from './ThemeToggle';
 
 const NAV_ITEMS = [
   { id: 'home', label: 'Home' },
@@ -58,7 +58,7 @@ function Wordmark({ onClick }) {
   );
 }
 
-function AccountButton({ currentUser, guestMode, onClick, compact = false }) {
+function AccountButton({ currentUser, onClick, compact = false }) {
   const isAdmin = isAdminProfile(currentUser);
   return (
     <button
@@ -67,13 +67,11 @@ function AccountButton({ currentUser, guestMode, onClick, compact = false }) {
       className="flex min-w-0 items-center gap-2.5 rounded-full border border-line bg-surface-raised py-1 pl-1 pr-3 text-left transition-colors duration-200 hover:bg-overlay"
       title="Open profile"
     >
-      <img src={currentUser.avatar || '/logo.png'} alt="" className="h-8 w-8 shrink-0 rounded-full object-cover" />
+      <img src={profileAvatar(currentUser)} alt="" className="h-8 w-8 shrink-0 rounded-full object-cover" />
       {!compact && (
         <span className="min-w-0">
           <span className="block max-w-[140px] truncate text-sm font-medium text-ink">{currentUser.username}</span>
-          <span className="block text-xs text-ink-subtle">
-            {isAdmin ? 'Admin' : guestMode ? 'Guest' : getDisplayRole(currentUser)}
-          </span>
+          {isAdmin && <span className="block text-xs text-amber-700 dark:text-amber-300">Admin</span>}
         </span>
       )}
     </button>
@@ -103,6 +101,7 @@ export function AppHeader({
 
   const utilityButtons = (
     <>
+      <ThemeToggle className={ICON_BUTTON} />
       <button
         type="button"
         onClick={openAdminPanel}
@@ -150,7 +149,7 @@ export function AppHeader({
             <div className="hidden items-center gap-1 lg:flex">{utilityButtons}</div>
             {currentUser ? (
               <div className="hidden sm:block">
-                <AccountButton currentUser={currentUser} guestMode={guestMode} onClick={() => navTo('profile')} />
+                <AccountButton currentUser={currentUser} onClick={() => navTo('profile')} />
               </div>
             ) : (
               <div className="hidden items-center gap-2 sm:flex">
@@ -202,7 +201,7 @@ export function AppHeader({
               </nav>
               <div className="mt-4 flex items-center justify-between gap-3 border-t border-line pt-4">
                 {currentUser ? (
-                  <AccountButton currentUser={currentUser} guestMode={guestMode} onClick={() => navTo('profile')} />
+                  <AccountButton currentUser={currentUser} onClick={() => navTo('profile')} />
                 ) : (
                   <div className="flex gap-2">
                     <button type="button" onClick={() => openAuth('login')} className="rounded-full bg-overlay px-4 py-2.5 text-sm font-medium text-ink">
@@ -367,9 +366,9 @@ export function Footer({ navTo, onFeedback }) {
         </aside>
       </div>
       <div className="border-t border-line">
-        <div className="mx-auto flex max-w-7xl flex-col items-start gap-3 px-4 py-5 pb-20 text-sm text-ink-subtle sm:flex-row sm:items-center sm:gap-8 sm:px-6 sm:pb-5 sm:pr-40 lg:px-8 lg:pr-40">
-          <p className="sm:mr-auto">Developed by Nguyen Hoang Minh Tri.</p>
-          <ThemeSelect />
+        <div className="mx-auto flex max-w-7xl flex-col gap-2 px-4 py-5 pb-20 text-sm text-ink-subtle sm:flex-row sm:justify-between sm:px-6 sm:pb-5 sm:pr-40 lg:px-8 lg:pr-40">
+          <p>Developed by Nguyen Hoang Minh Tri.</p>
+          <p>Free for every NEC candidate.</p>
         </div>
       </div>
     </footer>

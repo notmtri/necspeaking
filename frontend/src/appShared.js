@@ -54,6 +54,34 @@ export const isAdminProfile = (profile) => {
 export const getDisplayRole = (profile) => (isAdminProfile(profile) ? 'Admin' : (profile?.role || 'Student'));
 
 export const FOUNDER_IMAGE = '/founder.jpg';
+
+/*
+ * Placeholders for people who have not uploaded their own pictures. Drop the
+ * files in frontend/public and set these; null keeps the built-in fallbacks
+ * (initials avatar, colour-band cover).
+ */
+export const DEFAULT_AVATAR_IMAGE = null;
+export const DEFAULT_COVER_IMAGE = null;
+
+// Upload sizes: covers are wide, post pictures are read on phones.
+export const COVER_UPLOAD = { maxEdge: 1600, quality: 0.82, maxBytes: 680 * 1024 };
+export const POST_IMAGE_UPLOAD = { maxEdge: 1280, quality: 0.82, maxBytes: 880 * 1024 };
+
+/** Images the API serves (covers, post pictures) live on the API host. */
+export const apiAssetUrl = (path) => (path ? `${API_BASE_URL}${path}` : null);
+
+// Accounts start with a generated initials SVG; that counts as "no photo".
+const isGeneratedAvatar = (src) => !src || String(src).startsWith('data:image/svg+xml');
+
+/** The picture to show for a profile: theirs, else the placeholder, else initials. */
+export const profileAvatar = (profile) => {
+  const src = profile?.avatar;
+  if (isGeneratedAvatar(src) && DEFAULT_AVATAR_IMAGE) return DEFAULT_AVATAR_IMAGE;
+  return src || createAvatarDataUri(profile?.name);
+};
+
+/** The cover to show: theirs, else the placeholder, else null (a colour band). */
+export const profileCover = (profile) => apiAssetUrl(profile?.coverUrl) || DEFAULT_COVER_IMAGE;
 export const SITE_OWNER_NAME = 'Nguyen Hoang Minh Tri';
 
 /** Formats a duration in seconds as m:ss. Fractional seconds are floored. */
@@ -279,7 +307,7 @@ export const AVATAR_MAX_BYTES = 200 * 1024;
  * profile response. Resizing here keeps a typical avatar in the tens of KB.
  * The server enforces the same ceiling independently.
  */
-export const readImageAsResizedDataUri = (file, { maxEdge = AVATAR_MAX_EDGE, quality = 0.8 } = {}) => (
+export const readImageAsResizedDataUri = (file, { maxEdge = AVATAR_MAX_EDGE, quality = 0.8, maxBytes = AVATAR_MAX_BYTES } = {}) => (
   new Promise((resolve, reject) => {
     if (!file) {
       reject(new Error('No image selected.'));
@@ -311,7 +339,7 @@ export const readImageAsResizedDataUri = (file, { maxEdge = AVATAR_MAX_EDGE, qua
         context.drawImage(image, 0, 0, width, height);
 
         const dataUri = canvas.toDataURL('image/jpeg', quality);
-        if (dataUri.length > AVATAR_MAX_BYTES) {
+        if (dataUri.length > maxBytes) {
           reject(new Error('That image is too large even after resizing. Try a smaller photo.'));
           return;
         }

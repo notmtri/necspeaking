@@ -6,6 +6,7 @@ import logging
 import os
 import sys
 import warnings
+import base64
 import hashlib
 import hmac
 import secrets
@@ -27,7 +28,7 @@ from sqlalchemy.engine import make_url
 from sqlalchemy.orm import configure_mappers, defer
 
 from analysis_service import allowed_file, build_job_storage_path, cleanup_old_files, generate_docx, get_audio_duration
-from database import MAX_AVATAR_CHARS, AnalysisJob, AppAnnouncement, CommunityPost, CommunityPostReport, FeedbackMessage, Question, RateLimitEntry, Sample, User, UserPracticeSession, avatar_from_name, build_prompt_key, db, utcnow
+from database import MAX_AVATAR_CHARS, MAX_COVER_CHARS, MAX_POST_IMAGE_CHARS, POST_REACTIONS, AnalysisJob, AppAnnouncement, CommunityPost, CommunityPostReaction, CommunityPostReport, FeedbackMessage, Question, RateLimitEntry, Sample, User, UserPracticeSession, avatar_from_name, build_prompt_key, db, utcnow
 from job_worker import AnalysisWorker, should_start_embedded_worker
 from rate_limiter import client_ip, rate_limit, rate_limiter
 from user_progress import create_practice_session
@@ -225,6 +226,7 @@ def ensure_runtime_tables():
                 ('samples', Sample.__table__),
                 ('feedback_messages', FeedbackMessage.__table__),
                 ('community_post_reports', CommunityPostReport.__table__),
+                ('community_post_reactions', CommunityPostReaction.__table__),
             ]
             for table_name, table in managed_tables:
                 if table_name not in table_names:
@@ -767,10 +769,107 @@ def get_site_announcement():
     return jsonify({"announcement": announcement.to_dict()})
 
 
+IMAGE_DATA_URI = re.compile(r'^data:(image/(?:jpeg|png|webp));base64,([A-Za-z0-9+/=]+)$')
+
+
+def parse_image_data_uri(value, max_chars, label):
+    """(mime, data_uri) for an uploaded picture, or raises ValueError with a student-facing message."""
+    value = (value or '').strip()
+    if len(value) > max_chars:
+        raise ValueError(f"{label} is too large. Choose a smaller image.")
+    match = IMAGE_DATA_URI.match(value)
+    if not match:
+        raise ValueError(f"{label} must be a JPEG, PNG or WebP image.")
+    return match.group(1), value
+
+
+def send_data_uri_image(data_uri, mime):
+    """Serve a stored data URI as a real image. Its URL changes when the image does."""
+    payload = data_uri.split(',', 1)[1] if data_uri and ',' in data_uri else ''
+    response = app.response_class(base64.b64decode(payload), mimetype=mime)
+    response.headers['Cache-Control'] = 'public, max-age=31536000, immutable'
+    return response
+
+
+def reaction_summary(post_ids, user=None):
+    """({post_id: {emoji: count}}, {post_id: [my emoji]}) for the posts listed."""
+    counts, mine = {}, {}
+    if not post_ids:
+        return counts, mine
+    rows = (
+        db.session.query(CommunityPostReaction.post_id, CommunityPostReaction.emoji, db.func.count(CommunityPostReaction.id))
+        .filter(CommunityPostReaction.post_id.in_(post_ids))
+        .group_by(CommunityPostReaction.post_id, CommunityPostReaction.emoji)
+        .all()
+    )
+    for post_id, emoji, count in rows:
+        counts.setdefault(post_id, {})[emoji] = count
+    if user:
+        for post_id, emoji in (
+            db.session.query(CommunityPostReaction.post_id, CommunityPostReaction.emoji)
+            .filter(CommunityPostReaction.post_id.in_(post_ids), CommunityPostReaction.user_id == user.id)
+            .all()
+        ):
+            mine.setdefault(post_id, []).append(emoji)
+    return counts, mine
+
+
 @app.route('/api/community/posts', methods=['GET'])
 def get_community_posts():
     posts = CommunityPost.query.filter_by(hidden=False).order_by(CommunityPost.created_at.desc()).limit(50).all()
-    return jsonify({"posts": [post.to_dict() for post in posts]})
+    counts, mine = reaction_summary([post.id for post in posts], get_current_user())
+    return jsonify({"posts": [
+        post.to_dict(reactions=counts.get(post.id), my_reactions=mine.get(post.id)) for post in posts
+    ]})
+
+
+@app.route('/api/community/posts/<int:post_id>/image', methods=['GET'])
+def get_community_post_image(post_id):
+    post = db.session.get(CommunityPost, post_id)
+    if not post or post.hidden or not post.image_type or not post.image:
+        return jsonify({"error": "Image not found."}), 404
+    return send_data_uri_image(post.image, post.image_type)
+
+
+@app.route('/api/community/posts/<int:post_id>/reactions', methods=['POST'])
+@require_login()
+@rate_limit('community-post-react', max_requests=120, window_seconds=600)
+def toggle_community_post_reaction(post_id):
+    """Adds the emoji for this account, or takes it back if it was already there."""
+    user = get_current_user()
+    post = db.session.get(CommunityPost, post_id)
+    if not post or post.hidden:
+        return jsonify({"error": "Post not found."}), 404
+    emoji = (request.get_json(silent=True) or {}).get('emoji')
+    if emoji not in POST_REACTIONS:
+        return jsonify({"error": "Unknown reaction."}), 400
+
+    try:
+        existing = CommunityPostReaction.query.filter_by(post_id=post.id, user_id=user.id, emoji=emoji).first()
+        if existing:
+            db.session.delete(existing)
+        else:
+            db.session.add(CommunityPostReaction(post_id=post.id, user_id=user.id, emoji=emoji))
+        db.session.commit()
+    except IntegrityError:
+        db.session.rollback()  # a double click raced itself; the reaction is there
+    except Exception as error:
+        db.session.rollback()
+        print(f"[COMMUNITY] Reaction error: {error}")
+        return jsonify({"error": "Could not save your reaction."}), 500
+
+    counts, mine = reaction_summary([post.id], user)
+    payload = post.to_dict(reactions=counts.get(post.id), my_reactions=mine.get(post.id))
+    return jsonify({"success": True, "reactions": payload['reactions'], "myReactions": payload['myReactions']})
+
+
+@app.route('/api/users/<int:user_id>/cover', methods=['GET'])
+def get_user_cover(user_id):
+    user = db.session.get(User, user_id)
+    if not user or not user.cover_updated_at or not user.cover:
+        return jsonify({"error": "Cover not found."}), 404
+    mime = user.cover.split(';', 1)[0].removeprefix('data:') or 'image/jpeg'
+    return send_data_uri_image(user.cover, mime)
 
 
 @app.route('/api/community/posts', methods=['POST'])
@@ -798,10 +897,19 @@ def create_community_post():
         if len(body) > 4000:
             return jsonify({"error": "Post body is too long."}), 400
 
+        image_type, image = None, None
+        if data.get('image'):
+            try:
+                image_type, image = parse_image_data_uri(data.get('image'), MAX_POST_IMAGE_CHARS, 'The image')
+            except ValueError as error:
+                return jsonify({"error": str(error)}), 400
+
         post = CommunityPost(
             user_id=user.id,
             title=title,
             body=body,
+            image=image,
+            image_type=image_type,
         )
         db.session.add(post)
         db.session.commit()
@@ -1001,12 +1109,27 @@ def update_profile():
         user.cohort = optional_field('cohort', user.cohort)
         user.bio = optional_field('bio', user.bio)
 
-        avatar = (data.get('avatar') or '').strip()
-        if len(avatar) > MAX_AVATAR_CHARS:
-            return jsonify({
-                "error": "Profile photo is too large. Choose a smaller image."
-            }), 413
-        user.avatar = avatar or avatar_from_name(name)
+        # Absent key keeps the photo (a cover-only save must not reset it).
+        if 'avatar' in data:
+            avatar = (data.get('avatar') or '').strip()
+            if len(avatar) > MAX_AVATAR_CHARS:
+                return jsonify({
+                    "error": "Profile photo is too large. Choose a smaller image."
+                }), 413
+            user.avatar = avatar or avatar_from_name(name)
+
+        # Absent key keeps the cover; '' removes it; a data URI replaces it.
+        if 'cover' in data:
+            cover = (data.get('cover') or '').strip()
+            if cover:
+                try:
+                    _, user.cover = parse_image_data_uri(cover, MAX_COVER_CHARS, 'Cover photo')
+                except ValueError as error:
+                    return jsonify({"error": str(error)}), 413 if 'too large' in str(error) else 400
+                user.cover_updated_at = utcnow()
+            else:
+                user.cover = None
+                user.cover_updated_at = None
 
         db.session.commit()
         return jsonify({"success": True, "user": user.to_dict()})

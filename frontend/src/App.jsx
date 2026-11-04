@@ -475,6 +475,13 @@ export default function SpeakUpApp() {
     await refreshCommunityProfiles();
   }, [loadPracticeHistory, refreshCommunityProfiles]);
 
+  // Photo or cover saved straight from the profile header; errors go back to it.
+  const handleQuickProfileSave = useCallback(async (updates) => {
+    const data = await apiFetch('/api/auth/profile', { method: 'PUT', body: updates });
+    if (!data.user) throw new Error(data.error || 'Could not save that image.');
+    setCurrentUser(data.user);
+  }, []);
+
   const handleEmailVerified = useCallback((user) => {
     if (!user) return;
     setCurrentUser(user);
@@ -556,6 +563,7 @@ export default function SpeakUpApp() {
             onStartPractice={startPractice}
             emailEnabled={emailEnabled}
             onEmailVerified={handleEmailVerified}
+            onQuickSave={handleQuickProfileSave}
             authError={authError}
             passwordSubmitting={passwordSubmitting}
           />

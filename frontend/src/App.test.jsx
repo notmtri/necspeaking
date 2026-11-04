@@ -318,6 +318,49 @@ describe('App', () => {
     expect(reportCalls()).toHaveLength(1);
   });
 
+  it('reacts to a post and shows it as chosen', async () => {
+    const post = { ...postFixture, reactions: { '👍': 2 }, myReactions: [] };
+    await renderApp('/community', { posts: [post], user: newStudent(1) });
+    const thumbs = () => [...document.querySelectorAll('button')]
+      .find((button) => (button.getAttribute('aria-label') || '').startsWith('React 👍'));
+    expect(await waitUntil(() => Boolean(thumbs()))).toBe(true);
+
+    await act(async () => thumbs().click());
+    expect(thumbs().getAttribute('aria-pressed')).toBe('true');
+    expect(thumbs().textContent).toContain('3');
+    const call = global.fetch.mock.calls.find(([url]) => String(url).includes('/api/community/posts/41/reactions'));
+    expect(JSON.parse(call[1].body)).toEqual({ emoji: '👍' });
+  });
+
+  it('gives the top three medals instead of numbers', async () => {
+    const ranked = ['ana', 'binh', 'chi', 'dung'].map((username, index) => ({
+      id: `user-${index}`, name: username, username, stats: { practices: 10 - index, avgScore: 1.8 - index / 10 },
+    }));
+    await renderApp('/community', { profiles: ranked });
+    await waitUntil(() => container.textContent.includes('ana'));
+    for (const place of ['1st place', '2nd place', '3rd place']) {
+      expect(container.querySelector(`[aria-label="${place}"]`)).toBeTruthy();
+    }
+  });
+
+  it('shows no role label for students, only for the admin', async () => {
+    const adminPost = { ...postFixture, id: 42, author: { name: 'Tri', username: 'notmtri', role: 'Admin', isAdmin: true } };
+    await renderApp('/community', { posts: [postFixture, adminPost] });
+    await waitUntil(() => container.textContent.includes('Spam post'));
+    expect(container.textContent).not.toContain('Student');
+    expect(container.textContent).toContain('Admin');
+  });
+
+  it('switches between light and dark from the header', async () => {
+    document.documentElement.classList.remove('dark');
+    await renderApp('/');
+    await act(async () => buttonNamed('Switch to dark mode').click());
+    expect(document.documentElement.classList.contains('dark')).toBe(true);
+    expect(window.localStorage.getItem('necs.theme')).toBe('dark');
+    await act(async () => buttonNamed('Switch to light mode').click());
+    expect(document.documentElement.classList.contains('dark')).toBe(false);
+  });
+
   it('gives each page its own browser title', async () => {
     await renderApp('/samples', { samples: [sampleFixture] });
     expect(document.title).toBe('High-scoring NEC samples | necs.');

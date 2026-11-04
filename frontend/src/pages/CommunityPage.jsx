@@ -1,85 +1,68 @@
-import React, { useCallback, useDeferredValue, useEffect, useMemo, useState } from 'react';
-import { Bell, Search, X } from 'lucide-react';
-import { createAvatarDataUri, getDisplayRole, isAdminProfile } from '../appShared';
+import React, { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
+import { ImagePlus, Medal, Search, Send, X } from 'lucide-react';
+import { POST_IMAGE_UPLOAD, TONES, apiAssetUrl, isAdminProfile, profileAvatar, profileCover, readImageAsResizedDataUri } from '../appShared';
 import { apiFetch, isAbortError } from '../apiClient';
 import { PageHeader } from '../components/AppChrome';
 import { useOverlayDismiss } from '../components/AppOverlays';
-import { FIELD_CLASSNAME, ProfileDetailRow, ProfileMetricCard, ProfileSectionCard } from '../components/ProfileBits';
+import { FIELD_CLASSNAME } from '../components/ProfileBits';
 import VerifyEmailNotice from '../components/VerifyEmailNotice';
 
 const MAX_TITLE_LENGTH = 180;
 const MAX_BODY_LENGTH = 4000;
+export const REACTIONS = ['👍', '🩷', '😆', '🥲', '😮'];
+
+function AdminBadge() {
+  return (
+    <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-400/10 dark:text-amber-200">
+      Admin
+    </span>
+  );
+}
 
 function ProfileOverlayModal({ profile, onClose }) {
-  const displayRole = getDisplayRole(profile);
-  const adminProfile = isAdminProfile(profile);
-
   useOverlayDismiss(true, onClose);
+  const cover = profileCover(profile);
+  const details = [profile.school, profile.className, profile.cohort && `Cohort ${profile.cohort}`].filter(Boolean);
+  const stats = [
+    { label: 'Practices', value: profile.stats?.practices || 0, tone: 'sky' },
+    { label: 'Average', value: Number(profile.stats?.avgScore || 0).toFixed(2), tone: 'violet' },
+    { label: 'Best', value: Number(profile.stats?.bestScore || 0).toFixed(2), tone: 'amber' },
+    { label: 'Day streak', value: profile.stats?.streak || 0, tone: 'emerald' },
+  ];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-neutral-900/40 dark:bg-black/60 p-3 backdrop-blur-sm sm:p-6">
-      <div
-        className="relative my-4 w-full max-w-5xl rounded-panel border border-line bg-surface-raised"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="profile-overlay-title"
-      >
-        <button
-          type="button"
-          onClick={onClose}
-          className="absolute right-4 top-4 inline-flex h-10 w-10 items-center justify-center rounded-full border border-line bg-overlay text-ink-muted transition hover:bg-overlay-hover hover:text-ink"
-          aria-label="Close profile overlay"
-        >
-          <X size={18} />
-        </button>
-
-        <div className="border-b border-line px-5 py-5 sm:px-8 sm:py-6">
-          <div className="pr-12 text-xs font-semibold tracking-normal text-sky-700 dark:text-sky-300">Public profile</div>
-          <h2 id="profile-overlay-title" className="mt-3 pr-12 text-2xl font-bold tracking-tight text-ink sm:text-3xl">{profile.name}</h2>
-          <div className="mt-2 text-base font-semibold text-sky-600 dark:text-sky-300">@{profile.username}</div>
+    <div className="fixed inset-0 z-[70] flex items-start justify-center overflow-y-auto bg-neutral-900/40 p-3 backdrop-blur-sm dark:bg-black/60 sm:items-center sm:p-6">
+      <div className="relative my-4 w-full max-w-2xl overflow-hidden rounded-panel border border-line bg-surface-raised" role="dialog" aria-modal="true" aria-labelledby="profile-overlay-title">
+        <div className="relative h-32 bg-gradient-to-r from-sky-200 via-violet-200 to-amber-200 dark:from-sky-400/25 dark:via-violet-400/20 dark:to-amber-400/20 sm:h-40">
+          {cover && <img src={cover} alt="" className="h-full w-full object-cover" />}
+          <button
+            type="button"
+            onClick={onClose}
+            className="absolute right-3 top-3 inline-flex h-10 w-10 items-center justify-center rounded-full bg-surface-raised/90 text-ink backdrop-blur-sm transition-colors hover:bg-surface-raised"
+            aria-label="Close profile"
+          >
+            <X size={18} />
+          </button>
         </div>
-
-        <div className="grid gap-5 px-5 py-5 sm:px-8 sm:py-8 xl:grid-cols-[0.85fr_1.15fr]">
-          <ProfileSectionCard title="Identity" eyebrow="User card">
-            <div className="flex flex-col items-center text-center">
-              <img
-                src={profile.avatar || createAvatarDataUri(profile.name)}
-                alt=""
-                className="h-40 w-40 rounded-panel border border-line object-cover sm:h-48 sm:w-48"
-              />
-              <div className="mt-5 inline-flex items-center rounded-full border border-line bg-overlay px-3 py-1 text-xs font-semibold tracking-normal text-ink-muted">
-                {displayRole}
-              </div>
-              {adminProfile && (
-                <div className="mt-3 inline-flex items-center rounded-full border border-amber-200 dark:border-amber-400/25 bg-amber-50 dark:bg-amber-400/10 px-3 py-1 text-xs font-semibold tracking-normal text-amber-800 dark:text-amber-200">
-                  necs. admin
-                </div>
-              )}
-              <p className="mt-4 max-w-xl text-sm leading-6 text-ink-muted">{profile.bio || 'No bio added yet.'}</p>
-            </div>
-          </ProfileSectionCard>
-
-          <div className="space-y-5">
-            <ProfileSectionCard title="General info" eyebrow="Details">
-              <div className="grid gap-4 sm:grid-cols-2">
-                <ProfileDetailRow label="Name" value={profile.name} />
-                <ProfileDetailRow label="Username" value={`@${profile.username}`} />
-                <ProfileDetailRow label="Role" value={displayRole} />
-                <ProfileDetailRow label="Class" value={profile.className || 'Not set'} />
-                <ProfileDetailRow label="School" value={profile.school || 'Not set'} />
-                <ProfileDetailRow label="Cohort" value={profile.cohort || 'Not set'} />
-                <ProfileDetailRow label="Streak" value={`${profile.stats?.streak || 0} days`} />
-              </div>
-            </ProfileSectionCard>
-
-            <ProfileSectionCard title="Stats" eyebrow="Performance">
-              <div className="grid gap-4 sm:grid-cols-3">
-                <ProfileMetricCard label="Practices" value={profile.stats?.practices || 0} tone="sky" />
-                <ProfileMetricCard label="Average score" value={profile.stats?.avgScore || 0} tone="emerald" />
-                <ProfileMetricCard label="Best score" value={profile.stats?.bestScore || 0} tone="amber" />
-              </div>
-            </ProfileSectionCard>
+        <div className="px-5 pb-6 sm:px-7">
+          <img src={profileAvatar(profile)} alt="" className="-mt-12 h-24 w-24 rounded-[1.75rem] border-4 border-surface-raised object-cover" />
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <h2 id="profile-overlay-title" className="text-2xl font-semibold text-ink">{profile.name}</h2>
+            {isAdminProfile(profile) && <AdminBadge />}
           </div>
+          <div className="mt-0.5 text-sm text-ink-muted">
+            @{profile.username}
+            {details.length > 0 && <span className="text-ink-subtle"> | {details.join(', ')}</span>}
+          </div>
+          {profile.bio && <p className="mt-4 text-sm leading-6 text-ink-muted">{profile.bio}</p>}
+          <dl className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+            {stats.map((stat) => (
+              <div key={stat.label} className={`rounded-card px-4 py-3 ${TONES[stat.tone].soft}`}>
+                <dt className={`text-sm font-medium ${TONES[stat.tone].text}`}>{stat.label}</dt>
+                <dd className="mt-1 font-display text-xl font-semibold tracking-[-0.03em] text-ink tabular">{stat.value}</dd>
+              </div>
+            ))}
+          </dl>
         </div>
       </div>
     </div>
@@ -98,38 +81,129 @@ export function rankByAverage(profiles, limit = 5) {
     .slice(0, limit);
 }
 
-function Leaderboard({ title, description, profiles, accent, valueOf, onSelect }) {
-  const accentClasses = accent === 'amber'
-    ? { rank: 'bg-amber-50 dark:bg-amber-400/10 text-amber-800 dark:text-amber-200', value: 'text-amber-800 dark:text-amber-200' }
-    : { rank: 'bg-sky-50 dark:bg-sky-400/10 text-sky-700 dark:text-sky-300', value: 'text-emerald-700 dark:text-emerald-300' };
+// Places 1-3 wear their medal; the rest keep a number.
+const MEDALS = [
+  { label: '1st place', className: 'bg-gradient-to-br from-amber-200 to-yellow-500 text-amber-950 shadow-[inset_0_1px_0_rgb(255_255_255/0.6)]' },
+  { label: '2nd place', className: 'bg-gradient-to-br from-slate-100 to-slate-400 text-slate-800 shadow-[inset_0_1px_0_rgb(255_255_255/0.6)]' },
+  { label: '3rd place', className: 'bg-gradient-to-br from-orange-200 to-amber-700 text-orange-950 shadow-[inset_0_1px_0_rgb(255_255_255/0.5)]' },
+];
 
+function RankBadge({ index }) {
+  const medal = MEDALS[index];
+  if (medal) {
+    return (
+      <span className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${medal.className}`} aria-label={medal.label} title={medal.label}>
+        <Medal size={16} aria-hidden="true" />
+      </span>
+    );
+  }
   return (
-    <div className="rounded-card border border-line bg-overlay p-4">
+    <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-overlay text-sm font-semibold text-ink-muted tabular">
+      {index + 1}
+    </span>
+  );
+}
+
+function Leaderboard({ title, description, profiles, valueOf, onSelect }) {
+  return (
+    <div>
       <h3 className="text-sm font-semibold text-ink">{title}</h3>
-      <p className="mt-1 text-sm text-ink-muted">{description}</p>
+      <p className="mt-0.5 text-sm text-ink-muted">{description}</p>
       {profiles.length === 0 && (
         <p className="mt-4 text-sm text-ink-subtle">No one qualifies yet.</p>
       )}
-      <ol className="mt-4 space-y-3">
+      <ol className="mt-3 space-y-1">
         {profiles.map((profile, index) => (
           <li key={profile.id}>
             <button
               type="button"
               onClick={() => onSelect(profile)}
-              className="flex w-full items-center gap-3 rounded-card border border-line bg-surface-sunken/60 px-3 py-3 text-left transition hover:bg-overlay-hover"
+              className="flex w-full items-center gap-3 rounded-card px-2 py-2 text-left transition-colors duration-200 hover:bg-overlay"
             >
-              <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-semibold ${accentClasses.rank}`}>{index + 1}</div>
-              <img src={profile.avatar || createAvatarDataUri(profile.name)} alt="" className="h-10 w-10 shrink-0 rounded-card object-cover ring-1 ring-black/5 dark:ring-white/10" />
-              <div className="min-w-0 flex-1">
-                <div className="truncate text-sm font-semibold text-ink">{profile.name}</div>
-                <div className="truncate text-xs text-ink-subtle">@{profile.username}</div>
-              </div>
-              <div className={`text-sm font-semibold ${accentClasses.value}`}>{valueOf(profile)}</div>
+              <RankBadge index={index} />
+              <img src={profileAvatar(profile)} alt="" className="h-9 w-9 shrink-0 rounded-full object-cover" />
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm font-medium text-ink">{profile.name}</span>
+                <span className="block truncate text-xs text-ink-subtle">@{profile.username}</span>
+              </span>
+              <span className="font-display text-sm font-semibold text-ink tabular">{valueOf(profile)}</span>
             </button>
           </li>
         ))}
       </ol>
     </div>
+  );
+}
+
+function ReactionBar({ post, onReact }) {
+  const mine = new Set(post.myReactions || []);
+  return (
+    <div className="flex flex-wrap gap-1.5" role="group" aria-label="Reactions">
+      {REACTIONS.map((emoji) => {
+        const count = post.reactions?.[emoji] || 0;
+        const active = mine.has(emoji);
+        return (
+          <button
+            key={emoji}
+            type="button"
+            onClick={() => onReact(post.id, emoji)}
+            aria-pressed={active}
+            aria-label={`React ${emoji}${count ? `, ${count}` : ''}`}
+            className={`inline-flex h-8 items-center gap-1 rounded-full border px-2.5 text-sm transition-colors duration-200 ${
+              active
+                ? 'border-sky-300 bg-sky-50 text-sky-800 dark:border-sky-400/40 dark:bg-sky-400/10 dark:text-sky-200'
+                : 'border-line text-ink-muted hover:bg-overlay'
+            }`}
+          >
+            <span aria-hidden="true">{emoji}</span>
+            {count > 0 && <span className="text-xs font-medium tabular">{count}</span>}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function PostCard({ item, onReact, onReport, reporting, reported, onOpenAuthor }) {
+  return (
+    <article className="min-w-0 py-6 first:pt-0 last:pb-0">
+      <div className="flex items-center gap-3">
+        <button type="button" onClick={() => onOpenAuthor(item.author)} className="shrink-0" aria-label={`Open ${item.author?.name || 'author'}'s profile`}>
+          <img src={profileAvatar(item.author)} alt="" className="h-10 w-10 rounded-full object-cover" />
+        </button>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+            <span className="truncate text-sm font-semibold text-ink">{item.author?.name || 'Unknown user'}</span>
+            {isAdminProfile(item.author) && <AdminBadge />}
+          </div>
+          <div className="truncate text-xs text-ink-subtle">
+            @{item.author?.username || 'unknown'}
+            {item.createdAt && <> | <time dateTime={item.createdAt}>{new Date(item.createdAt).toLocaleDateString()}</time></>}
+          </div>
+        </div>
+      </div>
+      <h3 className="mt-4 text-base font-semibold text-ink">{item.title}</h3>
+      <p className="mt-1.5 whitespace-pre-line text-sm leading-6 text-ink-muted">{item.body}</p>
+      {item.imageUrl && (
+        <img
+          src={apiAssetUrl(item.imageUrl)}
+          alt=""
+          loading="lazy"
+          className="mt-4 max-h-[28rem] w-full rounded-card border border-line object-cover"
+        />
+      )}
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+        <ReactionBar post={item} onReact={onReact} />
+        <button
+          type="button"
+          onClick={() => onReport(item.id)}
+          disabled={reporting || reported}
+          className="rounded-full px-2.5 py-1 text-xs font-medium text-ink-subtle transition-colors hover:bg-overlay hover:text-ink disabled:opacity-60"
+        >
+          {reporting ? 'Reporting...' : reported ? 'Reported' : 'Report'}
+        </button>
+      </div>
+    </article>
   );
 }
 
@@ -141,7 +215,8 @@ export default function CommunityPage({ profiles, selectedProfile, onSelectProfi
   const [postSubmitting, setPostSubmitting] = useState(false);
   const [reportingPostId, setReportingPostId] = useState(null);
   const [overlayProfile, setOverlayProfile] = useState(null);
-  const [postDraft, setPostDraft] = useState({ title: '', body: '' });
+  const [postDraft, setPostDraft] = useState({ title: '', body: '', image: '' });
+  const imageInputRef = useRef(null);
 
   const deferredSearchTerm = useDeferredValue(searchTerm);
   const normalizedSearch = deferredSearchTerm.trim().toLowerCase().replace(/^@/, '');
@@ -188,6 +263,17 @@ export default function CommunityPage({ profiles, selectedProfile, onSelectProfi
     return () => controller.abort();
   }, [fetchCommunityPosts]);
 
+  const attachImage = useCallback(async (file) => {
+    if (!file) return;
+    setPostError('');
+    try {
+      const image = await readImageAsResizedDataUri(file, POST_IMAGE_UPLOAD);
+      setPostDraft((current) => ({ ...current, image }));
+    } catch (error) {
+      setPostError(error.message || 'Could not use that image.');
+    }
+  }, []);
+
   const submitPost = useCallback(async () => {
     if (!canSubmitPost) return;
 
@@ -196,20 +282,20 @@ export default function CommunityPage({ profiles, selectedProfile, onSelectProfi
     try {
       const data = await apiFetch('/api/community/posts', {
         method: 'POST',
-        body: { title: trimmedTitle, body: trimmedBody },
+        body: { title: trimmedTitle, body: trimmedBody, ...(postDraft.image ? { image: postDraft.image } : {}) },
       });
       if (!data.post) {
         setPostError(data.error || 'Could not publish post.');
         return;
       }
       setCommunityPosts((current) => [data.post, ...current]);
-      setPostDraft({ title: '', body: '' });
+      setPostDraft({ title: '', body: '', image: '' });
     } catch (error) {
       setPostError(error.message || 'Could not publish post.');
     } finally {
       setPostSubmitting(false);
     }
-  }, [canSubmitPost, trimmedBody, trimmedTitle]);
+  }, [canSubmitPost, postDraft.image, trimmedBody, trimmedTitle]);
 
   const previewSelectedProfile = useCallback((profile) => {
     if (!profile) return;
@@ -217,6 +303,13 @@ export default function CommunityPage({ profiles, selectedProfile, onSelectProfi
     onSelectProfile?.(profile.id);
     setOverlayProfile(profile);
   }, [onSelectProfile]);
+
+  // A post's author record is slimmer than a public profile; use the full one when listed.
+  const openAuthor = useCallback((author) => {
+    if (!author) return;
+    const full = profiles.find((profile) => profile.username === author.username);
+    setOverlayProfile(full || author);
+  }, [profiles]);
 
   // Reports count once per account (the server enforces it); this only
   // remembers which posts were reported here so the button can say so.
@@ -244,19 +337,46 @@ export default function CommunityPage({ profiles, selectedProfile, onSelectProfi
     }
   }, [currentUser]);
 
+  const reactToPost = useCallback(async (postId, emoji) => {
+    if (!currentUser) {
+      setPostError('Log in to react to posts.');
+      return;
+    }
+    // Show it straight away; the server's counts replace the guess.
+    setCommunityPosts((current) => current.map((post) => {
+      if (post.id !== postId) return post;
+      const mine = new Set(post.myReactions || []);
+      const had = mine.has(emoji);
+      if (had) mine.delete(emoji); else mine.add(emoji);
+      const count = Math.max(0, (post.reactions?.[emoji] || 0) + (had ? -1 : 1));
+      return { ...post, myReactions: [...mine], reactions: { ...post.reactions, [emoji]: count } };
+    }));
+    try {
+      const data = await apiFetch(`/api/community/posts/${postId}/reactions`, { method: 'POST', body: { emoji } });
+      if (data.reactions) {
+        setCommunityPosts((current) => current.map((post) => (
+          post.id === postId ? { ...post, reactions: data.reactions, myReactions: data.myReactions || [] } : post
+        )));
+      }
+    } catch (error) {
+      setPostError(error.message || 'Could not save your reaction.');
+      fetchCommunityPosts();
+    }
+  }, [currentUser, fetchCommunityPosts]);
+
   return (
-    <div className="min-w-0 space-y-5 sm:space-y-6">
+    <div className="min-w-0 space-y-8">
       <PageHeader
         id="community-page-title"
         title="Community"
         description="View community posts from all users and see your ranking."
       />
 
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,2.5fr)_minmax(0,1fr)] sm:gap-6">
-        <section className="min-w-0 rounded-panel border border-line bg-surface-raised p-5 sm:p-6">
-          <h2 className="text-lg font-semibold text-ink sm:text-xl">Post to the community</h2>
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)] lg:items-start">
+        <section className="min-w-0 rounded-panel border border-line bg-surface-raised p-5 sm:p-7" aria-labelledby="community-feed">
+          <h2 id="community-feed" className="text-xl font-semibold text-ink">Post to the community</h2>
 
-          <div className="mt-5 rounded-card border border-line bg-overlay p-4">
+          <div className="mt-5">
             {needsVerification ? (
               <VerifyEmailNotice
                 email={currentUser.email}
@@ -265,10 +385,11 @@ export default function CommunityPage({ profiles, selectedProfile, onSelectProfi
                 onVerified={onEmailVerified}
               />
             ) : canCreatePost ? (
-              <>
-                <div className="grid gap-3">
+              <div className="flex gap-3">
+                <img src={profileAvatar(currentUser)} alt="" className="hidden h-10 w-10 shrink-0 rounded-full object-cover sm:block" />
+                <div className="min-w-0 flex-1 space-y-3">
                   <label className="block">
-                    <span className="mb-2 block text-xs font-semibold tracking-normal text-ink-muted">Title</span>
+                    <span className="sr-only">Title</span>
                     <input
                       value={postDraft.title}
                       maxLength={MAX_TITLE_LENGTH}
@@ -278,7 +399,7 @@ export default function CommunityPage({ profiles, selectedProfile, onSelectProfi
                     />
                   </label>
                   <label className="block">
-                    <span className="mb-2 block text-xs font-semibold tracking-normal text-ink-muted">Post body</span>
+                    <span className="sr-only">Post body</span>
                     <textarea
                       value={postDraft.body}
                       maxLength={MAX_BODY_LENGTH}
@@ -288,87 +409,93 @@ export default function CommunityPage({ profiles, selectedProfile, onSelectProfi
                       className={FIELD_CLASSNAME}
                     />
                   </label>
-                </div>
-                <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="text-xs leading-6 text-ink-muted">
-                    {trimmedBody.length}/{MAX_BODY_LENGTH} characters.
+                  {postDraft.image && (
+                    <div className="relative inline-block">
+                      <img src={postDraft.image} alt="Attached" className="max-h-48 rounded-card border border-line object-cover" />
+                      <button
+                        type="button"
+                        onClick={() => setPostDraft((current) => ({ ...current, image: '' }))}
+                        className="absolute right-2 top-2 inline-flex h-8 w-8 items-center justify-center rounded-full bg-surface-raised/90 text-ink shadow-sm transition-colors hover:bg-surface-raised"
+                        aria-label="Remove image"
+                      >
+                        <X size={15} />
+                      </button>
+                    </div>
+                  )}
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => imageInputRef.current?.click()}
+                        className="inline-flex items-center gap-2 rounded-full border border-line px-3.5 py-2 text-sm font-medium text-ink transition-colors hover:bg-overlay"
+                      >
+                        <ImagePlus size={16} className="text-sky-600 dark:text-sky-300" />
+                        {postDraft.image ? 'Change image' : 'Add image'}
+                      </button>
+                      <input
+                        ref={imageInputRef}
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(event) => {
+                          attachImage(event.target.files?.[0]);
+                          event.target.value = '';
+                        }}
+                      />
+                      <span className="text-xs text-ink-subtle tabular">{trimmedBody.length}/{MAX_BODY_LENGTH}</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={submitPost}
+                      disabled={!canSubmitPost}
+                      className="inline-flex items-center justify-center gap-2 rounded-full bg-ink px-5 py-2.5 text-sm font-medium text-on-ink transition-colors hover:bg-ink/85 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <Send size={15} />
+                      {postSubmitting ? 'Publishing...' : 'Publish post'}
+                    </button>
                   </div>
-                  <button
-                    type="button"
-                    onClick={submitPost}
-                    disabled={!canSubmitPost}
-                    className="inline-flex items-center justify-center gap-2 rounded-full bg-ink px-5 py-3 text-sm font-medium text-on-ink transition hover:bg-ink/85 disabled:cursor-not-allowed disabled:opacity-70"
-                  >
-                    <Bell size={15} />
-                    {postSubmitting ? 'Publishing...' : 'Publish post'}
-                  </button>
                 </div>
-              </>
+              </div>
             ) : (
-              <div className="flex flex-col gap-4 rounded-card border border-dashed border-line bg-surface-sunken/60 p-5 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <div className="text-sm font-semibold text-ink">Log in to post in the community</div>
-                  <div className="mt-1 text-sm leading-6 text-ink-muted">
-                    The composer unlocks as soon as you sign in. Right now the feed is view-only for guests.
-                  </div>
+              <div className="rounded-card bg-surface-sunken p-5">
+                <div className="text-sm font-semibold text-ink">Log in to post in the community</div>
+                <div className="mt-1 text-sm leading-6 text-ink-muted">
+                  The composer unlocks as soon as you sign in. Right now the feed is view-only for guests.
                 </div>
               </div>
             )}
             {postError && (
-              <div className="mt-4 rounded-card border border-rose-200 dark:border-rose-400/25 bg-rose-50 dark:bg-rose-400/10 px-4 py-3 text-sm text-rose-700 dark:text-rose-300" role="alert">
+              <div className="mt-4 rounded-card border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800 dark:border-rose-400/25 dark:bg-rose-400/10 dark:text-rose-200" role="alert">
                 {postError}
               </div>
             )}
           </div>
 
-          <div className="mt-5 space-y-4">
+          <div className="mt-6 divide-y divide-line border-t border-line pt-6">
             {postsLoading ? (
-              <div className="rounded-card border border-line bg-overlay p-5 text-sm text-ink-muted">Loading posts...</div>
-            ) : communityPosts.length === 0 ? (
-              <div className="rounded-card border border-dashed border-line bg-overlay p-5 text-sm leading-6 text-ink-muted">
-                No posts yet. The first published post will appear here.
+              <div className="space-y-3" aria-hidden="true">
+                {[0, 1].map((row) => <div key={row} className="h-28 animate-pulse rounded-card bg-overlay" />)}
               </div>
+            ) : communityPosts.length === 0 ? (
+              <p className="text-sm leading-6 text-ink-muted">No posts yet. The first published post will appear here.</p>
             ) : communityPosts.map((item) => (
-              <article key={item.id} className="min-w-0 rounded-card border border-line bg-overlay p-4">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="flex min-w-0 items-center gap-3">
-                    <div className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-card bg-sky-100 dark:bg-sky-400/15 text-sky-700 dark:text-sky-300">
-                      <Bell size={16} />
-                    </div>
-                    <div className="min-w-0">
-                      <div className="truncate text-xs text-ink-muted">{item.author?.name || 'Unknown user'}</div>
-                      <div className="truncate text-[11px] text-ink-subtle">@{item.author?.username || 'unknown'}</div>
-                    </div>
-                  </div>
-                  <div className="text-xs font-semibold tracking-normal text-ink-subtle">
-                    {item.createdAt ? new Date(item.createdAt).toLocaleDateString() : ''}
-                  </div>
-                </div>
-                <h3 className="mt-3 text-base font-semibold text-ink">{item.title}</h3>
-                <p className="mt-2 whitespace-pre-line text-sm leading-6 text-ink-muted">{item.body}</p>
-                <div className="mt-3 flex flex-wrap items-center gap-2">
-                  <div className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold tracking-normal ${isAdminProfile(item.author) ? 'border-amber-200 dark:border-amber-400/25 bg-amber-50 dark:bg-amber-400/10 text-amber-800 dark:text-amber-200' : 'border-line bg-overlay text-ink-muted'}`}>
-                    {getDisplayRole(item.author)}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => reportPost(item.id)}
-                    disabled={reportingPostId === item.id || reportedPostIds.has(item.id)}
-                    className="inline-flex rounded-full border border-line bg-overlay px-3 py-1 text-xs font-semibold tracking-normal text-ink-muted transition hover:bg-overlay-hover disabled:opacity-60"
-                  >
-                    {reportingPostId === item.id ? 'Reporting...' : reportedPostIds.has(item.id) ? 'Reported' : 'Report'}
-                  </button>
-                </div>
-              </article>
+              <PostCard
+                key={item.id}
+                item={item}
+                onReact={reactToPost}
+                onReport={reportPost}
+                reporting={reportingPostId === item.id}
+                reported={reportedPostIds.has(item.id)}
+                onOpenAuthor={openAuthor}
+              />
             ))}
           </div>
         </section>
 
-        <div className="space-y-5 sm:space-y-6">
-          <section className="min-w-0 rounded-panel border border-line bg-surface-raised p-5 sm:p-6">
-            <h2 className="text-lg font-semibold text-ink sm:text-xl">Find a public profile</h2>
-
-            <label className="mt-5 flex items-center gap-3 rounded-card border border-line bg-overlay px-4 py-3">
+        <div className="min-w-0 space-y-6 lg:sticky lg:top-24">
+          <section className="rounded-panel border border-line bg-surface-raised p-5 sm:p-6" aria-labelledby="find-profile">
+            <h2 id="find-profile" className="text-lg font-semibold text-ink">Find a public profile</h2>
+            <label className="mt-4 flex items-center gap-3 rounded-card border border-line bg-surface-raised px-4 py-2.5 transition-colors focus-within:border-sky-400 focus-within:ring-4 focus-within:ring-sky-100 dark:focus-within:ring-sky-400/20">
               <Search size={16} className="shrink-0 text-ink-subtle" />
               <span className="sr-only">Search by username</span>
               <input
@@ -380,51 +507,36 @@ export default function CommunityPage({ profiles, selectedProfile, onSelectProfi
               />
             </label>
 
-            {loading && (
-              <div className="mt-4 rounded-card border border-line bg-overlay p-4 text-sm text-ink-muted">
-                Loading public profiles...
-              </div>
-            )}
+            {loading && <p className="mt-3 text-sm text-ink-muted">Loading public profiles...</p>}
 
             {previewProfile ? (
-              <div className="mt-5 rounded-card border border-line bg-overlay p-5">
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="min-w-0">
-                    <div className="text-xs font-semibold tracking-normal text-ink-muted">Search result</div>
-                    <div className="mt-2 flex flex-wrap items-center gap-2">
-                      <div className="text-base font-semibold text-ink">{previewProfile.name}</div>
-                      {isAdminProfile(previewProfile) && (
-                        <span className="rounded-full border border-amber-200 dark:border-amber-400/25 bg-amber-50 dark:bg-amber-400/10 px-2.5 py-1 text-[11px] font-semibold tracking-normal text-amber-800 dark:text-amber-200">
-                          admin
-                        </span>
-                      )}
-                    </div>
-                    <div className="mt-1 text-sm text-sky-600 dark:text-sky-300">@{previewProfile.username}</div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setOverlayProfile(previewProfile)}
-                    className="inline-flex shrink-0 items-center justify-center gap-2 rounded-full bg-ink px-5 py-3 text-sm font-medium text-on-ink transition hover:bg-ink/85"
-                  >
-                    Open full profile
-                  </button>
-                </div>
-              </div>
+              <button
+                type="button"
+                onClick={() => setOverlayProfile(previewProfile)}
+                className="mt-4 flex w-full items-center gap-3 rounded-card bg-surface-sunken p-3 text-left transition-colors hover:bg-overlay"
+              >
+                <img src={profileAvatar(previewProfile)} alt="" className="h-11 w-11 shrink-0 rounded-full object-cover" />
+                <span className="min-w-0 flex-1">
+                  <span className="flex flex-wrap items-center gap-2">
+                    <span className="truncate text-sm font-semibold text-ink">{previewProfile.name}</span>
+                    {isAdminProfile(previewProfile) && <AdminBadge />}
+                  </span>
+                  <span className="block truncate text-xs text-ink-subtle">@{previewProfile.username}</span>
+                </span>
+                <span className="text-sm font-medium text-sky-700 dark:text-sky-300">Open full profile</span>
+              </button>
             ) : (
-              <div className="mt-5 rounded-card border border-dashed border-line bg-overlay p-5 text-sm leading-6 text-ink-muted">
-                Type an exact username to reveal the profile preview.
-              </div>
+              <p className="mt-3 text-sm leading-6 text-ink-subtle">Type an exact username to reveal the profile preview.</p>
             )}
           </section>
 
-          <section className="min-w-0 rounded-panel border border-line bg-surface-raised p-5 sm:p-6">
-            <h2 className="text-lg font-semibold text-ink sm:text-xl">Top all-time performers</h2>
-
-            <div className="mt-5 space-y-4">
+          <section className="rounded-panel border border-line bg-surface-raised p-5 sm:p-6" aria-labelledby="leaderboards">
+            <h2 id="leaderboards" className="text-lg font-semibold text-ink">Top all-time performers</h2>
+            <div className="mt-5 space-y-7">
               {profiles.length === 0 && !loading ? (
-                <div className="rounded-card border border-dashed border-line bg-overlay p-5 text-sm leading-6 text-ink-muted">
+                <p className="text-sm leading-6 text-ink-muted">
                   No public profiles yet. Create an account and complete practice sessions to start appearing here.
-                </div>
+                </p>
               ) : (
                 <>
                   <Leaderboard
@@ -438,7 +550,6 @@ export default function CommunityPage({ profiles, selectedProfile, onSelectProfi
                     title="Most practices all-time"
                     description="Top students by total practice count."
                     profiles={leaderboardByPractice}
-                    accent="amber"
                     valueOf={(profile) => profile.stats?.practices ?? 0}
                     onSelect={previewSelectedProfile}
                   />

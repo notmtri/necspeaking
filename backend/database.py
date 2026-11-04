@@ -1,5 +1,6 @@
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import case, func
+from sqlalchemy.orm import deferred
 from datetime import datetime, timezone
 import hashlib
 import re
@@ -26,6 +27,11 @@ ADMIN_USERNAMES = {'notmtri'}
 # hard ceiling regardless of what the client sends. The frontend downscales to a
 # 256px JPEG (tens of KB); this is the independent backstop.
 MAX_AVATAR_CHARS = 200 * 1024
+# Cover photos and post images are wider and kept out of listing queries
+# (deferred columns, served from their own cached URLs), so they can be larger.
+MAX_COVER_CHARS = 700 * 1024
+MAX_POST_IMAGE_CHARS = 900 * 1024
+POST_REACTIONS = ('👍', '🩷', '😆', '🥲', '😮')
 
 
 def is_special_admin(username):
@@ -75,6 +81,10 @@ class User(db.Model):
     role = db.Column(db.String(50), default='Student')
     bio = db.Column(db.Text, default='')
     avatar = db.Column(db.Text, default='')
+    # Never loaded with the user; read only by the cover endpoint.
+    cover = deferred(db.Column(db.Text, nullable=True))
+    # Set when a cover is saved: says one exists and versions its URL.
+    cover_updated_at = db.Column(db.DateTime, nullable=True)
     stats = db.Column(db.JSON, nullable=False, default=lambda: {
         'practices': 0,
         'avgScore': 0,
@@ -112,6 +122,11 @@ class User(db.Model):
             return avatar_from_name(self.name)
         return avatar
 
+    def cover_url(self):
+        if not self.cover_updated_at:
+            return None
+        return f'/api/users/{self.id}/cover?v={int(self.cover_updated_at.timestamp())}'
+
     def _base_profile(self, stored_avatar=None):
         is_admin = is_special_admin(self.username)
         return {
@@ -125,6 +140,7 @@ class User(db.Model):
             'isAdmin': is_admin,
             'bio': self.bio or '',
             'avatar': self.display_avatar(stored_avatar),
+            'coverUrl': self.cover_url(),
             'stats': self.stats or {},
             'progress': self.progress or [],
             'commitWeeks': self.commit_weeks or [],
@@ -254,12 +270,16 @@ class CommunityPost(db.Model):
     reported_count = db.Column(db.Integer, nullable=False, default=0)
     last_reported_at = db.Column(db.DateTime, nullable=True)
     moderated_at = db.Column(db.DateTime, nullable=True)
+    # Optional picture: a data URI, never loaded with the feed; the mime type
+    # doubles as the "has an image" flag.
+    image = deferred(db.Column(db.Text, nullable=True))
+    image_type = db.Column(db.String(20), nullable=True)
     created_at = db.Column(db.DateTime, default=utcnow, index=True)
     updated_at = db.Column(db.DateTime, default=utcnow, onupdate=utcnow)
 
     user = db.relationship('User', backref=db.backref('community_posts', lazy=True, cascade='all, delete-orphan'))
 
-    def to_dict(self, include_moderation=False):
+    def to_dict(self, include_moderation=False, reactions=None, my_reactions=None):
         author = self.user
         author_is_admin = is_special_admin(author.username) if author else False
         payload = {
@@ -269,6 +289,9 @@ class CommunityPost(db.Model):
             'createdAt': self.created_at.isoformat() if self.created_at else None,
             'updatedAt': self.updated_at.isoformat() if self.updated_at else None,
             'reportedCount': int(self.reported_count or 0),
+            'imageUrl': f'/api/community/posts/{self.id}/image' if self.image_type else None,
+            'reactions': {emoji: int((reactions or {}).get(emoji, 0)) for emoji in POST_REACTIONS},
+            'myReactions': list(my_reactions or []),
             'author': {
                 'id': f'user-{author.id}' if author else None,
                 'name': author.name if author else 'Unknown user',
@@ -303,6 +326,18 @@ class AppAnnouncement(db.Model):
             'message': self.message or '',
             'updatedAt': self.updated_at.isoformat() if self.updated_at else None,
         }
+
+
+class CommunityPostReaction(db.Model):
+    """One account's emoji on one post; each of the five emoji at most once."""
+    __tablename__ = 'community_post_reactions'
+    __table_args__ = (db.UniqueConstraint('post_id', 'user_id', 'emoji', name='uq_community_post_reactions'),)
+
+    id = db.Column(db.Integer, primary_key=True)
+    post_id = db.Column(db.Integer, db.ForeignKey('community_posts.id', ondelete='CASCADE'), nullable=False, index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False, index=True)
+    emoji = db.Column(db.String(16), nullable=False)
+    created_at = db.Column(db.DateTime, default=utcnow)
 
 
 class CommunityPostReport(db.Model):

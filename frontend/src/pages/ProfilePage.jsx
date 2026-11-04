@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Award, CheckCircle, Flame, Lock, LogOut, Mic, Pencil, Target, Trash2, TrendingUp, Trophy, Upload, User } from 'lucide-react';
-import { CRITERIA, TONES, getDisplayRole, isAdminProfile, readImageAsResizedDataUri } from '../appShared';
+import { Award, Camera, CheckCircle, Flame, Loader, Lock, LogOut, Mic, Pencil, Target, Trash2, TrendingUp, Trophy, Upload, User } from 'lucide-react';
+import { COVER_UPLOAD, CRITERIA, TONES, isAdminProfile, profileAvatar, profileCover, readImageAsResizedDataUri } from '../appShared';
 import VerifyEmailNotice from '../components/VerifyEmailNotice';
 import { FIELD_CLASSNAME, LabeledInput, ProfileSectionCard } from '../components/ProfileBits';
 import PracticeHistoryItem from '../components/PracticeHistoryItem';
@@ -126,6 +126,46 @@ function AchievementBadges({ stats, analytics }) {
 }
 
 /**
+ * A picture you can replace in place: hover (or, on touch screens, the
+ * always-visible camera badge) shows what a click will do.
+ */
+function EditableImage({ label, onPick, busy, className = '', overlayClassName = '', children }) {
+  const inputRef = React.useRef(null);
+  return (
+    <button
+      type="button"
+      onClick={() => inputRef.current?.click()}
+      disabled={busy}
+      aria-label={label}
+      className={`group relative block overflow-hidden ${className}`}
+    >
+      {children}
+      <span
+        className={`absolute inset-0 flex items-center justify-center gap-2 bg-black/45 text-sm font-medium text-white opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-visible:opacity-100 ${busy ? 'opacity-100' : ''} ${overlayClassName}`}
+        aria-hidden="true"
+      >
+        {busy ? <Loader size={18} className="animate-spin" /> : <Camera size={18} />}
+        <span className="hidden sm:inline">{busy ? 'Saving...' : label}</span>
+      </span>
+      {/* Touch screens have no hover: keep a small camera badge in view. */}
+      <span className="absolute bottom-2 right-2 hidden h-8 w-8 items-center justify-center rounded-full bg-black/55 text-white [@media(hover:none)]:inline-flex" aria-hidden="true">
+        <Camera size={15} />
+      </span>
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(event) => {
+          onPick(event.target.files?.[0]);
+          event.target.value = '';
+        }}
+      />
+    </button>
+  );
+}
+
+/**
  * Shown until the first practice is saved. 59% of accounts had never practised
  * once: signing up landed them on an empty dashboard with no obvious next step.
  */
@@ -167,7 +207,7 @@ function FirstPracticeCard({ onStartPractice }) {
   );
 }
 
-export default function ProfilePage({ currentUser, practiceHistory, onSave, onLogout, onDeleteAccount, onPasswordUpdate, authError, passwordSubmitting, onStartPractice = null, emailEnabled = false, onEmailVerified = null }) {
+export default function ProfilePage({ currentUser, practiceHistory, onSave, onLogout, onDeleteAccount, onPasswordUpdate, authError, passwordSubmitting, onStartPractice = null, emailEnabled = false, onEmailVerified = null, onQuickSave = null }) {
   const [draft, setDraft] = useState(currentUser);
   const [activeTab, setActiveTab] = useState('overview');
   const [deletePhrase, setDeletePhrase] = useState('');
@@ -175,6 +215,8 @@ export default function ProfilePage({ currentUser, practiceHistory, onSave, onLo
   const [passwordForm, setPasswordForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
   const [passwordMessage, setPasswordMessage] = useState('');
   const [photoError, setPhotoError] = useState('');
+  const [mediaSaving, setMediaSaving] = useState('');
+  const [mediaError, setMediaError] = useState('');
 
   useEffect(() => {
     setDraft(currentUser);
@@ -218,8 +260,23 @@ export default function ProfilePage({ currentUser, practiceHistory, onSave, onLo
     }
   };
 
-  const displayRole = getDisplayRole(draft);
   const adminProfile = isAdminProfile(draft);
+
+  // Saves just the photo or the cover, straight from the profile header.
+  const replaceImage = async (kind, file) => {
+    if (!file || !onQuickSave) return;
+    setMediaError('');
+    setMediaSaving(kind);
+    try {
+      const dataUri = await readImageAsResizedDataUri(file, kind === 'cover' ? COVER_UPLOAD : undefined);
+      await onQuickSave({ [kind]: dataUri });
+    } catch (error) {
+      setMediaError(error.message || 'Could not save that image.');
+    } finally {
+      setMediaSaving('');
+    }
+  };
+  const cover = profileCover(draft);
   const stats = draft.stats || {};
 
   const handleDelete = () => {
@@ -266,21 +323,34 @@ export default function ProfilePage({ currentUser, practiceHistory, onSave, onLo
       <h1 id="profile-page-title" className="sr-only">Your profile</h1>
 
       <section className="overflow-hidden rounded-panel border border-line bg-surface-raised" aria-label="Your profile">
-        <div className="h-28 bg-gradient-to-r from-sky-200 via-violet-200 to-amber-200 dark:from-sky-400/25 dark:via-violet-400/20 dark:to-amber-400/20 sm:h-36" aria-hidden="true" />
+        <EditableImage
+          label="Change cover"
+          onPick={(file) => replaceImage('cover', file)}
+          busy={mediaSaving === 'cover'}
+          className="h-32 w-full bg-gradient-to-r from-sky-200 via-violet-200 to-amber-200 dark:from-sky-400/25 dark:via-violet-400/20 dark:to-amber-400/20 sm:h-44"
+        >
+          {cover && <img src={cover} alt="" className="h-full w-full object-cover" />}
+        </EditableImage>
         <div className="px-5 pb-6 sm:px-8">
           <div className="-mt-12 flex flex-col gap-5 sm:-mt-14 lg:flex-row lg:items-end lg:justify-between">
             <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-end">
-              <img
-                src={draft.avatar}
-                alt=""
-                className="h-24 w-24 shrink-0 rounded-[1.75rem] border-4 border-surface-raised object-cover sm:h-28 sm:w-28"
-              />
+              <EditableImage
+                label="Change photo"
+                onPick={(file) => replaceImage('avatar', file)}
+                busy={mediaSaving === 'avatar'}
+                className="relative z-10 h-24 w-24 shrink-0 rounded-[1.75rem] border-4 border-surface-raised bg-surface-raised sm:h-28 sm:w-28"
+                overlayClassName="rounded-[1.5rem]"
+              >
+                <img src={profileAvatar(draft)} alt="" className="h-full w-full rounded-[1.5rem] object-cover" />
+              </EditableImage>
               <div className="min-w-0 sm:pb-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <h2 className="truncate text-2xl font-semibold text-ink sm:text-[1.75rem]">{draft.name}</h2>
-                  <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${adminProfile ? 'bg-amber-50 text-amber-800 dark:bg-amber-400/10 dark:text-amber-200' : 'bg-overlay text-ink-muted'}`}>
-                    {adminProfile ? 'necs. admin' : displayRole}
-                  </span>
+                  {adminProfile && (
+                    <span className="rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-400/10 dark:text-amber-200">
+                      Admin
+                    </span>
+                  )}
                 </div>
                 <div className="mt-0.5 text-sm text-ink-muted">
                   @{draft.username}
@@ -297,6 +367,7 @@ export default function ProfilePage({ currentUser, practiceHistory, onSave, onLo
               Edit profile
             </button>
           </div>
+          {mediaError && <p className="mt-3 text-sm text-rose-700 dark:text-rose-300" role="alert">{mediaError}</p>}
           {draft.bio && <p className="mt-4 max-w-[70ch] text-sm leading-6 text-ink-muted">{draft.bio}</p>}
 
           <dl className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
