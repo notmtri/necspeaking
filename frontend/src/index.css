@@ -8,24 +8,31 @@
  * border-line, text-ink-muted, font-display, ...). Prefer those utilities over
  * raw values so the palette stays consistent across pages.
  *
+ * Colours are stored as bare OKLCH channels ("L C H") so Tailwind's opacity
+ * modifiers work (bg-ink/85, bg-surface-base/90); a plain var() colour
+ * silently drops them. Use them in CSS as oklch(var(--ink)).
+ *
  * Light theme, modelled on oneprep.com: a near-white canvas, near-black ink,
  * neutrals tinted a hair toward the sky accent (hue 240), and sky-500 as the
  * one accent. Primary actions are near-black pills; sky marks selection,
  * progress and links.
  */
 :root {
-  --surface-base: oklch(0.995 0.002 240);
-  --surface-raised: oklch(1 0 0);
+  color-scheme: light;
+  --surface-base: 0.995 0.002 240;
+  --surface-raised: 1 0 0;
   /* Inner panels and chips sit one quiet step below white. */
-  --surface-sunken: oklch(0.982 0.003 240);
-  --overlay: oklch(0.975 0.004 240);
-  --overlay-hover: oklch(0.945 0.006 240);
-  --line: oklch(0.91 0.006 240);
+  --surface-sunken: 0.982 0.003 240;
+  --overlay: 0.975 0.004 240;
+  --overlay-hover: 0.945 0.006 240;
+  --line: 0.91 0.006 240;
 
-  --ink: oklch(0.2 0.012 250);
+  --ink: 0.2 0.012 250;
   /* Both pass WCAG AA on every surface above: muted ~7:1, subtle ~4.9:1. */
-  --ink-muted: oklch(0.45 0.014 250);
-  --ink-subtle: oklch(0.54 0.012 250);
+  --ink-muted: 0.45 0.014 250;
+  --ink-subtle: 0.54 0.012 250;
+  /* Text on an ink fill (primary buttons). */
+  --on-ink: 0.995 0.002 240;
 
   --font-body: 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
   /* Be Vietnam Pro: geometric like the reference's DM Sans, but drawn for
@@ -37,6 +44,27 @@
   /* Layers: sticky header 40, floating button 50, modal 70, confirm 80, toast 90. */
 }
 
+/*
+ * Dark theme: the same roles, re-lit. Set by the inline script in index.html
+ * from the saved choice or the system setting, before first paint. Tinted
+ * fills (bg-sky-50, ...) get their dark pairs as dark: variants in the markup.
+ */
+:root.dark {
+  color-scheme: dark;
+  --surface-base: 0.17 0.012 250;
+  --surface-raised: 0.205 0.013 250;
+  --surface-sunken: 0.15 0.011 250;
+  --overlay: 0.235 0.013 250;
+  --overlay-hover: 0.275 0.014 250;
+  --line: 0.31 0.014 250;
+
+  --ink: 0.96 0.004 250;
+  /* On surface-raised: muted ~9:1, subtle ~5.6:1. */
+  --ink-muted: 0.8 0.01 250;
+  --ink-subtle: 0.68 0.012 250;
+  --on-ink: 0.17 0.012 250;
+}
+
 html, body, #root {
   min-height: 100%;
 }
@@ -45,8 +73,8 @@ html, body {
   max-width: 100%;
   overflow-x: hidden;
   margin: 0;
-  background: var(--surface-base);
-  color: var(--ink-muted);
+  background: oklch(var(--surface-base));
+  color: oklch(var(--ink-muted));
   font-family: var(--font-body);
   font-feature-settings: 'cv11', 'ss01';
   -webkit-font-smoothing: antialiased;
@@ -140,8 +168,8 @@ input[type="range"] {
 }
 
 ::selection {
-  background: oklch(0.9 0.06 237);
-  color: var(--ink);
+  background: oklch(0.68 0.15 237 / 0.3);
+  color: oklch(var(--ink));
 }
 
 /* Home page entrance: content is visible by default; motion only adds a lift. */
@@ -156,6 +184,31 @@ input[type="range"] {
       opacity: 0;
       transform: translateY(14px);
     }
+  }
+
+  /* A new quote replacing the last one in the review carousel. */
+  .fade-in {
+    animation: fade-in 0.5s var(--ease-out-quart) both;
+  }
+
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+  }
+}
+
+/* Time left on the current review; the carousel pauses it on hover. */
+.progress-fill {
+  width: 100%;
+  transform-origin: left;
+  animation: progress-fill var(--progress-duration, 4s) linear both;
+}
+
+@keyframes progress-fill {
+  from {
+    transform: scaleX(0);
   }
 }
 

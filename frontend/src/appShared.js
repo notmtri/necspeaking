@@ -64,12 +64,56 @@ export const formatTime = (seconds = 0) => {
   return `${minutes}:${remainder < 10 ? '0' : ''}${remainder}`;
 };
 
+/**
+ * The NEC rubric, and the one colour each criterion wears everywhere a score
+ * appears (home page, results, profile), so students learn to read them at a
+ * glance. Classes are spelled out in full so Tailwind can find them.
+ */
+export const CRITERIA = [
+  { key: 'content', label: 'Content', max: 0.9, tone: 'sky' },
+  { key: 'accuracy', label: 'Accuracy', max: 0.6, tone: 'violet' },
+  { key: 'delivery', label: 'Delivery', max: 0.5, tone: 'amber' },
+];
+
+export const TONES = {
+  sky: {
+    soft: 'bg-sky-50 dark:bg-sky-400/10',
+    text: 'text-sky-700 dark:text-sky-300',
+    fill: 'bg-sky-500',
+    ring: 'ring-sky-200 dark:ring-sky-400/25',
+  },
+  violet: {
+    soft: 'bg-violet-50 dark:bg-violet-400/10',
+    text: 'text-violet-700 dark:text-violet-300',
+    fill: 'bg-violet-500',
+    ring: 'ring-violet-200 dark:ring-violet-400/25',
+  },
+  amber: {
+    soft: 'bg-amber-50 dark:bg-amber-400/10',
+    text: 'text-amber-700 dark:text-amber-300',
+    fill: 'bg-amber-400',
+    ring: 'ring-amber-200 dark:ring-amber-400/25',
+  },
+  emerald: {
+    soft: 'bg-emerald-50 dark:bg-emerald-400/10',
+    text: 'text-emerald-700 dark:text-emerald-300',
+    fill: 'bg-emerald-500',
+    ring: 'ring-emerald-200 dark:ring-emerald-400/25',
+  },
+  rose: {
+    soft: 'bg-rose-50 dark:bg-rose-400/10',
+    text: 'text-rose-700 dark:text-rose-300',
+    fill: 'bg-rose-500',
+    ring: 'ring-rose-200 dark:ring-rose-400/25',
+  },
+};
+
 /** Maps a criterion score to the app's semantic accent ramp. */
 export const getScoreColor = (score, max) => {
   const percentage = max > 0 ? (score / max) * 100 : 0;
-  if (percentage >= 80) return 'text-emerald-700';
-  if (percentage >= 60) return 'text-amber-700';
-  return 'text-rose-700';
+  if (percentage >= 80) return 'text-emerald-700 dark:text-emerald-300';
+  if (percentage >= 60) return 'text-amber-700 dark:text-amber-300';
+  return 'text-rose-700 dark:text-rose-300';
 };
 
 export const HOME_STATS = [

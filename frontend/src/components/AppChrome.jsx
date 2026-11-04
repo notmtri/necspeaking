@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { AlertCircle, ArrowUpRight, Download, Loader, Menu, Settings, UserPlus, X } from 'lucide-react';
 import { getDisplayRole, isAdminProfile } from '../appShared';
+import ThemeSelect from './ThemeSelect';
 
 const NAV_ITEMS = [
   { id: 'home', label: 'Home' },
@@ -105,7 +106,7 @@ export function AppHeader({
       <button
         type="button"
         onClick={openAdminPanel}
-        className={`${ICON_BUTTON} ${adminAuthenticated ? 'bg-amber-50 text-amber-800 hover:bg-amber-100 hover:text-amber-900' : ''}`}
+        className={`${ICON_BUTTON} ${adminAuthenticated ? 'bg-amber-50 dark:bg-amber-400/10 text-amber-800 dark:text-amber-200 hover:bg-amber-100 dark:hover:bg-amber-400/15 hover:text-amber-900 dark:hover:text-amber-100' : ''}`}
         title={adminAuthenticated ? 'Admin panel (authenticated)' : 'Admin panel'}
         aria-label={adminAuthenticated ? 'Open admin panel' : 'Open admin login'}
       >
@@ -114,7 +115,7 @@ export function AppHeader({
       <button
         type="button"
         onClick={handleInstallApp}
-        className={`${ICON_BUTTON} ${installPrompt ? 'bg-sky-50 text-sky-700 hover:bg-sky-100 hover:text-sky-800' : ''}`}
+        className={`${ICON_BUTTON} ${installPrompt ? 'bg-sky-50 dark:bg-sky-400/10 text-sky-700 dark:text-sky-300 hover:bg-sky-100 dark:hover:bg-sky-400/15 hover:text-sky-800 dark:hover:text-sky-200' : ''}`}
         title="Install web app"
         aria-label="Install web app"
       >
@@ -163,7 +164,7 @@ export function AppHeader({
                 <button
                   type="button"
                   onClick={() => openAuth('signup')}
-                  className="rounded-full bg-ink px-4 py-2 text-sm font-medium text-white transition-colors duration-200 hover:bg-ink/85"
+                  className="rounded-full bg-ink px-4 py-2 text-sm font-medium text-on-ink transition-colors duration-200 hover:bg-ink/85"
                 >
                   Sign up
                 </button>
@@ -207,7 +208,7 @@ export function AppHeader({
                     <button type="button" onClick={() => openAuth('login')} className="rounded-full bg-overlay px-4 py-2.5 text-sm font-medium text-ink">
                       Log in
                     </button>
-                    <button type="button" onClick={() => openAuth('signup')} className="rounded-full bg-ink px-4 py-2.5 text-sm font-medium text-white">
+                    <button type="button" onClick={() => openAuth('signup')} className="rounded-full bg-ink px-4 py-2.5 text-sm font-medium text-on-ink">
                       Sign up
                     </button>
                   </div>
@@ -220,14 +221,14 @@ export function AppHeader({
       </header>
 
       {showAnnouncement && (
-        <div className="w-full border-b border-sky-100 bg-sky-50 px-4 py-2" role="status" aria-live="polite">
-          <div className="mx-auto flex max-w-7xl items-start gap-2 text-left text-sm leading-6 text-sky-900 sm:items-center sm:px-2 lg:px-4">
-            <AlertCircle size={16} className="mt-1 shrink-0 text-sky-600 sm:mt-0" />
+        <div className="w-full border-b border-sky-100 dark:border-sky-400/15 bg-sky-50 dark:bg-sky-400/10 px-4 py-2" role="status" aria-live="polite">
+          <div className="mx-auto flex max-w-7xl items-start gap-2 text-left text-sm leading-6 text-sky-900 dark:text-sky-100 sm:items-center sm:px-2 lg:px-4">
+            <AlertCircle size={16} className="mt-1 shrink-0 text-sky-600 dark:text-sky-300 sm:mt-0" />
             <p className="min-w-0 flex-1 break-words">{announcement.message}</p>
             <button
               type="button"
               onClick={() => setAnnouncementDismissed(true)}
-              className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sky-700 transition-colors hover:bg-sky-100"
+              className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sky-700 dark:text-sky-300 transition-colors hover:bg-sky-100 dark:hover:bg-sky-400/15"
               aria-label="Dismiss announcement"
             >
               <X size={15} />
@@ -253,13 +254,13 @@ export function AppStatusStack({
   return (
     <>
       {isOffline && (
-        <div className="mb-4 flex items-start gap-3 rounded-card border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800 sm:items-center" role="status" aria-live="polite">
+        <div className="mb-4 flex items-start gap-3 rounded-card border border-rose-200 dark:border-rose-400/25 bg-rose-50 dark:bg-rose-400/10 px-4 py-3 text-sm text-rose-800 dark:text-rose-200 sm:items-center" role="status" aria-live="polite">
           <AlertCircle size={16} className="mt-0.5 shrink-0 sm:mt-0" />
           <span className="min-w-0 break-words">Offline. Analysis and profile sync resume when connection returns.</span>
         </div>
       )}
       {guestMode && !currentUser && guestModeBannerVisible && currentPage !== 'home' && (
-        <div className="mb-4 flex flex-col gap-3 rounded-card border border-sky-100 bg-sky-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-5" role="status" aria-live="polite">
+        <div className="mb-4 flex flex-col gap-3 rounded-card border border-sky-100 dark:border-sky-400/15 bg-sky-50 dark:bg-sky-400/10 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-5" role="status" aria-live="polite">
           <div className="min-w-0 text-sm leading-6">
             <span className="font-medium text-ink">Guest mode is active.</span>{' '}
             <span className="text-ink-muted">Practise now; sign up to save your sessions.</span>
@@ -268,7 +269,7 @@ export function AppStatusStack({
             <button
               type="button"
               onClick={() => openAuth('signup')}
-              className="inline-flex items-center justify-center gap-2 rounded-full bg-ink px-4 py-2 text-sm font-medium text-white transition-colors duration-200 hover:bg-ink/85"
+              className="inline-flex items-center justify-center gap-2 rounded-full bg-ink px-4 py-2 text-sm font-medium text-on-ink transition-colors duration-200 hover:bg-ink/85"
             >
               <UserPlus size={15} />
               Save progress
@@ -286,13 +287,13 @@ export function AppStatusStack({
       )}
 
       {authError && currentPage !== 'auth' && currentPage !== 'profile' && (
-        <div className="mb-4 rounded-card border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800" role="alert">
+        <div className="mb-4 rounded-card border border-rose-200 dark:border-rose-400/25 bg-rose-50 dark:bg-rose-400/10 px-4 py-3 text-sm text-rose-800 dark:text-rose-200" role="alert">
           {authError}
         </div>
       )}
 
       {isWarmingBackend && currentPage !== 'home' && (
-        <div className="mb-4 flex items-center gap-3 rounded-card border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900" role="status" aria-live="polite">
+        <div className="mb-4 flex items-center gap-3 rounded-card border border-amber-200 dark:border-amber-400/25 bg-amber-50 dark:bg-amber-400/10 px-4 py-3 text-sm text-amber-900 dark:text-amber-100" role="status" aria-live="polite">
           <Loader size={16} className="shrink-0 animate-spin" />
           <span className="min-w-0 break-words">Connecting analysis service...</span>
         </div>
@@ -366,9 +367,9 @@ export function Footer({ navTo, onFeedback }) {
         </aside>
       </div>
       <div className="border-t border-line">
-        <div className="mx-auto flex max-w-7xl flex-col gap-2 px-4 py-5 pb-20 text-sm text-ink-subtle sm:flex-row sm:gap-8 sm:px-6 sm:pb-5 lg:px-8">
-          <p>Developed by Nguyen Hoang Minh Tri.</p>
-          <p>Free for every NEC candidate.</p>
+        <div className="mx-auto flex max-w-7xl flex-col items-start gap-3 px-4 py-5 pb-20 text-sm text-ink-subtle sm:flex-row sm:items-center sm:gap-8 sm:px-6 sm:pb-5 sm:pr-40 lg:px-8 lg:pr-40">
+          <p className="sm:mr-auto">Developed by Nguyen Hoang Minh Tri.</p>
+          <ThemeSelect />
         </div>
       </div>
     </footer>

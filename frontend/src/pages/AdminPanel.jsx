@@ -22,7 +22,7 @@ function AdminField({ label, required, children, hint }) {
     <label className="block">
       <span className="mb-2 block text-sm font-semibold text-ink-muted">
         {label}
-        {required && <span className="ml-1 text-rose-600" aria-hidden="true">*</span>}
+        {required && <span className="ml-1 text-rose-600 dark:text-rose-300" aria-hidden="true">*</span>}
       </span>
       {children}
       {hint && <span className="mt-1 block text-xs text-ink-subtle">{hint}</span>}
@@ -35,7 +35,7 @@ function AdminCard({ title, icon: Icon, children }) {
     <section className="rounded-card border border-line bg-overlay p-4 sm:p-5">
       {title && (
         <div className="mb-4 flex items-center gap-2">
-          {Icon && <Icon size={18} className="text-sky-700" />}
+          {Icon && <Icon size={18} className="text-sky-700 dark:text-sky-300" />}
           <h3 className="text-base font-semibold text-ink">{title}</h3>
         </div>
       )}
@@ -46,11 +46,11 @@ function AdminCard({ title, icon: Icon, children }) {
 
 function AdminButton({ tone = 'primary', onClick, disabled, className = '', children, ...rest }) {
   const toneClasses = {
-    primary: 'bg-ink text-white hover:bg-ink/85',
+    primary: 'bg-ink text-on-ink hover:bg-ink/85',
     neutral: 'border border-line bg-overlay text-ink hover:bg-overlay-hover',
     success: 'bg-emerald-500 text-white hover:bg-emerald-400',
-    danger: 'border border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100',
-    warning: 'border border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100',
+    danger: 'border border-rose-200 dark:border-rose-400/25 bg-rose-50 dark:bg-rose-400/10 text-rose-700 dark:text-rose-300 hover:bg-rose-100 dark:hover:bg-rose-400/15',
+    warning: 'border border-amber-200 dark:border-amber-400/25 bg-amber-50 dark:bg-amber-400/10 text-amber-800 dark:text-amber-200 hover:bg-amber-100 dark:hover:bg-amber-400/15',
   }[tone];
 
   return (
@@ -120,8 +120,8 @@ export default function AdminPanel({ onClose, onLogout, notify, announcement, on
     if (!status?.text) return null;
 
     const toneClasses = status.tone === 'error'
-      ? 'border-rose-200 bg-rose-50 text-rose-700'
-      : 'border-emerald-200 bg-emerald-50 text-emerald-700';
+      ? 'border-rose-200 dark:border-rose-400/25 bg-rose-50 dark:bg-rose-400/10 text-rose-700 dark:text-rose-300'
+      : 'border-emerald-200 dark:border-emerald-400/25 bg-emerald-50 dark:bg-emerald-400/10 text-emerald-700 dark:text-emerald-300';
 
     return (
       <div className={`mb-4 rounded-card border px-4 py-3 text-sm ${toneClasses}`} role={status.tone === 'error' ? 'alert' : 'status'}>
@@ -460,7 +460,7 @@ export default function AdminPanel({ onClose, onLogout, notify, announcement, on
   ] : [];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-neutral-900/40 p-3 backdrop-blur-sm sm:p-5">
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-neutral-900/40 dark:bg-black/60 p-3 backdrop-blur-sm sm:p-5">
       <div
         className="my-4 w-full max-w-7xl overflow-hidden rounded-panel border border-line bg-surface-raised"
         role="dialog"
@@ -469,7 +469,7 @@ export default function AdminPanel({ onClose, onLogout, notify, announcement, on
       >
         <div className="border-b border-line px-4 py-3 sm:px-6">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="inline-flex w-fit items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-semibold tracking-normal text-amber-800">
+            <div className="inline-flex w-fit items-center gap-2 rounded-full border border-amber-200 dark:border-amber-400/25 bg-amber-50 dark:bg-amber-400/10 px-3 py-1 text-xs font-semibold tracking-normal text-amber-800 dark:text-amber-200">
               <Lock size={14} />
               <h2 id="admin-panel-title">Admin CMS</h2>
             </div>
@@ -563,7 +563,7 @@ export default function AdminPanel({ onClose, onLogout, notify, announcement, on
               {renderStatus('manage')}
               {loadingSamples ? (
                 <div className="py-8 text-center text-ink-muted">
-                  <Loader className="mx-auto mb-2 animate-spin text-sky-600" size={36} />
+                  <Loader className="mx-auto mb-2 animate-spin text-sky-600 dark:text-sky-300" size={36} />
                   <div>Loading samples...</div>
                 </div>
               ) : samples.length === 0 ? (
@@ -650,7 +650,7 @@ export default function AdminPanel({ onClose, onLogout, notify, announcement, on
               <div>
                 <h3 className="mb-3 text-base font-semibold text-ink">Question bank ({questions.length})</h3>
                 {loadingQuestions ? (
-                  <div className="py-8 text-center"><Loader className="mx-auto animate-spin text-sky-600" size={36} /></div>
+                  <div className="py-8 text-center"><Loader className="mx-auto animate-spin text-sky-600 dark:text-sky-300" size={36} /></div>
                 ) : questions.length === 0 ? (
                   <div className="rounded-card border border-dashed border-line bg-overlay p-5 text-sm text-ink-muted">
                     No questions yet. Add your first question above.
@@ -726,7 +726,7 @@ export default function AdminPanel({ onClose, onLogout, notify, announcement, on
                   <div className="rounded-control border border-line bg-surface-sunken/60 p-4">
                     <div className="mb-2 text-xs font-semibold tracking-normal text-ink-subtle">Preview</div>
                     {announcementDraft.enabled && announcementDraft.message ? (
-                      <div className="rounded-control border border-sky-200 bg-sky-50 px-4 py-2 text-center text-sm font-medium text-sky-700">
+                      <div className="rounded-control border border-sky-200 dark:border-sky-400/25 bg-sky-50 dark:bg-sky-400/10 px-4 py-2 text-center text-sm font-medium text-sky-700 dark:text-sky-300">
                         {announcementDraft.message}
                       </div>
                     ) : (
@@ -746,7 +746,7 @@ export default function AdminPanel({ onClose, onLogout, notify, announcement, on
               {renderStatus('moderation')}
               {loadingCommunityPosts ? (
                 <div className="py-8 text-center text-ink-muted">
-                  <Loader className="mx-auto mb-2 animate-spin text-sky-600" size={36} />
+                  <Loader className="mx-auto mb-2 animate-spin text-sky-600 dark:text-sky-300" size={36} />
                   <div>Loading community posts...</div>
                 </div>
               ) : communityPosts.length === 0 ? (
@@ -791,7 +791,7 @@ export default function AdminPanel({ onClose, onLogout, notify, announcement, on
               {renderStatus('feedback')}
               {loadingFeedback ? (
                 <div className="py-8 text-center text-ink-muted">
-                  <Loader className="mx-auto mb-2 animate-spin text-sky-600" size={36} />
+                  <Loader className="mx-auto mb-2 animate-spin text-sky-600 dark:text-sky-300" size={36} />
                   <div>Loading feedback...</div>
                 </div>
               ) : feedbackItems.length === 0 ? (

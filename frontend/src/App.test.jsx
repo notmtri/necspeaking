@@ -197,7 +197,7 @@ describe('App', () => {
   it('shows the question bank count on the simulation page', async () => {
     await renderApp('/simulation', { questions: [questionFixture] });
 
-    expect(container.textContent).toContain('1 questions available');
+    expect(container.textContent).toContain('1 question available');
   });
 
   it('keeps the community composer locked for signed-out visitors', async () => {

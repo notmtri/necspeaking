@@ -1,16 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Award, BarChart3, CheckCircle, Flame, Lock, LogOut, Mic, Target, Trash2, TrendingUp, Trophy, Upload, User } from 'lucide-react';
-import { getDisplayRole, isAdminProfile, readImageAsResizedDataUri } from '../appShared';
-import { PageHeader } from '../components/AppChrome';
+import { Award, CheckCircle, Flame, Lock, LogOut, Mic, Pencil, Target, Trash2, TrendingUp, Trophy, Upload, User } from 'lucide-react';
+import { CRITERIA, TONES, getDisplayRole, isAdminProfile, readImageAsResizedDataUri } from '../appShared';
 import VerifyEmailNotice from '../components/VerifyEmailNotice';
-import { FIELD_CLASSNAME, LabeledInput, ProfileDetailRow, ProfileMetricCard, ProfileSectionCard } from '../components/ProfileBits';
+import { FIELD_CLASSNAME, LabeledInput, ProfileSectionCard } from '../components/ProfileBits';
 import PracticeHistoryItem from '../components/PracticeHistoryItem';
 
-const CRITERIA = [
-  { key: 'content', label: 'Content', max: 0.9, tone: 'sky' },
-  { key: 'accuracy', label: 'Accuracy', max: 0.6, tone: 'emerald' },
-  { key: 'delivery', label: 'Delivery', max: 0.5, tone: 'amber' },
-];
 
 const DELETE_PHRASE = 'I want to delete my NECSpeaking account!';
 
@@ -46,21 +40,21 @@ function getPracticeAnalytics(history = [], stats = {}) {
 function PracticeTrend({ sessions }) {
   if (!sessions.length) {
     return (
-      <div className="rounded-card border border-dashed border-line bg-overlay p-4 text-sm text-ink-muted">
+      <p className="rounded-card bg-surface-sunken p-4 text-sm text-ink-muted">
         Complete more logged-in practice sessions to unlock score trends.
-      </div>
+      </p>
     );
   }
 
   return (
-    <div className="grid min-h-[180px] grid-cols-6 items-end gap-2 rounded-card border border-line bg-overlay p-4">
+    <div className="grid min-h-[180px] grid-cols-6 items-end gap-3">
       {sessions.map((session, index) => {
         const score = Number(session.scores?.total || 0);
         const height = Math.max(10, Math.round((score / 2) * 100));
         return (
           <div key={session.id || index} className="flex min-w-0 flex-col items-center gap-2">
             <div className="flex h-28 w-full items-end">
-              <div className="w-full rounded-t-control bg-sky-500" style={{ height: `${height}%` }} />
+              <div className="w-full rounded-t-control bg-gradient-to-t from-sky-500 to-sky-300 dark:from-sky-500 dark:to-sky-400" style={{ height: `${height}%` }} />
             </div>
             <div className="text-xs font-semibold text-ink">{score.toFixed(2)}</div>
             <div className="max-w-full truncate text-[10px] text-ink-subtle">
@@ -75,18 +69,18 @@ function PracticeTrend({ sessions }) {
 
 function CriteriaBars({ averages }) {
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       {CRITERIA.map((criterion) => {
         const value = Number(averages[criterion.key] || 0);
         const percent = Math.min(100, Math.round((value / criterion.max) * 100));
         return (
-          <div key={criterion.key} className="rounded-card border border-line bg-overlay p-4">
-            <div className="flex items-center justify-between gap-3">
-              <div className="text-sm font-semibold text-ink">{criterion.label}</div>
-              <div className="text-sm font-semibold text-ink-muted">{value.toFixed(2)} / {criterion.max.toFixed(1)}</div>
+          <div key={criterion.key}>
+            <div className="flex items-center justify-between gap-3 text-sm">
+              <div className={`font-medium ${TONES[criterion.tone].text}`}>{criterion.label}</div>
+              <div className="font-medium text-ink tabular">{value.toFixed(2)} <span className="font-normal text-ink-subtle">/ {criterion.max.toFixed(1)}</span></div>
             </div>
-            <div className="mt-3 h-2 overflow-hidden rounded-full bg-overlay-hover">
-              <div className="h-full rounded-full bg-emerald-400" style={{ width: `${percent}%` }} />
+            <div className={`mt-2 h-2 overflow-hidden rounded-full ${TONES[criterion.tone].soft}`}>
+              <div className={`h-full rounded-full ${TONES[criterion.tone].fill}`} style={{ width: `${percent}%` }} />
             </div>
           </div>
         );
@@ -110,41 +104,24 @@ function AchievementBadges({ stats, analytics }) {
   ];
 
   return (
-    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+    <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
       {badges.map((badge) => {
         const Icon = badge.icon;
         return (
-          <div key={badge.label} className={`rounded-card border p-4 ${badge.unlocked ? 'border-amber-200 bg-amber-50 text-amber-800' : 'border-line bg-overlay text-ink-subtle'}`}>
+          <div key={badge.label} className={`rounded-card p-3 ${badge.unlocked ? 'bg-amber-50 text-amber-900 dark:bg-amber-400/10 dark:text-amber-100' : 'text-ink-subtle'}`}>
             <div className="flex items-center gap-3">
-              <div className={`inline-flex h-10 w-10 items-center justify-center rounded-card ${badge.unlocked ? 'bg-amber-100' : 'bg-overlay'}`}>
-                <Icon size={18} />
+              <div className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${badge.unlocked ? 'bg-amber-300 text-amber-950 dark:bg-amber-400/30 dark:text-amber-100' : 'bg-overlay'}`}>
+                <Icon size={16} />
               </div>
               <div className="min-w-0">
-                <div className="font-semibold">{badge.label}</div>
-                <div className="mt-1 text-xs">{badge.unlocked ? 'Unlocked' : badge.note}</div>
+                <div className={`text-sm font-medium ${badge.unlocked ? '' : 'text-ink-muted'}`}>{badge.label}</div>
+                <div className="text-xs">{badge.unlocked ? 'Unlocked' : badge.note}</div>
               </div>
             </div>
           </div>
         );
       })}
     </div>
-  );
-}
-
-function ProfileTabButton({ active, onClick, children }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={active}
-      className={`rounded-full border px-4 py-2 text-sm font-semibold transition ${
-        active
-          ? 'border-sky-200 bg-sky-50 text-sky-700'
-          : 'border-line bg-overlay text-ink-muted hover:bg-overlay-hover'
-      }`}
-    >
-      {children}
-    </button>
   );
 }
 
@@ -159,13 +136,12 @@ function FirstPracticeCard({ onStartPractice }) {
     'Get scored on Content, Accuracy and Delivery, with written feedback.',
   ];
   return (
-    <section className="rounded-panel border border-sky-200 bg-sky-50 p-5 sm:p-6" aria-labelledby="first-practice-title">
-      <div className="text-xs font-semibold tracking-normal text-sky-600">Start here</div>
-      <h2 id="first-practice-title" className="mt-2 text-xl font-semibold text-ink">Do your first practice</h2>
+    <section className="rounded-panel bg-sky-50 p-5 dark:bg-sky-400/10 sm:p-7" aria-labelledby="first-practice-title">
+      <h2 id="first-practice-title" className="text-xl font-semibold text-ink">Do your first practice</h2>
       <ol className="mt-4 space-y-2 text-sm leading-6 text-ink">
         {steps.map((step, index) => (
           <li key={step} className="flex gap-3">
-            <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-sky-100 text-xs font-semibold text-sky-700">{index + 1}</span>
+            <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-sky-100 dark:bg-sky-400/15 text-xs font-semibold text-sky-700 dark:text-sky-300">{index + 1}</span>
             <span>{step}</span>
           </li>
         ))}
@@ -174,7 +150,7 @@ function FirstPracticeCard({ onStartPractice }) {
         <button
           type="button"
           onClick={() => onStartPractice('analyze')}
-          className="inline-flex items-center justify-center gap-2 rounded-full bg-ink px-5 py-3 font-medium text-white transition hover:bg-ink/85"
+          className="inline-flex items-center justify-center gap-2 rounded-full bg-ink px-5 py-3 font-medium text-on-ink transition hover:bg-ink/85"
         >
           <Mic size={17} />
           Start my first practice
@@ -218,7 +194,7 @@ export default function ProfilePage({ currentUser, practiceHistory, onSave, onLo
   if (!currentUser || !draft) {
     return (
       <section className="rounded-panel border border-line bg-surface-raised p-5 text-center sm:p-8">
-        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full border border-line bg-overlay text-sky-600">
+        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full border border-line bg-overlay text-sky-600 dark:text-sky-300">
           <User size={28} />
         </div>
         <h1 className="mt-5 text-2xl font-bold tracking-tight text-ink sm:text-3xl">Log in to view your profile</h1>
@@ -276,21 +252,83 @@ export default function ProfilePage({ currentUser, practiceHistory, onSave, onLo
     }
   };
 
-  return (
-    <div className="w-full min-w-0 space-y-5 text-ink sm:space-y-6">
-      <PageHeader
-        id="profile-page-title"
-        title="Your profile"
-        description="Identity, saved practice history, performance analytics, and account settings."
-      />
+  const hasPractice = stats.practices > 0 || practiceHistory?.length > 0;
+  const details = [draft.school, draft.className, draft.cohort && `Cohort ${draft.cohort}`].filter(Boolean);
+  const statTiles = [
+    { label: 'Practices', value: stats.practices || 0, tone: 'sky' },
+    { label: 'Average', value: Number(stats.avgScore || 0).toFixed(2), tone: 'violet' },
+    { label: 'Best', value: Number(stats.bestScore || 0).toFixed(2), tone: 'amber' },
+    { label: 'Day streak', value: stats.streak || 0, tone: 'emerald' },
+  ];
 
-      <div className="flex flex-wrap justify-center gap-2">
-        <ProfileTabButton active={activeTab === 'overview'} onClick={() => setActiveTab('overview')}>Overview</ProfileTabButton>
-        <ProfileTabButton active={activeTab === 'settings'} onClick={() => setActiveTab('settings')}>Settings</ProfileTabButton>
-      </div>
+  return (
+    <div className="w-full min-w-0 space-y-8 text-ink">
+      <h1 id="profile-page-title" className="sr-only">Your profile</h1>
+
+      <section className="overflow-hidden rounded-panel border border-line bg-surface-raised" aria-label="Your profile">
+        <div className="h-28 bg-gradient-to-r from-sky-200 via-violet-200 to-amber-200 dark:from-sky-400/25 dark:via-violet-400/20 dark:to-amber-400/20 sm:h-36" aria-hidden="true" />
+        <div className="px-5 pb-6 sm:px-8">
+          <div className="-mt-12 flex flex-col gap-5 sm:-mt-14 lg:flex-row lg:items-end lg:justify-between">
+            <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-end">
+              <img
+                src={draft.avatar}
+                alt=""
+                className="h-24 w-24 shrink-0 rounded-[1.75rem] border-4 border-surface-raised object-cover sm:h-28 sm:w-28"
+              />
+              <div className="min-w-0 sm:pb-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h2 className="truncate text-2xl font-semibold text-ink sm:text-[1.75rem]">{draft.name}</h2>
+                  <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${adminProfile ? 'bg-amber-50 text-amber-800 dark:bg-amber-400/10 dark:text-amber-200' : 'bg-overlay text-ink-muted'}`}>
+                    {adminProfile ? 'necs. admin' : displayRole}
+                  </span>
+                </div>
+                <div className="mt-0.5 text-sm text-ink-muted">
+                  @{draft.username}
+                  {details.length > 0 && <span className="text-ink-subtle"> | {details.join(', ')}</span>}
+                </div>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setActiveTab('settings')}
+              className="inline-flex shrink-0 items-center justify-center gap-2 self-start rounded-full border border-line bg-surface-raised px-4 py-2 text-sm font-medium text-ink transition-colors duration-200 hover:bg-overlay lg:self-auto"
+            >
+              <Pencil size={15} />
+              Edit profile
+            </button>
+          </div>
+          {draft.bio && <p className="mt-4 max-w-[70ch] text-sm leading-6 text-ink-muted">{draft.bio}</p>}
+
+          <dl className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+            {statTiles.map((tile) => (
+              <div key={tile.label} className={`rounded-card px-4 py-3.5 ${TONES[tile.tone].soft}`}>
+                <dt className={`text-sm font-medium ${TONES[tile.tone].text}`}>{tile.label}</dt>
+                <dd className="mt-1 font-display text-2xl font-semibold tracking-[-0.03em] text-ink tabular">{tile.value}</dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+
+        <div className="flex gap-6 border-t border-line px-5 sm:px-8" role="tablist" aria-label="Profile sections">
+          {[['overview', 'Overview'], ['settings', 'Settings']].map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              role="tab"
+              aria-selected={activeTab === id}
+              onClick={() => setActiveTab(id)}
+              className={`-mb-px border-b-2 py-3.5 text-sm font-medium transition-colors duration-200 ${
+                activeTab === id ? 'border-ink text-ink' : 'border-transparent text-ink-muted hover:text-ink'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </section>
 
       {authError && (
-        <div className="rounded-card border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700" role="alert">
+        <div className="rounded-card border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800 dark:border-rose-400/25 dark:bg-rose-400/10 dark:text-rose-200" role="alert">
           {authError}
         </div>
       )}
@@ -303,94 +341,46 @@ export default function ProfilePage({ currentUser, practiceHistory, onSave, onLo
         />
       )}
 
-      {activeTab === 'overview' && onStartPractice && !(stats.practices > 0) && !practiceHistory?.length && (
+      {activeTab === 'overview' && onStartPractice && !hasPractice && (
         <FirstPracticeCard onStartPractice={onStartPractice} />
       )}
 
       {activeTab === 'overview' ? (
-        <div className="grid gap-4 xl:grid-cols-[minmax(0,0.6fr)_minmax(0,1.4fr)] xl:items-start">
-          <ProfileSectionCard title="User card" eyebrow="Identity" className="xl:row-span-2">
-            <div className="flex h-full flex-col items-center justify-center text-center">
-              <img
-                src={draft.avatar}
-                alt=""
-                className="h-44 w-44 rounded-panel border border-line object-cover sm:h-56 sm:w-56"
-              />
-              <h2 className="mt-5 text-lg font-semibold text-ink sm:text-xl">{draft.name}</h2>
-              <div className="mt-1 text-base font-semibold text-sky-600">@{draft.username}</div>
-              <div className="mt-3 inline-flex items-center rounded-full border border-line bg-overlay px-3 py-1 text-xs font-semibold tracking-normal text-ink-muted">
-                {displayRole}
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] lg:items-start">
+          <div className="min-w-0 space-y-6">
+            <ProfileSectionCard title="Recent practice">
+              <div className="divide-y divide-line">
+                {practiceHistory?.length ? practiceHistory.map((session) => (
+                  <PracticeHistoryItem key={session.id} session={session} />
+                )) : (
+                  <p className="rounded-card bg-surface-sunken px-4 py-5 text-sm text-ink-muted">
+                    Your saved attempts appear here, each with its scores, feedback and report.
+                  </p>
+                )}
               </div>
-              {adminProfile && (
-                <div className="mt-3 inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-semibold tracking-normal text-amber-800">
-                  necs. admin
-                </div>
-              )}
-              <p className="mt-4 max-w-[28ch] text-sm leading-6 text-ink-muted">{draft.bio}</p>
-            </div>
-          </ProfileSectionCard>
+            </ProfileSectionCard>
 
-          <ProfileSectionCard title="At a glance" eyebrow="Quick profile">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <ProfileDetailRow label="Name" value={draft.name} />
-              <ProfileDetailRow label="Username" value={`@${draft.username}`} />
-              <ProfileDetailRow label="Role" value={displayRole} />
-              <ProfileDetailRow label="Streak" value={`${stats.streak || 0} days`} />
-              <ProfileDetailRow label="Class" value={draft.className || 'Not set'} />
-              <ProfileDetailRow label="School" value={draft.school || 'Not set'} />
-              <ProfileDetailRow label="Cohort" value={draft.cohort || 'Not set'} />
-              <ProfileDetailRow label="Email" value={draft.email || 'Not set'} />
-            </div>
-          </ProfileSectionCard>
-
-          <ProfileSectionCard title="Stats" eyebrow="Performance">
-            <div className="grid gap-4 sm:grid-cols-3">
-              <ProfileMetricCard label="Practices" value={stats.practices || 0} tone="sky" />
-              <ProfileMetricCard label="Average score" value={stats.avgScore || 0} tone="emerald" />
-              <ProfileMetricCard label="Best score" value={stats.bestScore || 0} tone="amber" />
-            </div>
-          </ProfileSectionCard>
-
-          {/* Trends and a "current focus" mean nothing before the first saved attempt. */}
-          {(stats.practices > 0 || practiceHistory?.length > 0) && (
-          <ProfileSectionCard title="Practice dashboard" eyebrow="Analytics" className="xl:col-span-2">
-            <div className="grid gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(260px,0.8fr)]">
-              <div className="min-w-0">
-                <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-ink">
-                  <BarChart3 size={17} />
-                  Recent score trend
-                </h3>
+            {hasPractice && (
+              <ProfileSectionCard title="Score trend">
                 <PracticeTrend sessions={analytics.trend} />
-              </div>
-              <div className="min-w-0">
-                <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-ink">
-                  <Target size={17} />
-                  Criterion averages
-                </h3>
+              </ProfileSectionCard>
+            )}
+          </div>
+
+          <div className="min-w-0 space-y-6">
+            {hasPractice && (
+              <ProfileSectionCard title="Averages by criterion">
                 <CriteriaBars averages={analytics.averages} />
-              </div>
-            </div>
-            <div className="mt-4 rounded-card border border-sky-200 bg-sky-50 p-4 text-sm leading-6 text-sky-700">
-              Current focus: <span className="font-semibold">{analytics.weakest?.label || 'Content'}</span>. This is the lowest average criterion across saved sessions.
-            </div>
-          </ProfileSectionCard>
-          )}
+                <p className="mt-5 rounded-card bg-surface-sunken p-4 text-sm leading-6 text-ink-muted">
+                  Focus next on <span className={`font-semibold ${TONES[analytics.weakest?.tone || 'sky'].text}`}>{analytics.weakest?.label || 'Content'}</span>, your lowest criterion relative to its maximum.
+                </p>
+              </ProfileSectionCard>
+            )}
 
-          <ProfileSectionCard title="Achievements" eyebrow="Badges" className="xl:col-span-2">
-            <AchievementBadges stats={stats} analytics={analytics} />
-          </ProfileSectionCard>
-
-          <ProfileSectionCard title="Recent practice" eyebrow="Saved activity" className="xl:col-span-2">
-            <div className="space-y-3">
-              {practiceHistory?.length ? practiceHistory.map((session) => (
-                <PracticeHistoryItem key={session.id} session={session} />
-              )) : (
-                <div className="rounded-card border border-dashed border-line bg-overlay px-4 py-5 text-sm text-ink-muted">
-                  Complete a speech analysis while logged in to start building your history.
-                </div>
-              )}
-            </div>
-          </ProfileSectionCard>
+            <ProfileSectionCard title="Achievements">
+              <AchievementBadges stats={stats} analytics={analytics} />
+            </ProfileSectionCard>
+          </div>
         </div>
       ) : (
         <div className="space-y-5 sm:space-y-6">
@@ -398,13 +388,13 @@ export default function ProfilePage({ currentUser, practiceHistory, onSave, onLo
             <div className="mb-5 rounded-card border border-line bg-overlay p-4">
               <div className="text-sm font-semibold text-ink">Profile photo</div>
               <div className="mt-1 text-sm text-ink-muted">Upload a new avatar. Large photos are resized automatically.</div>
-              <label className="mt-4 inline-flex cursor-pointer items-center gap-2 rounded-full border border-line bg-sky-50 px-4 py-2 text-xs font-semibold tracking-normal text-sky-700 transition hover:bg-sky-100">
+              <label className="mt-4 inline-flex cursor-pointer items-center gap-2 rounded-full border border-line bg-sky-50 dark:bg-sky-400/10 px-4 py-2 text-xs font-semibold tracking-normal text-sky-700 dark:text-sky-300 transition hover:bg-sky-100 dark:hover:bg-sky-400/15">
                 <Upload size={14} />
                 Upload photo
                 <input type="file" accept="image/*" onChange={(event) => updatePhoto(event.target.files?.[0])} className="hidden" />
               </label>
               {photoError && (
-                <div className="mt-3 rounded-control border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700" role="alert">
+                <div className="mt-3 rounded-control border border-rose-200 dark:border-rose-400/25 bg-rose-50 dark:bg-rose-400/10 px-3 py-2 text-sm text-rose-700 dark:text-rose-300" role="alert">
                   {photoError}
                 </div>
               )}
@@ -423,7 +413,7 @@ export default function ProfilePage({ currentUser, practiceHistory, onSave, onLo
             <button
               type="button"
               onClick={() => onSave(draft)}
-              className="mt-4 inline-flex items-center justify-center gap-2 rounded-full bg-ink px-5 py-3 font-medium text-white transition hover:bg-ink/85"
+              className="mt-4 inline-flex items-center justify-center gap-2 rounded-full bg-ink px-5 py-3 font-medium text-on-ink transition hover:bg-ink/85"
             >
               <CheckCircle size={17} />
               Save changes
@@ -451,7 +441,7 @@ export default function ProfilePage({ currentUser, practiceHistory, onSave, onLo
                 type="button"
                 onClick={handlePasswordSubmit}
                 disabled={passwordSubmitting}
-                className="inline-flex items-center justify-center gap-2 rounded-full bg-ink px-5 py-3 font-medium text-white transition hover:bg-ink/85 disabled:cursor-not-allowed disabled:opacity-70"
+                className="inline-flex items-center justify-center gap-2 rounded-full bg-ink px-5 py-3 font-medium text-on-ink transition hover:bg-ink/85 disabled:cursor-not-allowed disabled:opacity-70"
               >
                 <Lock size={16} />
                 {passwordSubmitting ? 'Updating...' : 'Update password'}
@@ -461,7 +451,7 @@ export default function ProfilePage({ currentUser, practiceHistory, onSave, onLo
 
           <ProfileSectionCard title="Danger zone" eyebrow="Account">
             <div className="space-y-4">
-              <div className="rounded-card border border-rose-200 bg-rose-50 p-4 text-sm leading-6 text-rose-700">
+              <div className="rounded-card border border-rose-200 dark:border-rose-400/25 bg-rose-50 dark:bg-rose-400/10 p-4 text-sm leading-6 text-rose-700 dark:text-rose-300">
                 Type <span className="font-semibold">{DELETE_PHRASE}</span> to permanently delete this account and its saved practice history.
               </div>
               <label className="block">
@@ -476,7 +466,7 @@ export default function ProfilePage({ currentUser, practiceHistory, onSave, onLo
                   className={FIELD_CLASSNAME}
                 />
               </label>
-              {deleteError && <div className="text-sm font-medium text-rose-700" role="alert">{deleteError}</div>}
+              {deleteError && <div className="text-sm font-medium text-rose-700 dark:text-rose-300" role="alert">{deleteError}</div>}
               <div className="flex flex-col gap-3 sm:flex-row">
                 <button type="button" onClick={() => onLogout()} className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-line bg-surface-raised px-5 py-3 font-medium text-ink transition hover:bg-overlay sm:w-auto">
                   <LogOut size={16} />

@@ -4,17 +4,17 @@ import { formatTime } from '../appShared';
 
 // Rough NEC-style guidance. Comfortable exam pace sits around 130-160 wpm.
 const PACE_BANDS = [
-  { max: 110, label: 'Slow', tone: 'text-amber-600', hint: 'Room to speak a little faster.' },
-  { max: 170, label: 'Good', tone: 'text-emerald-600', hint: 'Comfortable, examiner-friendly pace.' },
-  { max: Infinity, label: 'Fast', tone: 'text-amber-600', hint: 'Consider slowing down for clarity.' },
+  { max: 110, label: 'Slow', tone: 'text-amber-600 dark:text-amber-300', hint: 'Room to speak a little faster.' },
+  { max: 170, label: 'Good', tone: 'text-emerald-600 dark:text-emerald-300', hint: 'Comfortable, examiner-friendly pace.' },
+  { max: Infinity, label: 'Fast', tone: 'text-amber-600 dark:text-amber-300', hint: 'Consider slowing down for clarity.' },
 ];
 
 const describePace = (wpm) => PACE_BANDS.find((band) => wpm <= band.max);
 
 const describeFillers = (perMinute) => {
-  if (perMinute <= 2) return { label: 'Low', tone: 'text-emerald-600', hint: 'Very few hesitation words.' };
-  if (perMinute <= 5) return { label: 'Moderate', tone: 'text-amber-600', hint: 'Noticeable but not distracting.' };
-  return { label: 'High', tone: 'text-rose-600', hint: 'Fillers are interrupting your flow.' };
+  if (perMinute <= 2) return { label: 'Low', tone: 'text-emerald-600 dark:text-emerald-300', hint: 'Very few hesitation words.' };
+  if (perMinute <= 5) return { label: 'Moderate', tone: 'text-amber-600 dark:text-amber-300', hint: 'Noticeable but not distracting.' };
+  return { label: 'High', tone: 'text-rose-600 dark:text-rose-300', hint: 'Fillers are interrupting your flow.' };
 };
 
 function Stat({ icon: Icon, label, value, unit, verdict }) {
@@ -113,7 +113,7 @@ export default function DeliveryMetrics({ metrics }) {
           unit={metrics.totalPauseSeconds ? `(${metrics.totalPauseSeconds}s total)` : ''}
           verdict={{
             label: metrics.longPauseCount ? 'Review these' : 'None',
-            tone: metrics.longPauseCount > 4 ? 'text-amber-600' : 'text-emerald-600',
+            tone: metrics.longPauseCount > 4 ? 'text-amber-600 dark:text-amber-300' : 'text-emerald-600 dark:text-emerald-300',
             hint: metrics.longPauseCount
               ? 'Gaps of 1.5s or more.'
               : 'No hesitation gaps detected.',

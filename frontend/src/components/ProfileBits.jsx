@@ -1,6 +1,6 @@
 import React from 'react';
 
-const FIELD_CLASSNAME = 'w-full rounded-control border border-line bg-surface-raised px-4 py-3 text-ink outline-none transition-colors duration-200 placeholder:text-ink-subtle hover:border-overlay-hover focus:border-sky-400 focus:ring-4 focus:ring-sky-100';
+const FIELD_CLASSNAME = 'w-full rounded-control border border-line bg-surface-raised px-4 py-3 text-ink outline-none transition-colors duration-200 placeholder:text-ink-subtle hover:border-overlay-hover focus:border-sky-400 focus:ring-4 focus:ring-sky-100 dark:focus:ring-sky-400/20';
 
 export { FIELD_CLASSNAME };
 
@@ -40,9 +40,9 @@ export function ProfileDetailRow({ label, value }) {
 
 export function ProfileMetricCard({ label, value, tone = 'sky' }) {
   const toneClasses = {
-    sky: 'bg-sky-50 text-sky-900',
-    emerald: 'bg-emerald-50 text-emerald-900',
-    amber: 'bg-amber-50 text-amber-900',
+    sky: 'bg-sky-50 dark:bg-sky-400/10 text-sky-900 dark:text-sky-100',
+    emerald: 'bg-emerald-50 dark:bg-emerald-400/10 text-emerald-900 dark:text-emerald-100',
+    amber: 'bg-amber-50 dark:bg-amber-400/10 text-amber-900 dark:text-amber-100',
     slate: 'bg-overlay text-ink',
   };
 

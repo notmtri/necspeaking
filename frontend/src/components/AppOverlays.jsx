@@ -32,7 +32,7 @@ export function AdminLoginModal({ open, password, onPasswordChange, onClose, onS
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-neutral-900/40 p-4 backdrop-blur-sm">
+    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-neutral-900/40 dark:bg-black/60 p-4 backdrop-blur-sm">
       <div
         className="w-full max-w-md rounded-panel border border-line bg-surface-raised p-5 sm:p-6"
         role="dialog"
@@ -41,7 +41,7 @@ export function AdminLoginModal({ open, password, onPasswordChange, onClose, onS
       >
         <div className="flex items-center justify-between gap-3">
           <div>
-            <div className="text-xs font-semibold tracking-normal text-sky-600">Admin access</div>
+            <div className="text-xs font-semibold tracking-normal text-sky-600 dark:text-sky-300">Admin access</div>
             <h2 id="admin-login-title" className="mt-2 text-xl font-semibold text-ink">Enter admin password</h2>
           </div>
           <button
@@ -66,10 +66,10 @@ export function AdminLoginModal({ open, password, onPasswordChange, onClose, onS
             placeholder="Password"
             aria-label="Admin password"
             autoFocus
-            className="w-full rounded-control border border-line bg-overlay px-4 py-3 text-ink outline-none transition placeholder:text-ink-subtle focus:border-sky-300"
+            className="w-full rounded-control border border-line bg-overlay px-4 py-3 text-ink outline-none transition placeholder:text-ink-subtle focus:border-sky-300 dark:focus:border-sky-400/40"
           />
           {error && (
-            <div className="rounded-control border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700" role="alert">
+            <div className="rounded-control border border-rose-200 dark:border-rose-400/25 bg-rose-50 dark:bg-rose-400/10 px-4 py-3 text-sm text-rose-700 dark:text-rose-300" role="alert">
               {error}
             </div>
           )}
@@ -77,7 +77,7 @@ export function AdminLoginModal({ open, password, onPasswordChange, onClose, onS
             <button type="button" onClick={onClose} disabled={submitting} className="flex-1 rounded-full border border-line bg-surface-raised px-4 py-3 font-medium text-ink transition hover:bg-overlay disabled:cursor-not-allowed disabled:opacity-60">
               Cancel
             </button>
-            <button type="button" onClick={onSubmit} disabled={submitting} className="flex-1 rounded-full bg-ink px-4 py-3 font-medium text-white transition hover:bg-ink/85 disabled:cursor-not-allowed disabled:opacity-60">
+            <button type="button" onClick={onSubmit} disabled={submitting} className="flex-1 rounded-full bg-ink px-4 py-3 font-medium text-on-ink transition hover:bg-ink/85 disabled:cursor-not-allowed disabled:opacity-60">
               {submitting ? 'Checking...' : 'Continue'}
             </button>
           </div>
@@ -123,7 +123,7 @@ export function FeedbackModal({ open, onClose, onSubmit, isLoggedIn }) {
   };
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-neutral-900/40 p-4 backdrop-blur-sm">
+    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-neutral-900/40 dark:bg-black/60 p-4 backdrop-blur-sm">
       <div
         className="w-full max-w-lg rounded-panel border border-line bg-surface-raised p-5 sm:p-6"
         role="dialog"
@@ -132,7 +132,7 @@ export function FeedbackModal({ open, onClose, onSubmit, isLoggedIn }) {
       >
         <div className="flex items-start justify-between gap-3">
           <div>
-            <div className="text-xs font-semibold tracking-normal text-sky-600">Feedback</div>
+            <div className="text-xs font-semibold tracking-normal text-sky-600 dark:text-sky-300">Feedback</div>
             <h2 id="feedback-title" className="mt-2 text-xl font-semibold text-ink">What should necs. add or fix?</h2>
             <p className="mt-1 text-sm text-ink-muted">Ideas, bugs, wrong scores: anything helps. It goes straight to the founder.</p>
           </div>
@@ -156,7 +156,7 @@ export function FeedbackModal({ open, onClose, onSubmit, isLoggedIn }) {
               rows="5"
               autoFocus
               placeholder="e.g. The timer should beep before recording ends."
-              className="w-full resize-y rounded-control border border-line bg-overlay px-4 py-3 text-ink outline-none transition placeholder:text-ink-subtle focus:border-sky-300"
+              className="w-full resize-y rounded-control border border-line bg-overlay px-4 py-3 text-ink outline-none transition placeholder:text-ink-subtle focus:border-sky-300 dark:focus:border-sky-400/40"
             />
             <span className="mt-1 block text-right text-xs text-ink-subtle">{message.length}/{FEEDBACK_MAX_CHARS}</span>
           </label>
@@ -167,12 +167,12 @@ export function FeedbackModal({ open, onClose, onSubmit, isLoggedIn }) {
                 type="text"
                 value={contact}
                 onChange={(event) => setContact(event.target.value.slice(0, 255))}
-                className="w-full rounded-control border border-line bg-overlay px-4 py-3 text-ink outline-none transition placeholder:text-ink-subtle focus:border-sky-300"
+                className="w-full rounded-control border border-line bg-overlay px-4 py-3 text-ink outline-none transition placeholder:text-ink-subtle focus:border-sky-300 dark:focus:border-sky-400/40"
               />
             </label>
           )}
           {error && (
-            <div className="rounded-control border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700" role="alert">
+            <div className="rounded-control border border-rose-200 dark:border-rose-400/25 bg-rose-50 dark:bg-rose-400/10 px-4 py-3 text-sm text-rose-700 dark:text-rose-300" role="alert">
               {error}
             </div>
           )}
@@ -180,7 +180,7 @@ export function FeedbackModal({ open, onClose, onSubmit, isLoggedIn }) {
             <button type="button" onClick={onClose} disabled={submitting} className="flex-1 rounded-full border border-line bg-surface-raised px-4 py-3 font-medium text-ink transition hover:bg-overlay disabled:cursor-not-allowed disabled:opacity-60">
               Cancel
             </button>
-            <button type="button" onClick={send} disabled={submitting} className="flex-1 rounded-full bg-ink px-4 py-3 font-medium text-white transition hover:bg-ink/85 disabled:cursor-not-allowed disabled:opacity-60">
+            <button type="button" onClick={send} disabled={submitting} className="flex-1 rounded-full bg-ink px-4 py-3 font-medium text-on-ink transition hover:bg-ink/85 disabled:cursor-not-allowed disabled:opacity-60">
               {submitting ? 'Sending...' : 'Send feedback'}
             </button>
           </div>
@@ -197,17 +197,17 @@ export function ConfirmModal({ open, title, message, confirmLabel = 'Confirm', t
 
   const confirmClassName = tone === 'danger'
     ? 'bg-rose-500 text-white hover:bg-rose-400'
-    : 'bg-ink text-white hover:bg-ink/85';
+    : 'bg-ink text-on-ink hover:bg-ink/85';
 
   return (
-    <div className="fixed inset-0 z-[80] flex items-center justify-center bg-neutral-900/40 p-4 backdrop-blur-sm">
+    <div className="fixed inset-0 z-[80] flex items-center justify-center bg-neutral-900/40 dark:bg-black/60 p-4 backdrop-blur-sm">
       <div
         className="w-full max-w-md rounded-panel border border-line bg-surface-raised p-5 sm:p-6"
         role="dialog"
         aria-modal="true"
         aria-labelledby="confirm-modal-title"
       >
-        <div className="inline-flex h-11 w-11 items-center justify-center rounded-card border border-rose-200 bg-rose-50 text-rose-700">
+        <div className="inline-flex h-11 w-11 items-center justify-center rounded-card border border-rose-200 dark:border-rose-400/25 bg-rose-50 dark:bg-rose-400/10 text-rose-700 dark:text-rose-300">
           <Trash2 size={18} aria-hidden="true" />
         </div>
         <h2 id="confirm-modal-title" className="mt-4 text-xl font-semibold text-ink">{title}</h2>
@@ -232,12 +232,12 @@ export function ToastViewport({ toasts, dismissToast }) {
     <div className="pointer-events-none fixed bottom-4 left-4 right-4 z-[90] flex w-auto max-w-none flex-col gap-3 sm:left-auto sm:w-full sm:max-w-sm">
       {toasts.map((toast) => {
         const toneClasses = toast.tone === 'error'
-          ? 'border-rose-200 bg-rose-50 text-rose-700'
+          ? 'border-rose-200 dark:border-rose-400/25 bg-rose-50 dark:bg-rose-400/10 text-rose-700 dark:text-rose-300'
           : toast.tone === 'success'
-            ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+            ? 'border-emerald-200 dark:border-emerald-400/25 bg-emerald-50 dark:bg-emerald-400/10 text-emerald-700 dark:text-emerald-300'
             : toast.tone === 'update'
-              ? 'border-amber-200 bg-amber-50 text-amber-800'
-              : 'border-sky-200 bg-sky-50 text-sky-700';
+              ? 'border-amber-200 dark:border-amber-400/25 bg-amber-50 dark:bg-amber-400/10 text-amber-800 dark:text-amber-200'
+              : 'border-sky-200 dark:border-sky-400/25 bg-sky-50 dark:bg-sky-400/10 text-sky-700 dark:text-sky-300';
 
         return (
           <div
@@ -256,7 +256,7 @@ export function ToastViewport({ toasts, dismissToast }) {
                       toast.action.onClick();
                       dismissToast(toast.id);
                     }}
-                    className="mt-2 rounded-full bg-black/5 px-3 py-1.5 text-xs font-medium text-ink transition hover:bg-black/10"
+                    className="mt-2 rounded-full bg-black/5 dark:bg-white/10 px-3 py-1.5 text-xs font-medium text-ink transition hover:bg-black/10 dark:hover:bg-white/15"
                   >
                     {toast.action.label}
                   </button>

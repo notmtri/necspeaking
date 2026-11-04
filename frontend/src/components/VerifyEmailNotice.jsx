@@ -5,7 +5,7 @@ import { apiFetch } from '../apiClient';
 /** Keeps the six digits of an emailed code, whatever else was pasted with them. */
 export const cleanCode = (value) => String(value || '').replace(/\D/g, '').slice(0, 6);
 
-export const CODE_INPUT_CLASSNAME = 'w-36 rounded-control border border-line bg-surface-sunken px-4 py-2 text-center font-mono text-lg tracking-[0.3em] text-ink outline-none focus:border-sky-300';
+export const CODE_INPUT_CLASSNAME = 'w-36 rounded-control border border-line bg-surface-sunken px-4 py-2 text-center font-mono text-lg tracking-[0.3em] text-ink outline-none focus:border-sky-300 dark:focus:border-sky-400/40';
 
 /**
  * Asks a logged-in student to confirm their email: send a 6-digit code, type
@@ -45,12 +45,12 @@ export default function VerifyEmailNotice({ email, title = 'Confirm your email',
   };
 
   return (
-    <div className="rounded-card border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+    <div className="rounded-card border border-amber-200 dark:border-amber-400/25 bg-amber-50 dark:bg-amber-400/10 p-4 text-sm text-amber-800 dark:text-amber-200">
       <div className="flex min-w-0 items-start gap-3">
         <MailCheck size={18} className="mt-0.5 shrink-0" aria-hidden="true" />
         <div className="min-w-0">
           <div className="font-semibold text-ink">{title}</div>
-          <div className="mt-1 leading-6 text-amber-800">
+          <div className="mt-1 leading-6 text-amber-800 dark:text-amber-200">
             {reason} Enter the 6-digit code we emailed to {email}.
           </div>
         </div>
@@ -76,13 +76,13 @@ export default function VerifyEmailNotice({ email, title = 'Confirm your email',
           type="button"
           onClick={send}
           disabled={sending}
-          className="rounded-full border border-amber-200 px-4 py-2 font-semibold text-amber-800 transition hover:bg-amber-50 disabled:cursor-not-allowed disabled:opacity-60"
+          className="rounded-full border border-amber-200 dark:border-amber-400/25 px-4 py-2 font-semibold text-amber-800 dark:text-amber-200 transition hover:bg-amber-50 dark:hover:bg-amber-400/10 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {sending ? 'Sending...' : 'Send me a code'}
         </button>
       </form>
       {status && (
-        <p className={`mt-3 ${status.tone === 'error' ? 'text-rose-700' : 'text-emerald-700'}`} role="status">{status.text}</p>
+        <p className={`mt-3 ${status.tone === 'error' ? 'text-rose-700 dark:text-rose-300' : 'text-emerald-700 dark:text-emerald-300'}`} role="status">{status.text}</p>
       )}
     </div>
   );

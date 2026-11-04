@@ -136,7 +136,7 @@ export default function QuestionPicker({ onSelect, selectedId = null }) {
           <p className="px-2 py-4 text-sm text-ink-muted">No past question matches &quot;{query}&quot;.</p>
         ) : groups.map(([paper, items]) => (
           <div key={paper || 'other'} className="mb-2">
-            <div className="px-2 py-1 text-xs font-semibold tracking-normal text-sky-700">{paper || 'Other'}</div>
+            <div className="px-2 py-1 text-xs font-semibold tracking-normal text-sky-700 dark:text-sky-300">{paper || 'Other'}</div>
             <ul className="space-y-1">
               {items.map((question) => (
                 <li key={question.id}>
@@ -145,7 +145,7 @@ export default function QuestionPicker({ onSelect, selectedId = null }) {
                     onClick={() => onSelect(question)}
                     aria-pressed={selectedId === question.id}
                     className={`flex w-full min-w-0 items-start gap-3 rounded-control px-2 py-2 text-left transition ${
-                      selectedId === question.id ? 'bg-sky-50' : 'hover:bg-overlay-hover'
+                      selectedId === question.id ? 'bg-sky-50 dark:bg-sky-400/10' : 'hover:bg-overlay-hover'
                     }`}
                   >
                     <span className="mt-0.5 shrink-0 rounded-full border border-line px-2 py-0.5 text-xs font-semibold text-ink-muted">

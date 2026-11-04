@@ -7,7 +7,7 @@ import { apiFetch, isAbortError } from '../apiClient';
 
 function SampleActionButton({ tone = 'ghost', onClick, children }) {
   const toneClasses = tone === 'primary'
-    ? 'border-ink bg-ink text-white hover:bg-ink/85'
+    ? 'border-ink bg-ink text-on-ink hover:bg-ink/85'
     : 'border-line bg-surface-raised text-ink hover:bg-overlay';
 
   return (
@@ -40,7 +40,7 @@ function SampleDetailModal({ sample, onClose }) {
   useOverlayDismiss(true, onClose);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-neutral-900/40 p-3 backdrop-blur-sm sm:p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-neutral-900/40 dark:bg-black/60 p-3 backdrop-blur-sm sm:p-4">
       <div
         className="max-h-[85vh] w-full max-w-3xl overflow-y-auto rounded-panel border border-line bg-surface-raised p-5 sm:p-6"
         role="dialog"
@@ -133,7 +133,7 @@ export default function SampleLibrary() {
   if (loading) {
     return (
       <div className="rounded-panel border border-line bg-surface-raised px-5 py-12 text-center">
-        <Loader className="mx-auto mb-3 animate-spin text-sky-600" size={36} />
+        <Loader className="mx-auto mb-3 animate-spin text-sky-600 dark:text-sky-300" size={36} />
         <div className="font-semibold text-ink">Loading samples...</div>
       </div>
     );
@@ -148,7 +148,7 @@ export default function SampleLibrary() {
       />
 
       {error && (
-        <div className="rounded-card border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700" role="alert">
+        <div className="rounded-card border border-rose-200 dark:border-rose-400/25 bg-rose-50 dark:bg-rose-400/10 px-4 py-3 text-sm text-rose-700 dark:text-rose-300" role="alert">
           {error}
         </div>
       )}

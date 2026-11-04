@@ -1,6 +1,16 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
+    <script>
+      // Theme before first paint, so a dark-mode visitor never sees a white flash.
+      // necs.theme is 'light', 'dark' or absent (follow the system).
+      (function () {
+        var saved = null;
+        try { saved = localStorage.getItem('necs.theme'); } catch (e) {}
+        var dark = saved === 'dark' || (saved !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+        document.documentElement.classList.toggle('dark', dark);
+      })();
+    </script>
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-SVVNDLE9GJ"></script>
     <script>
       window.dataLayer = window.dataLayer || [];
@@ -13,7 +23,8 @@
     <link rel="icon" href="/favicon.ico" />
     <link rel="manifest" href="/manifest.json" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#fcfdfe" />
+    <meta name="theme-color" content="#fcfdfe" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#14171d" media="(prefers-color-scheme: dark)" />
     <meta
       name="description"
       content="Practice NEC speaking with audio analysis, sample responses, and mock simulation workflows in one focused web app."

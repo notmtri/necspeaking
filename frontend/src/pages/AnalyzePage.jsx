@@ -1,13 +1,14 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { AlertCircle, BookOpen, CheckCircle, ClipboardList, FileAudio, Loader, Mic, Pause, RotateCcw, Square, Upload, Volume2 } from 'lucide-react';
+import { AlertCircle, BookOpen, Check, CheckCircle, FileAudio, Loader, Mic, Pause, RotateCcw, Square, Upload, Volume2 } from 'lucide-react';
 import { PageHeader } from '../components/AppChrome';
 import ResultsPanel from '../components/ResultsPanel';
 import QuestionPicker, { pickRandomQuestion } from '../components/QuestionPicker';
-import { formatTime } from '../appShared';
+import { CRITERIA, TONES, formatTime } from '../appShared';
 import { useAnalysisJob } from '../useAnalysisJob';
 
 const MAX_RECORDING_SECONDS = 300;
 const MAX_AUDIO_BYTES = 50 * 1024 * 1024;
+const STEPS = ['Your answer', 'Analysis', 'Feedback'];
 
 export default function AnalyzePage({ onDownloadReport, onAnalysisUserUpdate, isOffline, isLoggedIn = false, onOpenAuth = null, randomQuestionRequest = 0, onRandomQuestionHandled = null }) {
   const [step, setStep] = useState('input');
@@ -286,257 +287,247 @@ export default function AnalyzePage({ onDownloadReport, onAnalysisUserUpdate, is
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [cancelRecording, clearAudio]);
 
-  const workflow = [
-    { label: 'Record', icon: Mic, active: step === 'input' || step === 'preview', complete: step === 'uploading' || step === 'results' },
-    { label: 'Analyze', icon: Loader, active: step === 'uploading', complete: step === 'results' },
-    { label: 'Review', icon: CheckCircle, active: step === 'results', complete: false },
-  ];
+  const stepIndex = step === 'uploading' ? 1 : step === 'results' ? 2 : 0;
+  const recordingShare = Math.min(100, (recordingSeconds / MAX_RECORDING_SECONDS) * 100);
 
   return (
-    <div className="space-y-4 sm:space-y-6">
-      <PageHeader
-        id="analyze-page-title"
-        title="Analyze"
-        description="Record or upload a response, run analysis, and receive feedback."
-      />
-
-      <div className="mx-auto max-w-xl rounded-card border border-line bg-overlay p-1.5">
-        <div className="grid grid-cols-3 gap-1.5">
-          {workflow.map((item) => {
-            const Icon = item.complete ? CheckCircle : item.icon;
-            return (
-              <div
-                key={item.label}
-                className={`flex min-h-[44px] items-center justify-center gap-2 rounded-control px-2 py-2 text-xs font-semibold transition sm:text-sm ${
-                  item.complete
-                    ? 'bg-emerald-50 text-emerald-700'
-                    : item.active
-                      ? 'bg-sky-50 text-sky-700'
-                      : 'text-ink-subtle'
+    <div className="space-y-8">
+      <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+        <PageHeader
+          id="analyze-page-title"
+          title="Analyze"
+          description="Record or upload a response, run analysis, and receive feedback."
+        />
+        <ol className="flex flex-wrap items-center gap-x-2 gap-y-2 text-sm" aria-label="Progress">
+          {STEPS.map((label, index) => (
+            <li key={label} className="flex items-center gap-2" aria-current={index === stepIndex ? 'step' : undefined}>
+              <span
+                className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold tabular ${
+                  index < stepIndex
+                    ? 'bg-emerald-500 text-white'
+                    : index === stepIndex
+                      ? 'bg-ink text-on-ink'
+                      : 'bg-overlay text-ink-subtle'
                 }`}
               >
-                <Icon size={16} className={item.active && item.label === 'Analyze' ? 'animate-spin' : ''} />
-                <span>{item.label}</span>
-              </div>
-            );
-          })}
-        </div>
+                {index < stepIndex ? <Check size={13} /> : index + 1}
+              </span>
+              <span className={index === stepIndex ? 'font-medium text-ink' : 'text-ink-subtle'}>{label}</span>
+              {index < STEPS.length - 1 && <span className="mx-1 h-px w-6 bg-line" aria-hidden="true" />}
+            </li>
+          ))}
+        </ol>
       </div>
 
       {error && (
-        <div className="flex items-start gap-3 rounded-card border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700 sm:p-4" role="alert">
+        <div className="flex items-start gap-3 rounded-card border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800 dark:border-rose-400/25 dark:bg-rose-400/10 dark:text-rose-200" role="alert">
           <AlertCircle size={18} className="mt-0.5 shrink-0" />
           <span className="min-w-0 font-medium">{error}</span>
         </div>
       )}
 
-      <div className="rounded-panel border border-line bg-surface-raised p-4 sm:p-5 lg:p-6">
-        {step === 'input' && (
-          <div className="grid gap-4 lg:grid-cols-[minmax(0,1.08fr)_minmax(320px,0.92fr)]">
-            <div className="min-w-0 rounded-card border border-line bg-overlay p-4 sm:p-5">
-              <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-control bg-sky-50 text-sky-700 sm:h-11 sm:w-11">
-                  <ClipboardList size={20} />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="text-base font-semibold text-ink">Speaking prompt</div>
-                  <div className="mt-1 text-sm leading-6 text-ink-muted">Pick a past NEC question, or type the exact question you were given.</div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setPickerOpen((open) => !open)}
-                  aria-expanded={pickerOpen}
-                  className="inline-flex min-h-[40px] shrink-0 items-center justify-center gap-2 rounded-full border border-sky-200 bg-sky-50 px-4 py-2 text-sm font-medium text-sky-700 transition hover:bg-sky-100"
-                >
-                  <BookOpen size={15} />
-                  {pickerOpen ? 'Hide past questions' : 'Past NEC questions'}
-                </button>
-              </div>
-              {starterQuestion && !pickerOpen && (
-                <p className="mb-4 rounded-control border border-sky-200 bg-sky-50 px-4 py-3 text-sm leading-6 text-sky-700">
-                  Here&apos;s a random past NEC question to start with. Take a minute to plan, then record your answer below, up to 5 minutes. Want a different one? Open Past NEC questions.
-                </p>
-              )}
-              {pickerOpen && (
-                <div className="mb-4">
-                  <QuestionPicker
-                    selectedId={pickedQuestion?.id ?? null}
-                    onSelect={(question) => {
-                      setTopic(question.promptText);
-                      setPickedQuestion(question);
-                      setPickerOpen(false);
-                      setStarterQuestion(false);
-                    }}
-                  />
-                </div>
-              )}
-              <label className="block">
-                <span className="sr-only">Speaking prompt</span>
-                <textarea
-                  value={topic}
-                  onChange={(event) => setTopic(event.target.value)}
-                  placeholder="Enter the topic or question."
-                  className="min-h-[178px] w-full resize-y rounded-control border border-line bg-surface-sunken px-4 py-3 text-ink outline-none transition placeholder:text-ink-subtle focus:border-sky-300 focus:ring-2 focus:ring-sky-100 sm:min-h-[220px] sm:px-5 sm:py-4"
-                  rows="6"
+      {step === 'input' && (
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] lg:items-start">
+          <section className="min-w-0 rounded-panel border border-line bg-surface-raised p-5 sm:p-7" aria-labelledby="question-heading">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <h2 id="question-heading" className="text-xl font-semibold text-ink">Question</h2>
+              <button
+                type="button"
+                onClick={() => setPickerOpen((open) => !open)}
+                aria-expanded={pickerOpen}
+                className="inline-flex min-h-[40px] items-center justify-center gap-2 rounded-full border border-line bg-surface-raised px-4 text-sm font-medium text-ink transition-colors duration-200 hover:bg-overlay"
+              >
+                <BookOpen size={15} className="text-sky-600 dark:text-sky-300" />
+                {pickerOpen ? 'Hide past questions' : 'Past NEC questions'}
+              </button>
+            </div>
+            <p className="mt-1.5 text-sm leading-6 text-ink-muted">Pick a past NEC question, or type the exact question you were given.</p>
+
+            {starterQuestion && !pickerOpen && (
+              <p className="mt-5 rounded-card bg-sky-50 px-4 py-3 text-sm leading-6 text-sky-900 dark:bg-sky-400/10 dark:text-sky-100">
+                Here&apos;s a random past NEC question to start with. Take a minute to plan, then record your answer below, up to 5 minutes. Want a different one? Open Past NEC questions.
+              </p>
+            )}
+            {pickerOpen && (
+              <div className="mt-5">
+                <QuestionPicker
+                  selectedId={pickedQuestion?.id ?? null}
+                  onSelect={(question) => {
+                    setTopic(question.promptText);
+                    setPickedQuestion(question);
+                    setPickerOpen(false);
+                    setStarterQuestion(false);
+                  }}
                 />
-              </label>
-              {pickedQuestion && topic === pickedQuestion.promptText && (
-                <div className="mt-3 inline-flex items-center gap-2 rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-xs font-semibold text-sky-700">
-                  <BookOpen size={13} />
-                  {pickedQuestion.label}
-                </div>
+              </div>
+            )}
+            <label className="mt-5 block">
+              <span className="sr-only">Speaking prompt</span>
+              <textarea
+                value={topic}
+                onChange={(event) => setTopic(event.target.value)}
+                placeholder="Type or paste the question here."
+                className="min-h-[200px] w-full resize-y rounded-card border border-line bg-surface-raised px-4 py-3.5 text-base leading-7 text-ink outline-none transition-colors duration-200 placeholder:text-ink-subtle focus:border-sky-400 focus:ring-4 focus:ring-sky-100 dark:focus:ring-sky-400/20 sm:px-5"
+                rows="6"
+              />
+            </label>
+            {pickedQuestion && topic === pickedQuestion.promptText && (
+              <div className="mt-3 inline-flex items-center gap-2 rounded-full bg-sky-50 px-3 py-1 text-xs font-medium text-sky-800 dark:bg-sky-400/10 dark:text-sky-200">
+                <BookOpen size={13} />
+                {pickedQuestion.label}
+              </div>
+            )}
+          </section>
+
+          <section className="min-w-0 rounded-panel border border-line bg-surface-raised p-5 sm:p-7" aria-labelledby="answer-heading">
+            <h2 id="answer-heading" className="text-xl font-semibold text-ink">Your answer</h2>
+            <p className="mt-1.5 text-sm leading-6 text-ink-muted">Speak for up to 5 minutes, or upload a recording you made.</p>
+
+            <div className={`mt-6 rounded-card px-5 py-7 text-center transition-colors duration-200 ${isRecording ? 'bg-rose-50 dark:bg-rose-400/10' : 'bg-surface-sunken'}`}>
+              <button
+                type="button"
+                onClick={isRecording ? stopRecording : startRecording}
+                aria-label={isRecording ? 'Stop recording' : 'Start recording'}
+                className="mx-auto inline-flex h-20 w-20 items-center justify-center rounded-full bg-rose-500 text-white ring-8 ring-rose-100 transition-colors duration-200 hover:bg-rose-600 dark:ring-rose-400/15"
+              >
+                {isRecording ? <Square size={24} fill="currentColor" /> : <Mic size={30} />}
+              </button>
+              <div className="mt-5 font-display text-3xl font-semibold tracking-[-0.03em] text-ink tabular" aria-live="off">
+                {formatTime(recordingSeconds)}
+                <span className="text-base font-normal tracking-normal text-ink-subtle"> / 5:00</span>
+              </div>
+              <div className="mx-auto mt-3 h-1.5 max-w-xs overflow-hidden rounded-full bg-overlay-hover" aria-hidden="true">
+                <div className="h-full rounded-full bg-rose-500 transition-[width] duration-1000 ease-linear" style={{ width: `${recordingShare}%` }} />
+              </div>
+              <p className="mt-3 text-sm text-ink-muted">{isRecording ? 'Recording. Press stop when you finish.' : 'Press the microphone to start.'}</p>
+              {isRecording && (
+                <button type="button" onClick={cancelRecording} className="mt-3 inline-flex items-center gap-1.5 text-sm font-medium text-ink-muted underline-offset-4 hover:text-ink hover:underline">
+                  <RotateCcw size={14} />
+                  Discard and start over
+                </button>
               )}
             </div>
 
-            <div className="min-w-0 space-y-4">
-              <div className="rounded-card border border-sky-200 bg-sky-50 p-4 sm:p-5">
-                <div className="mb-4 inline-flex h-11 w-11 items-center justify-center rounded-control bg-sky-100 text-sky-700 sm:h-12 sm:w-12">
-                  <FileAudio size={22} />
-                </div>
-                <div className="text-base font-semibold text-ink">Upload audio</div>
-                <div id="recording-file-help" className="mt-2 text-sm leading-6 text-ink-muted">MP3, WAV, M4A, WEBM, or OGG. Max 50 MB.</div>
-                <button
-                  type="button"
-                  onClick={() => uploadInputRef.current?.click()}
-                  aria-describedby="recording-file-help"
-                  className="mt-4 inline-flex w-full items-center justify-center gap-3 rounded-full bg-ink px-4 py-3 font-medium text-white transition hover:bg-ink/85 active:translate-y-px"
-                >
-                  <Upload size={18} />
-                  Upload audio
-                </button>
-                <input ref={uploadInputRef} type="file" accept="audio/*" onChange={handleFileUpload} className="hidden" />
-              </div>
+            <div className="my-5 flex items-center gap-3 text-xs font-medium text-ink-subtle" aria-hidden="true">
+              <span className="h-px flex-1 bg-line" />
+              or
+              <span className="h-px flex-1 bg-line" />
+            </div>
 
-              <div className={`rounded-card border p-4 transition sm:p-5 ${isRecording ? 'border-rose-200 bg-rose-50' : 'border-line bg-overlay'}`}>
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className="inline-flex h-10 w-10 items-center justify-center rounded-control bg-emerald-50 text-emerald-700 sm:h-11 sm:w-11">
-                      <Mic size={20} />
-                    </div>
-                    <div className="mt-4 text-base font-semibold text-ink">Record audio</div>
-                    <div className="mt-2 text-sm leading-6 text-ink-muted">Use your microphone, then preview before analysis.</div>
-                  </div>
-                  <div className={`rounded-full border px-3 py-1 text-sm font-semibold ${isRecording ? 'border-rose-200 bg-rose-50 text-rose-700' : 'border-line bg-overlay text-ink-muted'}`}>
-                    {formatTime(recordingSeconds)}
-                  </div>
-                </div>
-                <div className="mt-5 h-2 overflow-hidden rounded-full bg-overlay-hover">
-                  <div
-                    className={`h-full rounded-full transition-all ${isRecording ? 'bg-rose-400' : 'bg-emerald-400'}`}
-                    style={{ width: `${Math.min(100, (recordingSeconds / MAX_RECORDING_SECONDS) * 100)}%` }}
-                  />
-                </div>
-                {isRecording ? (
-                  <div className="mt-5 grid grid-cols-[1fr_auto] gap-2">
-                    <button type="button" onClick={stopRecording} className="inline-flex items-center justify-center gap-2 rounded-full bg-rose-500 px-4 py-3 font-medium text-white transition hover:bg-rose-400">
-                      <Square size={16} fill="currentColor" />
-                      Stop recording
-                    </button>
-                    <button type="button" onClick={cancelRecording} className="inline-flex h-12 w-12 items-center justify-center rounded-control border border-line bg-overlay text-ink transition hover:bg-overlay-hover" aria-label="Cancel recording">
-                      <RotateCcw size={16} />
-                    </button>
-                  </div>
-                ) : (
-                  <button type="button" onClick={startRecording} className="mt-5 inline-flex w-full items-center justify-center gap-3 rounded-full border border-emerald-200 bg-emerald-50 px-4 py-3 font-medium text-emerald-700 transition hover:bg-emerald-100 active:translate-y-px">
-                    <Mic size={18} />
-                    Start recording
-                  </button>
-                )}
+            <button
+              type="button"
+              onClick={() => uploadInputRef.current?.click()}
+              aria-describedby="recording-file-help"
+              disabled={isRecording}
+              className="flex w-full items-center gap-4 rounded-card border border-dashed border-line px-4 py-4 text-left transition-colors duration-200 hover:border-sky-300 hover:bg-sky-50/60 disabled:cursor-not-allowed disabled:opacity-50 dark:hover:border-sky-400/40 dark:hover:bg-sky-400/5"
+            >
+              <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-control bg-sky-50 text-sky-700 dark:bg-sky-400/10 dark:text-sky-300">
+                <Upload size={20} />
+              </span>
+              <span className="min-w-0">
+                <span className="block font-medium text-ink">Upload audio</span>
+                <span id="recording-file-help" className="block text-sm text-ink-muted">MP3, WAV, M4A, WEBM or OGG, up to 50 MB.</span>
+              </span>
+            </button>
+            <input ref={uploadInputRef} type="file" accept="audio/*" onChange={handleFileUpload} className="hidden" />
+          </section>
+        </div>
+      )}
+
+      {step === 'preview' && (
+        <section className="mx-auto max-w-3xl rounded-panel border border-line bg-surface-raised p-5 sm:p-8" aria-labelledby="preview-heading">
+          <h2 id="preview-heading" className="text-xl font-semibold text-ink">Check your recording</h2>
+
+          <div className="mt-6 flex flex-col gap-4 rounded-card bg-surface-sunken p-4 sm:flex-row sm:items-center">
+            <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-control bg-sky-50 text-sky-700 dark:bg-sky-400/10 dark:text-sky-300">
+              <FileAudio size={22} />
+            </span>
+            <div className="min-w-0 flex-1">
+              <div className="break-all font-medium text-ink">{audioFile?.name}</div>
+              <div className="text-sm text-ink-muted">
+                {audioSourceType === 'recording' ? `Recorded here, ${formatTime(recordingSeconds)} long.` : 'Uploaded file.'}
               </div>
             </div>
+            <button type="button" onClick={togglePlayback} className="inline-flex items-center justify-center gap-2 rounded-full border border-line bg-surface-raised px-5 py-2.5 text-sm font-medium text-ink transition-colors duration-200 hover:bg-overlay">
+              {isPlaying ? <><Pause size={16} /> Pause</> : <><Volume2 size={16} /> Play preview</>}
+            </button>
           </div>
-        )}
 
-        {step === 'preview' && (
-          <div className="grid gap-5 lg:grid-cols-[minmax(280px,0.85fr)_minmax(0,1.15fr)]">
-            <div className="rounded-card border border-line bg-overlay p-5 text-center sm:p-6">
-              <div className="mb-4 inline-flex h-16 w-16 items-center justify-center rounded-card bg-sky-50 text-sky-700 sm:h-20 sm:w-20">
-                <FileAudio size={36} />
-              </div>
-              <div className="text-sm font-semibold text-ink-muted">{audioSourceType === 'recording' ? 'Browser recording' : 'Uploaded file'}</div>
-              <div className="mt-3 break-all text-base font-semibold text-ink">{audioFile?.name}</div>
-              <div className="mt-2 text-sm text-ink-muted">
-                {audioSourceType === 'recording'
-                  ? `Recorded in the browser. Duration: ${formatTime(recordingSeconds)}.`
-                  : 'Preview the recording, then continue when it sounds correct.'}
-              </div>
-              <div className="mt-5 flex flex-col gap-2">
-                <button
-                  type="button"
-                  onClick={() => replaceInputRef.current?.click()}
-                  className="inline-flex items-center justify-center gap-2 rounded-full border border-line bg-surface-raised px-4 py-2.5 text-sm font-medium text-ink transition hover:bg-overlay"
-                >
-                  <Upload size={15} />
-                  Replace file
-                </button>
-                <input ref={replaceInputRef} type="file" accept="audio/*" onChange={handleFileUpload} className="hidden" />
-                <button type="button" onClick={startRecording} className="inline-flex items-center justify-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm font-medium text-emerald-700 transition hover:bg-emerald-100">
-                  <Mic size={15} />
-                  Record again
-                </button>
-              </div>
-            </div>
-            <div className="rounded-card border border-line bg-surface-sunken p-5 sm:p-6">
-              <div className="text-base font-semibold text-ink">Ready for submission</div>
-              <div className="mt-3 rounded-control border border-line bg-overlay p-4">
-                <div className="text-sm font-semibold text-ink-muted">Prompt</div>
-                <div className="mt-2 max-h-28 overflow-y-auto text-sm leading-6 text-ink-muted">{topic || 'No prompt entered yet.'}</div>
-              </div>
-              <div className="mt-5 flex flex-col gap-3 sm:flex-row">
-                <button type="button" onClick={togglePlayback} className="inline-flex items-center justify-center gap-2 rounded-full border border-line bg-surface-raised px-6 py-3 font-medium text-ink transition hover:bg-overlay">
-                  {isPlaying ? <><Pause size={16} /> Pause preview</> : <><Volume2 size={16} /> Play preview</>}
-                </button>
-                <button
-                  type="button"
-                  onClick={analyzeAudio}
-                  disabled={isOffline}
-                  className={`inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 font-medium text-ink transition ${isOffline ? 'cursor-not-allowed bg-neutral-200 opacity-50' : 'bg-ink hover:bg-ink/85'}`}
-                >
-                  <CheckCircle size={16} /> {isOffline ? 'Offline, cannot analyze' : 'Analyze speech'}
-                </button>
-              </div>
-              <div className="mt-5 grid gap-3 sm:grid-cols-3">
-                {['Content', 'Accuracy', 'Delivery'].map((label) => (
-                  <div key={label} className="rounded-control border border-line bg-overlay px-4 py-3 text-center text-sm font-semibold text-ink">
-                    {label}
-                  </div>
-                ))}
-              </div>
-            </div>
-            <audio ref={audioRef} src={audioURL} onEnded={() => setIsPlaying(false)} />
+          <div className="mt-6">
+            <div className="text-sm font-medium text-ink">Question</div>
+            <p className="mt-1.5 max-h-32 overflow-y-auto text-sm leading-6 text-ink-muted">{topic || 'No question entered yet.'}</p>
           </div>
-        )}
 
-        {step === 'uploading' && (
-          <div className="py-14 text-center" role="status" aria-live="polite">
-            <div className="mx-auto mb-5 inline-flex h-20 w-20 items-center justify-center rounded-full border border-sky-200 bg-sky-50 text-sky-700">
-              <Loader className="animate-spin" size={40} />
-            </div>
-            <div className="text-lg font-semibold text-ink">Analyzing speech</div>
-            <div className="mt-2 text-sm text-ink-muted">{progressMessage}</div>
-            <div className="mx-auto mt-6 h-2 max-w-md overflow-hidden rounded-full bg-overlay">
-              <div className="h-full w-1/2 animate-pulse rounded-full bg-sky-400" />
-            </div>
-            <p className="mx-auto mt-5 max-w-md text-sm leading-6 text-ink-subtle">
-              This usually takes under a minute. You can switch tabs or leave this page;
-              come back to Analyze and your result will be waiting.
-            </p>
+          <div className="mt-6 flex flex-wrap items-center gap-2 text-sm">
+            <span className="mr-1 text-ink-muted">Scored on</span>
+            {CRITERIA.map((criterion) => (
+              <span key={criterion.key} className={`rounded-full px-3 py-1 font-medium ${TONES[criterion.tone].soft} ${TONES[criterion.tone].text}`}>
+                {criterion.label} <span className="font-normal opacity-80">/ {criterion.max}</span>
+              </span>
+            ))}
           </div>
-        )}
 
-        {step === 'results' && results && (
-          <ResultsPanel
-            results={results}
-            onDownloadReport={() => onDownloadReport(results)}
-            onReset={reset}
-            resetLabel="New analysis"
-            topic={topic}
-            isLoggedIn={isLoggedIn}
-            onOpenAuth={onOpenAuth}
-            onPracticeAgain={practiceAgain}
-          />
-        )}
-      </div>
+          <div className="mt-8 flex flex-col gap-3 border-t border-line pt-6 sm:flex-row sm:items-center">
+            <button
+              type="button"
+              onClick={analyzeAudio}
+              disabled={isOffline}
+              className="inline-flex min-h-[52px] items-center justify-center gap-2 rounded-full bg-ink px-7 font-medium text-on-ink transition-colors duration-200 hover:bg-ink/85 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <CheckCircle size={18} />
+              {isOffline ? 'Offline, cannot analyze' : 'Analyze speech'}
+            </button>
+            <div className="flex gap-1 sm:ml-auto">
+              <button type="button" onClick={() => replaceInputRef.current?.click()} className="inline-flex items-center gap-2 rounded-full px-4 py-2.5 text-sm font-medium text-ink-muted transition-colors duration-200 hover:bg-overlay hover:text-ink">
+                <Upload size={15} />
+                Replace file
+              </button>
+              <button type="button" onClick={startRecording} className="inline-flex items-center gap-2 rounded-full px-4 py-2.5 text-sm font-medium text-ink-muted transition-colors duration-200 hover:bg-overlay hover:text-ink">
+                <Mic size={15} />
+                Record again
+              </button>
+            </div>
+            <input ref={replaceInputRef} type="file" accept="audio/*" onChange={handleFileUpload} className="hidden" />
+          </div>
+          <audio ref={audioRef} src={audioURL} onEnded={() => setIsPlaying(false)} />
+        </section>
+      )}
+
+      {step === 'uploading' && (
+        <section className="mx-auto max-w-2xl rounded-panel border border-line bg-surface-raised px-6 py-14 text-center" role="status" aria-live="polite">
+          <div className="mx-auto inline-flex h-20 w-20 items-center justify-center rounded-full bg-sky-50 text-sky-600 dark:bg-sky-400/10 dark:text-sky-300">
+            <Loader className="animate-spin" size={36} />
+          </div>
+          <h2 className="mt-6 text-xl font-semibold text-ink">Analyzing speech</h2>
+          <p className="mt-2 text-sm text-ink-muted">{progressMessage}</p>
+          <div className="mx-auto mt-6 flex max-w-xs justify-center gap-2" aria-hidden="true">
+            {CRITERIA.map((criterion, index) => (
+              <span
+                key={criterion.key}
+                className={`h-1.5 flex-1 rounded-full ${TONES[criterion.tone].fill} animate-pulse`}
+                style={{ animationDelay: `${index * 200}ms` }}
+              />
+            ))}
+          </div>
+          <p className="mx-auto mt-6 max-w-md text-sm leading-6 text-ink-subtle">
+            This usually takes under a minute. You can switch tabs or leave this page;
+            come back to Analyze and your result will be waiting.
+          </p>
+        </section>
+      )}
+
+      {step === 'results' && results && (
+        <ResultsPanel
+          results={results}
+          onDownloadReport={() => onDownloadReport(results)}
+          onReset={reset}
+          resetLabel="New analysis"
+          topic={topic}
+          isLoggedIn={isLoggedIn}
+          onOpenAuth={onOpenAuth}
+          onPracticeAgain={practiceAgain}
+        />
+      )}
     </div>
   );
 }

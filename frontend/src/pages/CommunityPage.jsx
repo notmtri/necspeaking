@@ -17,7 +17,7 @@ function ProfileOverlayModal({ profile, onClose }) {
   useOverlayDismiss(true, onClose);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-neutral-900/40 p-3 backdrop-blur-sm sm:p-6">
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-neutral-900/40 dark:bg-black/60 p-3 backdrop-blur-sm sm:p-6">
       <div
         className="relative my-4 w-full max-w-5xl rounded-panel border border-line bg-surface-raised"
         role="dialog"
@@ -34,9 +34,9 @@ function ProfileOverlayModal({ profile, onClose }) {
         </button>
 
         <div className="border-b border-line px-5 py-5 sm:px-8 sm:py-6">
-          <div className="pr-12 text-xs font-semibold tracking-normal text-sky-700">Public profile</div>
+          <div className="pr-12 text-xs font-semibold tracking-normal text-sky-700 dark:text-sky-300">Public profile</div>
           <h2 id="profile-overlay-title" className="mt-3 pr-12 text-2xl font-bold tracking-tight text-ink sm:text-3xl">{profile.name}</h2>
-          <div className="mt-2 text-base font-semibold text-sky-600">@{profile.username}</div>
+          <div className="mt-2 text-base font-semibold text-sky-600 dark:text-sky-300">@{profile.username}</div>
         </div>
 
         <div className="grid gap-5 px-5 py-5 sm:px-8 sm:py-8 xl:grid-cols-[0.85fr_1.15fr]">
@@ -51,7 +51,7 @@ function ProfileOverlayModal({ profile, onClose }) {
                 {displayRole}
               </div>
               {adminProfile && (
-                <div className="mt-3 inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-semibold tracking-normal text-amber-800">
+                <div className="mt-3 inline-flex items-center rounded-full border border-amber-200 dark:border-amber-400/25 bg-amber-50 dark:bg-amber-400/10 px-3 py-1 text-xs font-semibold tracking-normal text-amber-800 dark:text-amber-200">
                   necs. admin
                 </div>
               )}
@@ -100,8 +100,8 @@ export function rankByAverage(profiles, limit = 5) {
 
 function Leaderboard({ title, description, profiles, accent, valueOf, onSelect }) {
   const accentClasses = accent === 'amber'
-    ? { rank: 'bg-amber-50 text-amber-800', value: 'text-amber-800' }
-    : { rank: 'bg-sky-50 text-sky-700', value: 'text-emerald-700' };
+    ? { rank: 'bg-amber-50 dark:bg-amber-400/10 text-amber-800 dark:text-amber-200', value: 'text-amber-800 dark:text-amber-200' }
+    : { rank: 'bg-sky-50 dark:bg-sky-400/10 text-sky-700 dark:text-sky-300', value: 'text-emerald-700 dark:text-emerald-300' };
 
   return (
     <div className="rounded-card border border-line bg-overlay p-4">
@@ -119,7 +119,7 @@ function Leaderboard({ title, description, profiles, accent, valueOf, onSelect }
               className="flex w-full items-center gap-3 rounded-card border border-line bg-surface-sunken/60 px-3 py-3 text-left transition hover:bg-overlay-hover"
             >
               <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-semibold ${accentClasses.rank}`}>{index + 1}</div>
-              <img src={profile.avatar || createAvatarDataUri(profile.name)} alt="" className="h-10 w-10 shrink-0 rounded-card object-cover ring-1 ring-black/5" />
+              <img src={profile.avatar || createAvatarDataUri(profile.name)} alt="" className="h-10 w-10 shrink-0 rounded-card object-cover ring-1 ring-black/5 dark:ring-white/10" />
               <div className="min-w-0 flex-1">
                 <div className="truncate text-sm font-semibold text-ink">{profile.name}</div>
                 <div className="truncate text-xs text-ink-subtle">@{profile.username}</div>
@@ -297,7 +297,7 @@ export default function CommunityPage({ profiles, selectedProfile, onSelectProfi
                     type="button"
                     onClick={submitPost}
                     disabled={!canSubmitPost}
-                    className="inline-flex items-center justify-center gap-2 rounded-full bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-ink/85 disabled:cursor-not-allowed disabled:opacity-70"
+                    className="inline-flex items-center justify-center gap-2 rounded-full bg-ink px-5 py-3 text-sm font-medium text-on-ink transition hover:bg-ink/85 disabled:cursor-not-allowed disabled:opacity-70"
                   >
                     <Bell size={15} />
                     {postSubmitting ? 'Publishing...' : 'Publish post'}
@@ -315,7 +315,7 @@ export default function CommunityPage({ profiles, selectedProfile, onSelectProfi
               </div>
             )}
             {postError && (
-              <div className="mt-4 rounded-card border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700" role="alert">
+              <div className="mt-4 rounded-card border border-rose-200 dark:border-rose-400/25 bg-rose-50 dark:bg-rose-400/10 px-4 py-3 text-sm text-rose-700 dark:text-rose-300" role="alert">
                 {postError}
               </div>
             )}
@@ -332,7 +332,7 @@ export default function CommunityPage({ profiles, selectedProfile, onSelectProfi
               <article key={item.id} className="min-w-0 rounded-card border border-line bg-overlay p-4">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div className="flex min-w-0 items-center gap-3">
-                    <div className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-card bg-sky-100 text-sky-700">
+                    <div className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-card bg-sky-100 dark:bg-sky-400/15 text-sky-700 dark:text-sky-300">
                       <Bell size={16} />
                     </div>
                     <div className="min-w-0">
@@ -347,7 +347,7 @@ export default function CommunityPage({ profiles, selectedProfile, onSelectProfi
                 <h3 className="mt-3 text-base font-semibold text-ink">{item.title}</h3>
                 <p className="mt-2 whitespace-pre-line text-sm leading-6 text-ink-muted">{item.body}</p>
                 <div className="mt-3 flex flex-wrap items-center gap-2">
-                  <div className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold tracking-normal ${isAdminProfile(item.author) ? 'border-amber-200 bg-amber-50 text-amber-800' : 'border-line bg-overlay text-ink-muted'}`}>
+                  <div className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold tracking-normal ${isAdminProfile(item.author) ? 'border-amber-200 dark:border-amber-400/25 bg-amber-50 dark:bg-amber-400/10 text-amber-800 dark:text-amber-200' : 'border-line bg-overlay text-ink-muted'}`}>
                     {getDisplayRole(item.author)}
                   </div>
                   <button
@@ -394,17 +394,17 @@ export default function CommunityPage({ profiles, selectedProfile, onSelectProfi
                     <div className="mt-2 flex flex-wrap items-center gap-2">
                       <div className="text-base font-semibold text-ink">{previewProfile.name}</div>
                       {isAdminProfile(previewProfile) && (
-                        <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-semibold tracking-normal text-amber-800">
+                        <span className="rounded-full border border-amber-200 dark:border-amber-400/25 bg-amber-50 dark:bg-amber-400/10 px-2.5 py-1 text-[11px] font-semibold tracking-normal text-amber-800 dark:text-amber-200">
                           admin
                         </span>
                       )}
                     </div>
-                    <div className="mt-1 text-sm text-sky-600">@{previewProfile.username}</div>
+                    <div className="mt-1 text-sm text-sky-600 dark:text-sky-300">@{previewProfile.username}</div>
                   </div>
                   <button
                     type="button"
                     onClick={() => setOverlayProfile(previewProfile)}
-                    className="inline-flex shrink-0 items-center justify-center gap-2 rounded-full bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-ink/85"
+                    className="inline-flex shrink-0 items-center justify-center gap-2 rounded-full bg-ink px-5 py-3 text-sm font-medium text-on-ink transition hover:bg-ink/85"
                   >
                     Open full profile
                   </button>

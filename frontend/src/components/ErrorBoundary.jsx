@@ -36,10 +36,10 @@ export default class ErrorBoundary extends React.Component {
 
     return (
       <section
-        className="mx-auto max-w-2xl rounded-panel border border-rose-200 bg-rose-50 p-6 text-center"
+        className="mx-auto max-w-2xl rounded-panel border border-rose-200 dark:border-rose-400/25 bg-rose-50 dark:bg-rose-400/10 p-6 text-center"
         role="alert"
       >
-        <div className="mx-auto inline-flex h-14 w-14 items-center justify-center rounded-full border border-rose-200 bg-rose-50 text-rose-700">
+        <div className="mx-auto inline-flex h-14 w-14 items-center justify-center rounded-full border border-rose-200 dark:border-rose-400/25 bg-rose-50 dark:bg-rose-400/10 text-rose-700 dark:text-rose-300">
           <AlertCircle size={26} />
         </div>
         <h1 className="mt-4 text-xl font-semibold text-ink sm:text-2xl">This page hit an error</h1>
@@ -49,7 +49,7 @@ export default class ErrorBoundary extends React.Component {
         <button
           type="button"
           onClick={() => this.setState({ error: null })}
-          className="mt-5 inline-flex items-center justify-center gap-2 rounded-full bg-ink px-5 py-3 font-medium text-white transition hover:bg-ink/85"
+          className="mt-5 inline-flex items-center justify-center gap-2 rounded-full bg-ink px-5 py-3 font-medium text-on-ink transition hover:bg-ink/85"
         >
           <RotateCcw size={16} />
           Try again

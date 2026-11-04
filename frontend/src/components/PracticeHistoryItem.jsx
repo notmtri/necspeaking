@@ -1,14 +1,7 @@
 import React, { useCallback, useState } from 'react';
 import { ChevronDown, Download, Loader } from 'lucide-react';
 import { apiFetch } from '../apiClient';
-import { API_BASE_URL } from '../appShared';
-import { ProfileDetailRow } from './ProfileBits';
-
-const CRITERIA = [
-  { key: 'content', label: 'Content' },
-  { key: 'accuracy', label: 'Accuracy' },
-  { key: 'delivery', label: 'Delivery' },
-];
+import { API_BASE_URL, CRITERIA, TONES } from '../appShared';
 
 /**
  * One past attempt. Expands to the full feedback, the sample answer and the
@@ -45,33 +38,36 @@ export default function PracticeHistoryItem({ session }) {
   }, [session.id]);
 
   return (
-    <div className="rounded-card border border-line bg-overlay px-4 py-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+    <div className="py-5 first:pt-0 last:pb-0">
+      <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
-          <div className="truncate text-sm font-semibold text-ink">{session.topic}</div>
-          <div className="mt-1 text-xs text-ink-subtle">{new Date(session.createdAt).toLocaleString()}</div>
+          <div className="line-clamp-2 text-sm font-medium leading-6 text-ink">{session.topic}</div>
+          <div className="mt-0.5 text-xs text-ink-subtle">
+            {new Date(session.createdAt).toLocaleString()} | {Math.round(session.duration || 0)}s
+          </div>
         </div>
-        <div className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-sm font-semibold text-emerald-700">
-          {session.scores?.total ?? 0}/2.0
+        <div className="shrink-0 text-right">
+          <div className="font-display text-2xl font-semibold leading-none tracking-[-0.03em] text-ink tabular">{Number(session.scores?.total ?? 0).toFixed(2)}</div>
+          <div className="mt-1 text-xs text-ink-subtle">/ 2.0</div>
         </div>
       </div>
-      <div className="mt-3 grid gap-3 sm:grid-cols-4">
-        <ProfileDetailRow label="Content" value={session.scores?.content ?? 0} />
-        <ProfileDetailRow label="Accuracy" value={session.scores?.accuracy ?? 0} />
-        <ProfileDetailRow label="Delivery" value={session.scores?.delivery ?? 0} />
-        <ProfileDetailRow label="Duration" value={`${Math.round(session.duration || 0)}s`} />
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        {CRITERIA.map((criterion) => (
+          <span key={criterion.key} className={`rounded-full px-2.5 py-1 text-xs font-medium tabular ${TONES[criterion.tone].soft} ${TONES[criterion.tone].text}`}>
+            {criterion.label} {Number(session.scores?.[criterion.key] ?? 0).toFixed(2)}
+          </span>
+        ))}
+        <button
+          type="button"
+          onClick={toggle}
+          aria-expanded={open}
+          aria-controls={panelId}
+          className="ml-auto inline-flex min-h-[36px] items-center gap-1.5 rounded-full px-2.5 text-sm font-medium text-sky-700 transition-colors hover:bg-sky-50 dark:text-sky-300 dark:hover:bg-sky-400/10"
+        >
+          <ChevronDown size={16} className={`transition-transform ${open ? 'rotate-180' : ''}`} />
+          {open ? 'Hide feedback' : 'View feedback'}
+        </button>
       </div>
-
-      <button
-        type="button"
-        onClick={toggle}
-        aria-expanded={open}
-        aria-controls={panelId}
-        className="mt-3 inline-flex min-h-[40px] items-center gap-2 rounded-control px-2 text-sm font-semibold text-sky-700 transition hover:text-sky-700"
-      >
-        <ChevronDown size={16} className={`transition-transform ${open ? 'rotate-180' : ''}`} />
-        {open ? 'Hide feedback' : 'View feedback'}
-      </button>
 
       {open && (
         <div id={panelId} className="mt-3 space-y-3">
@@ -85,19 +81,19 @@ export default function PracticeHistoryItem({ session }) {
               <Loader size={16} className="animate-spin" /> Loading feedback...
             </div>
           )}
-          {error && <p className="text-sm text-rose-700" role="alert">{error}</p>}
+          {error && <p className="text-sm text-rose-700 dark:text-rose-300" role="alert">{error}</p>}
           {detail?.feedback && (
             <>
-              <div className="grid gap-3 lg:grid-cols-3">
+              <div className="space-y-3 rounded-card bg-surface-sunken p-4">
                 {CRITERIA.map((criterion) => (
-                  <div key={criterion.key} className="rounded-control border border-line bg-surface-sunken p-3">
-                    <div className="text-sm font-semibold text-ink">{criterion.label}</div>
-                    <div className="mt-1 text-sm leading-6 text-ink-muted">{detail.feedback[criterion.key]}</div>
+                  <div key={criterion.key}>
+                    <div className={`text-sm font-medium ${TONES[criterion.tone].text}`}>{criterion.label}</div>
+                    <div className="mt-0.5 text-sm leading-6 text-ink-muted">{detail.feedback[criterion.key]}</div>
                   </div>
                 ))}
               </div>
               {detail.sampleResponse && (
-                <details className="rounded-control border border-amber-200 bg-amber-50 p-3">
+                <details className="rounded-control border border-amber-200 dark:border-amber-400/25 bg-amber-50 dark:bg-amber-400/10 p-3">
                   <summary className="cursor-pointer text-sm font-semibold text-ink">Sample 2.0 response</summary>
                   <div className="mt-2 whitespace-pre-line text-sm leading-6 text-ink">{detail.sampleResponse}</div>
                 </details>

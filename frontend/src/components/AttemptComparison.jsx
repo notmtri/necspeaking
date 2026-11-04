@@ -22,7 +22,7 @@ function Delta({ value, unit = '', invert = false }) {
   const Icon = rounded > 0 ? ArrowUpRight : ArrowDownRight;
 
   return (
-    <span className={`inline-flex items-center gap-1 text-xs font-semibold ${better ? 'text-emerald-600' : 'text-rose-600'}`}>
+    <span className={`inline-flex items-center gap-1 text-xs font-semibold ${better ? 'text-emerald-600 dark:text-emerald-300' : 'text-rose-600 dark:text-rose-300'}`}>
       <Icon size={13} />
       {rounded > 0 ? '+' : ''}{rounded}{unit}
     </span>
@@ -71,7 +71,7 @@ export default function AttemptComparison({ topic, isLoggedIn }) {
   }
   if (error) {
     return (
-      <div className="rounded-card border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700" role="alert">
+      <div className="rounded-card border border-rose-200 dark:border-rose-400/25 bg-rose-50 dark:bg-rose-400/10 p-4 text-sm text-rose-700 dark:text-rose-300" role="alert">
         {error}
       </div>
     );

@@ -66,7 +66,7 @@ function ForgotPasswordPanel({ email, onPasswordReset }) {
             type="button"
             onClick={sendCode}
             disabled={busy || !email.trim()}
-            className="mt-3 inline-flex items-center justify-center rounded-full bg-ink px-4 py-2 font-medium text-white transition hover:bg-ink/85 disabled:cursor-not-allowed disabled:opacity-60"
+            className="mt-3 inline-flex items-center justify-center rounded-full bg-ink px-4 py-2 font-medium text-on-ink transition hover:bg-ink/85 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {busy ? 'Sending...' : 'Email me a code'}
           </button>
@@ -99,7 +99,7 @@ function ForgotPasswordPanel({ email, onPasswordReset }) {
             <button
               type="submit"
               disabled={busy || code.length !== 6}
-              className="inline-flex items-center justify-center rounded-full bg-ink px-4 py-2 font-medium text-white transition hover:bg-ink/85 disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex items-center justify-center rounded-full bg-ink px-4 py-2 font-medium text-on-ink transition hover:bg-ink/85 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {busy ? 'Saving...' : 'Set new password'}
             </button>
@@ -115,7 +115,7 @@ function ForgotPasswordPanel({ email, onPasswordReset }) {
         </form>
       )}
       {status && (
-        <p className={`mt-3 ${status.tone === 'error' ? 'text-rose-700' : 'text-emerald-700'}`} role="status">{status.text}</p>
+        <p className={`mt-3 ${status.tone === 'error' ? 'text-rose-700 dark:text-rose-300' : 'text-emerald-700 dark:text-emerald-300'}`} role="status">{status.text}</p>
       )}
     </div>
   );
@@ -161,7 +161,7 @@ export default function AuthPage({ authMode, setAuthMode, onSubmit, onContinueAs
               ['Progress you can see', 'Your average, best score and streak build up as you practise.'],
             ].map(([title, body]) => (
               <li key={title} className="flex gap-3">
-                <Check size={18} className="mt-0.5 shrink-0 text-sky-600" />
+                <Check size={18} className="mt-0.5 shrink-0 text-sky-600 dark:text-sky-300" />
                 <span>
                   <span className="block font-medium text-ink">{title}</span>
                   <span className="text-ink-muted">{body}</span>
@@ -178,7 +178,7 @@ export default function AuthPage({ authMode, setAuthMode, onSubmit, onContinueAs
             </div>
           )}
           {authError && (
-            <div className="mb-4 rounded-card border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700" role="alert">
+            <div className="mb-4 rounded-card border border-rose-200 dark:border-rose-400/25 bg-rose-50 dark:bg-rose-400/10 px-4 py-3 text-sm text-rose-700 dark:text-rose-300" role="alert">
               {authError}
             </div>
           )}
@@ -246,7 +246,7 @@ export default function AuthPage({ authMode, setAuthMode, onSubmit, onContinueAs
             <button
               type="submit"
               disabled={authSubmitting}
-              className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-ink px-6 py-3 font-medium text-white transition hover:bg-ink/85 disabled:cursor-not-allowed disabled:opacity-70"
+              className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-ink px-6 py-3 font-medium text-on-ink transition hover:bg-ink/85 disabled:cursor-not-allowed disabled:opacity-70"
             >
               {isSignup ? <UserPlus size={17} /> : <LogIn size={17} />}
               {authSubmitting ? 'Please wait...' : isSignup ? 'Create account' : 'Log in'}
@@ -256,7 +256,7 @@ export default function AuthPage({ authMode, setAuthMode, onSubmit, onContinueAs
           {!isSignup && (
             <div className="mt-4 text-sm">
               {!forgotOpen ? (
-                <button type="button" onClick={() => setForgotOpen(true)} className="font-semibold text-sky-600 transition hover:text-sky-700">
+                <button type="button" onClick={() => setForgotOpen(true)} className="font-semibold text-sky-600 dark:text-sky-300 transition hover:text-sky-700 dark:hover:text-sky-300">
                   Forgot password?
                 </button>
               ) : (
@@ -270,7 +270,7 @@ export default function AuthPage({ authMode, setAuthMode, onSubmit, onContinueAs
             <button
               type="button"
               onClick={() => setAuthMode(isSignup ? 'login' : 'signup')}
-              className="font-semibold text-sky-600 transition hover:text-sky-700"
+              className="font-semibold text-sky-600 dark:text-sky-300 transition hover:text-sky-700 dark:hover:text-sky-300"
             >
               {isSignup ? 'Log in instead' : 'Create one'}
             </button>
