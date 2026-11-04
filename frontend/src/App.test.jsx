@@ -332,6 +332,20 @@ describe('App', () => {
     expect(JSON.parse(call[1].body)).toEqual({ emoji: '👍' });
   });
 
+  it('adds a new reaction from the picker, Discord style', async () => {
+    await renderApp('/community', { posts: [{ ...postFixture, reactions: {}, myReactions: [] }], user: newStudent(1) });
+    expect(await waitUntil(() => Boolean(buttonNamed('Add reaction')))).toBe(true);
+    // Unused reactions are not shown until someone picks them.
+    expect([...document.querySelectorAll('button')].some((b) => (b.getAttribute('aria-label') || '').startsWith('React '))).toBe(false);
+
+    await act(async () => buttonNamed('Add reaction').click());
+    await act(async () => buttonNamed('Add 😮').click());
+    const pill = [...document.querySelectorAll('button')].find((b) => b.getAttribute('aria-label') === 'React 😮, 1 reaction');
+    expect(pill).toBeTruthy();
+    expect(pill.getAttribute('aria-pressed')).toBe('true');
+    expect(buttonNamed('Add 😮')).toBeFalsy(); // the picker closed
+  });
+
   it('gives the top three medals instead of numbers', async () => {
     const ranked = ['ana', 'binh', 'chi', 'dung'].map((username, index) => ({
       id: `user-${index}`, name: username, username, stats: { practices: 10 - index, avgScore: 1.8 - index / 10 },

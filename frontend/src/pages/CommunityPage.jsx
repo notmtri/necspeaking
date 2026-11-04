@@ -1,5 +1,5 @@
 import React, { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
-import { ImagePlus, Medal, Search, Send, X } from 'lucide-react';
+import { ImagePlus, Medal, Search, Send, SmilePlus, X } from 'lucide-react';
 import { POST_IMAGE_UPLOAD, TONES, apiAssetUrl, isAdminProfile, profileAvatar, profileCover, readImageAsResizedDataUri } from '../appShared';
 import { apiFetch, isAbortError } from '../apiClient';
 import { PageHeader } from '../components/AppChrome';
@@ -33,7 +33,7 @@ function ProfileOverlayModal({ profile, onClose }) {
   return (
     <div className="fixed inset-0 z-[70] flex items-start justify-center overflow-y-auto bg-neutral-900/40 p-3 backdrop-blur-sm dark:bg-black/60 sm:items-center sm:p-6">
       <div className="relative my-4 w-full max-w-2xl overflow-hidden rounded-panel border border-line bg-surface-raised" role="dialog" aria-modal="true" aria-labelledby="profile-overlay-title">
-        <div className="relative h-32 bg-gradient-to-r from-sky-200 via-violet-200 to-amber-200 dark:from-sky-400/25 dark:via-violet-400/20 dark:to-amber-400/20 sm:h-40">
+        <div className="relative h-28 bg-gradient-to-r from-sky-200 via-violet-200 to-amber-200 dark:from-sky-400/25 dark:via-violet-400/20 dark:to-amber-400/20 sm:aspect-[4/1] sm:h-auto">
           {cover && <img src={cover} alt="" className="h-full w-full object-cover" />}
           <button
             type="button"
@@ -45,7 +45,7 @@ function ProfileOverlayModal({ profile, onClose }) {
           </button>
         </div>
         <div className="px-5 pb-6 sm:px-7">
-          <img src={profileAvatar(profile)} alt="" className="-mt-12 h-24 w-24 rounded-[1.75rem] border-4 border-surface-raised object-cover" />
+          <img src={profileAvatar(profile)} alt="" className="relative z-10 -mt-12 h-24 w-24 rounded-[1.75rem] border-4 border-surface-raised bg-surface-raised object-cover" />
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <h2 id="profile-overlay-title" className="text-2xl font-semibold text-ink">{profile.name}</h2>
             {isAdminProfile(profile) && <AdminBadge />}
@@ -135,12 +135,34 @@ function Leaderboard({ title, description, profiles, valueOf, onSelect }) {
   );
 }
 
+/**
+ * Discord-style: only reactions someone has used show, each with its count
+ * (yours highlighted, press to take it back), plus one button that opens the
+ * five-emoji picker.
+ */
 function ReactionBar({ post, onReact }) {
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const wrapperRef = useRef(null);
   const mine = new Set(post.myReactions || []);
+  const used = REACTIONS.filter((emoji) => (post.reactions?.[emoji] || 0) > 0);
+
+  useEffect(() => {
+    if (!pickerOpen) return undefined;
+    const close = (event) => {
+      if (event.type === 'keydown' ? event.key === 'Escape' : !wrapperRef.current?.contains(event.target)) setPickerOpen(false);
+    };
+    document.addEventListener('mousedown', close);
+    document.addEventListener('keydown', close);
+    return () => {
+      document.removeEventListener('mousedown', close);
+      document.removeEventListener('keydown', close);
+    };
+  }, [pickerOpen]);
+
   return (
-    <div className="flex flex-wrap gap-1.5" role="group" aria-label="Reactions">
-      {REACTIONS.map((emoji) => {
-        const count = post.reactions?.[emoji] || 0;
+    <div ref={wrapperRef} className="relative flex flex-wrap items-center gap-1.5" role="group" aria-label="Reactions">
+      {used.map((emoji) => {
+        const count = post.reactions[emoji];
         const active = mine.has(emoji);
         return (
           <button
@@ -148,18 +170,55 @@ function ReactionBar({ post, onReact }) {
             type="button"
             onClick={() => onReact(post.id, emoji)}
             aria-pressed={active}
-            aria-label={`React ${emoji}${count ? `, ${count}` : ''}`}
-            className={`inline-flex h-8 items-center gap-1 rounded-full border px-2.5 text-sm transition-colors duration-200 ${
+            aria-label={`React ${emoji}, ${count} ${count === 1 ? 'reaction' : 'reactions'}`}
+            className={`inline-flex h-8 items-center gap-1.5 rounded-full border px-2.5 text-sm transition-colors duration-200 ${
               active
-                ? 'border-sky-300 bg-sky-50 text-sky-800 dark:border-sky-400/40 dark:bg-sky-400/10 dark:text-sky-200'
-                : 'border-line text-ink-muted hover:bg-overlay'
+                ? 'border-sky-400 bg-sky-50 text-sky-800 dark:border-sky-400/60 dark:bg-sky-400/15 dark:text-sky-100'
+                : 'border-line bg-surface-sunken text-ink-muted hover:border-overlay-hover'
             }`}
           >
             <span aria-hidden="true">{emoji}</span>
-            {count > 0 && <span className="text-xs font-medium tabular">{count}</span>}
+            <span className="text-xs font-semibold tabular">{count}</span>
           </button>
         );
       })}
+
+      <button
+        type="button"
+        onClick={() => setPickerOpen((open) => !open)}
+        aria-expanded={pickerOpen}
+        aria-label="Add reaction"
+        title="Add reaction"
+        className={`inline-flex h-8 w-9 items-center justify-center rounded-full border transition-colors duration-200 ${
+          pickerOpen ? 'border-line bg-overlay text-ink' : 'border-transparent text-ink-subtle hover:border-line hover:bg-overlay hover:text-ink'
+        }`}
+      >
+        <SmilePlus size={17} />
+      </button>
+
+      {pickerOpen && (
+        <div
+          className="absolute bottom-full left-0 z-20 mb-2 flex gap-1 rounded-full border border-line bg-surface-raised p-1.5 shadow-[0_12px_32px_-12px_oklch(0.3_0.05_250/0.35)] dark:shadow-[0_12px_32px_-12px_oklch(0_0_0/0.8)]"
+          role="group"
+          aria-label="Choose a reaction"
+        >
+          {REACTIONS.map((emoji) => (
+            <button
+              key={emoji}
+              type="button"
+              onClick={() => {
+                onReact(post.id, emoji);
+                setPickerOpen(false);
+              }}
+              aria-pressed={mine.has(emoji)}
+              aria-label={`${mine.has(emoji) ? 'Remove' : 'Add'} ${emoji}`}
+              className={`inline-flex h-9 w-9 items-center justify-center rounded-full text-lg transition-transform duration-150 hover:scale-110 hover:bg-overlay ${mine.has(emoji) ? 'bg-sky-50 dark:bg-sky-400/15' : ''}`}
+            >
+              {emoji}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

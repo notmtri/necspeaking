@@ -60,8 +60,15 @@ export const FOUNDER_IMAGE = '/founder.jpg';
  * files in frontend/public and set these; null keeps the built-in fallbacks
  * (initials avatar, colour-band cover).
  */
-export const DEFAULT_AVATAR_IMAGE = null;
+export const DEFAULT_AVATAR_IMAGE = '/default-avatar.webp';
 export const DEFAULT_COVER_IMAGE = null;
+
+// What to tell people before they pick a picture. Covers show at 4:1 on
+// tablets and up, and a little taller (cropped at the sides) on phones.
+export const IMAGE_GUIDANCE = {
+  avatar: 'Square, 400 × 400 px or larger.',
+  cover: '1600 × 400 px (4:1). Keep faces and text near the middle; phones crop the sides.',
+};
 
 // Upload sizes: covers are wide, post pictures are read on phones.
 export const COVER_UPLOAD = { maxEdge: 1600, quality: 0.82, maxBytes: 680 * 1024 };

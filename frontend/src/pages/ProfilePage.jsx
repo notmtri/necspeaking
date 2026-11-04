@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Award, Camera, CheckCircle, Flame, Loader, Lock, LogOut, Mic, Pencil, Target, Trash2, TrendingUp, Trophy, Upload, User } from 'lucide-react';
-import { COVER_UPLOAD, CRITERIA, TONES, isAdminProfile, profileAvatar, profileCover, readImageAsResizedDataUri } from '../appShared';
+import { COVER_UPLOAD, CRITERIA, IMAGE_GUIDANCE, TONES, isAdminProfile, profileAvatar, profileCover, readImageAsResizedDataUri } from '../appShared';
 import VerifyEmailNotice from '../components/VerifyEmailNotice';
 import { FIELD_CLASSNAME, LabeledInput, ProfileSectionCard } from '../components/ProfileBits';
 import PracticeHistoryItem from '../components/PracticeHistoryItem';
@@ -129,7 +129,7 @@ function AchievementBadges({ stats, analytics }) {
  * A picture you can replace in place: hover (or, on touch screens, the
  * always-visible camera badge) shows what a click will do.
  */
-function EditableImage({ label, onPick, busy, className = '', overlayClassName = '', children }) {
+function EditableImage({ label, hint = '', onPick, busy, className = '', overlayClassName = '', children }) {
   const inputRef = React.useRef(null);
   return (
     <button
@@ -145,7 +145,10 @@ function EditableImage({ label, onPick, busy, className = '', overlayClassName =
         aria-hidden="true"
       >
         {busy ? <Loader size={18} className="animate-spin" /> : <Camera size={18} />}
-        <span className="hidden sm:inline">{busy ? 'Saving...' : label}</span>
+        <span className="hidden text-left sm:block">
+          <span className="block">{busy ? 'Saving...' : label}</span>
+          {hint && !busy && <span className="block text-xs font-normal opacity-85">{hint}</span>}
+        </span>
       </span>
       {/* Touch screens have no hover: keep a small camera badge in view. */}
       <span className="absolute bottom-2 right-2 hidden h-8 w-8 items-center justify-center rounded-full bg-black/55 text-white [@media(hover:none)]:inline-flex" aria-hidden="true">
@@ -249,17 +252,6 @@ export default function ProfilePage({ currentUser, practiceHistory, onSave, onLo
     setDraft((current) => ({ ...current, [field]: value }));
   };
 
-  const updatePhoto = async (file) => {
-    if (!file) return;
-    setPhotoError('');
-    try {
-      const dataUri = await readImageAsResizedDataUri(file);
-      setDraft((current) => ({ ...current, avatar: dataUri }));
-    } catch (error) {
-      setPhotoError(error.message || 'Could not use that image.');
-    }
-  };
-
   const adminProfile = isAdminProfile(draft);
 
   // Saves just the photo or the cover, straight from the profile header.
@@ -325,9 +317,10 @@ export default function ProfilePage({ currentUser, practiceHistory, onSave, onLo
       <section className="overflow-hidden rounded-panel border border-line bg-surface-raised" aria-label="Your profile">
         <EditableImage
           label="Change cover"
+          hint="1600 × 400 px"
           onPick={(file) => replaceImage('cover', file)}
           busy={mediaSaving === 'cover'}
-          className="h-32 w-full bg-gradient-to-r from-sky-200 via-violet-200 to-amber-200 dark:from-sky-400/25 dark:via-violet-400/20 dark:to-amber-400/20 sm:h-44"
+          className="h-28 w-full bg-gradient-to-r from-sky-200 via-violet-200 to-amber-200 dark:from-sky-400/25 dark:via-violet-400/20 dark:to-amber-400/20 sm:aspect-[4/1] sm:h-auto"
         >
           {cover && <img src={cover} alt="" className="h-full w-full object-cover" />}
         </EditableImage>
@@ -336,6 +329,7 @@ export default function ProfilePage({ currentUser, practiceHistory, onSave, onLo
             <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-end">
               <EditableImage
                 label="Change photo"
+                hint="Square, 400 × 400"
                 onPick={(file) => replaceImage('avatar', file)}
                 busy={mediaSaving === 'avatar'}
                 className="relative z-10 h-24 w-24 shrink-0 rounded-[1.75rem] border-4 border-surface-raised bg-surface-raised sm:h-28 sm:w-28"
@@ -456,18 +450,38 @@ export default function ProfilePage({ currentUser, practiceHistory, onSave, onLo
       ) : (
         <div className="space-y-5 sm:space-y-6">
           <ProfileSectionCard title="Settings" eyebrow="Personal info">
-            <div className="mb-5 rounded-card border border-line bg-overlay p-4">
-              <div className="text-sm font-semibold text-ink">Profile photo</div>
-              <div className="mt-1 text-sm text-ink-muted">Upload a new avatar. Large photos are resized automatically.</div>
-              <label className="mt-4 inline-flex cursor-pointer items-center gap-2 rounded-full border border-line bg-sky-50 dark:bg-sky-400/10 px-4 py-2 text-xs font-semibold tracking-normal text-sky-700 dark:text-sky-300 transition hover:bg-sky-100 dark:hover:bg-sky-400/15">
-                <Upload size={14} />
-                Upload photo
-                <input type="file" accept="image/*" onChange={(event) => updatePhoto(event.target.files?.[0])} className="hidden" />
-              </label>
-              {photoError && (
-                <div className="mt-3 rounded-control border border-rose-200 dark:border-rose-400/25 bg-rose-50 dark:bg-rose-400/10 px-3 py-2 text-sm text-rose-700 dark:text-rose-300" role="alert">
-                  {photoError}
+            <div className="mb-6 grid gap-4 sm:grid-cols-[auto_1fr]">
+              <img src={profileAvatar(draft)} alt="" className="h-20 w-20 rounded-[1.25rem] object-cover" />
+              <div>
+                <div className="text-sm font-medium text-ink">Profile photo</div>
+                <p className="mt-0.5 text-sm text-ink-muted">{IMAGE_GUIDANCE.avatar} Saved as soon as you pick it.</p>
+                <label className="mt-3 inline-flex cursor-pointer items-center gap-2 rounded-full border border-line px-4 py-2 text-sm font-medium text-ink transition-colors hover:bg-overlay">
+                  {mediaSaving === 'avatar' ? <Loader size={15} className="animate-spin" /> : <Upload size={15} />}
+                  Upload photo
+                  <input type="file" accept="image/*" onChange={(event) => { replaceImage('avatar', event.target.files?.[0]); event.target.value = ''; }} className="hidden" />
+                </label>
+              </div>
+              <div className="h-20 w-20 overflow-hidden rounded-[1.25rem] bg-gradient-to-r from-sky-200 via-violet-200 to-amber-200 dark:from-sky-400/25 dark:via-violet-400/20 dark:to-amber-400/20 sm:h-auto sm:w-48 sm:aspect-[4/1] sm:rounded-control">
+                {cover && <img src={cover} alt="" className="h-full w-full object-cover" />}
+              </div>
+              <div>
+                <div className="text-sm font-medium text-ink">Cover photo</div>
+                <p className="mt-0.5 text-sm text-ink-muted">{IMAGE_GUIDANCE.cover}</p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <label className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-line px-4 py-2 text-sm font-medium text-ink transition-colors hover:bg-overlay">
+                    {mediaSaving === 'cover' ? <Loader size={15} className="animate-spin" /> : <Upload size={15} />}
+                    Upload cover
+                    <input type="file" accept="image/*" onChange={(event) => { replaceImage('cover', event.target.files?.[0]); event.target.value = ''; }} className="hidden" />
+                  </label>
+                  {draft.coverUrl && (
+                    <button type="button" onClick={() => onQuickSave?.({ cover: '' })} className="rounded-full px-4 py-2 text-sm font-medium text-ink-muted transition-colors hover:bg-overlay hover:text-ink">
+                      Remove cover
+                    </button>
+                  )}
                 </div>
+              </div>
+              {(mediaError || photoError) && (
+                <p className="text-sm text-rose-700 dark:text-rose-300 sm:col-span-2" role="alert">{mediaError || photoError}</p>
               )}
             </div>
             <div className="grid gap-4 md:grid-cols-2">
