@@ -27,8 +27,11 @@ export default {
         card: '1rem',
         panel: '1.5rem',
       },
+      // Radii: inputs and small chips use control, content boxes card, page
+      // sections panel; every button is a full pill (rounded-full).
       fontFamily: {
-        sans: ['Nunito Sans', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        sans: ['"Inter Variable"', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        display: ['"Be Vietnam Pro"', '"Inter Variable"', 'ui-sans-serif', 'system-ui', 'sans-serif'],
       },
     },
   },

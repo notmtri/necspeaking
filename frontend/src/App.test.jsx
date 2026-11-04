@@ -182,8 +182,9 @@ describe('App', () => {
 
     await renderApp('/analyze');
 
-    expect(container.textContent).toContain('Guest session active');
     expect(container.textContent).toContain('Guest mode is active');
+    // A guest is still offered an account from the header.
+    expect(buttonNamed('Sign up')).toBeTruthy();
   });
 
   it('renders loaded samples in the sample library', async () => {

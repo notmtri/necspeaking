@@ -4,28 +4,28 @@ import { formatTime } from '../appShared';
 
 // Rough NEC-style guidance. Comfortable exam pace sits around 130-160 wpm.
 const PACE_BANDS = [
-  { max: 110, label: 'Slow', tone: 'text-amber-300', hint: 'Room to speak a little faster.' },
-  { max: 170, label: 'Good', tone: 'text-emerald-300', hint: 'Comfortable, examiner-friendly pace.' },
-  { max: Infinity, label: 'Fast', tone: 'text-amber-300', hint: 'Consider slowing down for clarity.' },
+  { max: 110, label: 'Slow', tone: 'text-amber-600', hint: 'Room to speak a little faster.' },
+  { max: 170, label: 'Good', tone: 'text-emerald-600', hint: 'Comfortable, examiner-friendly pace.' },
+  { max: Infinity, label: 'Fast', tone: 'text-amber-600', hint: 'Consider slowing down for clarity.' },
 ];
 
 const describePace = (wpm) => PACE_BANDS.find((band) => wpm <= band.max);
 
 const describeFillers = (perMinute) => {
-  if (perMinute <= 2) return { label: 'Low', tone: 'text-emerald-300', hint: 'Very few hesitation words.' };
-  if (perMinute <= 5) return { label: 'Moderate', tone: 'text-amber-300', hint: 'Noticeable but not distracting.' };
-  return { label: 'High', tone: 'text-rose-300', hint: 'Fillers are interrupting your flow.' };
+  if (perMinute <= 2) return { label: 'Low', tone: 'text-emerald-600', hint: 'Very few hesitation words.' };
+  if (perMinute <= 5) return { label: 'Moderate', tone: 'text-amber-600', hint: 'Noticeable but not distracting.' };
+  return { label: 'High', tone: 'text-rose-600', hint: 'Fillers are interrupting your flow.' };
 };
 
 function Stat({ icon: Icon, label, value, unit, verdict }) {
   return (
     <div className="rounded-card border border-line bg-overlay p-4">
-      <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-ink-muted">
+      <div className="flex items-center gap-2 text-xs font-semibold tracking-normal text-ink-muted">
         <Icon size={14} />
         {label}
       </div>
       <div className="mt-2 flex items-baseline gap-1.5">
-        <span className="text-2xl font-semibold text-white">{value}</span>
+        <span className="text-2xl font-semibold text-ink">{value}</span>
         {unit && <span className="text-xs text-ink-subtle">{unit}</span>}
       </div>
       {verdict && (
@@ -46,7 +46,7 @@ function PaceSparkline({ series }) {
 
   return (
     <div className="rounded-card border border-line bg-overlay p-4">
-      <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-ink-muted">
+      <div className="flex items-center gap-2 text-xs font-semibold tracking-normal text-ink-muted">
         <Activity size={14} />
         Pace over time
       </div>
@@ -54,7 +54,7 @@ function PaceSparkline({ series }) {
         {series.map((point) => (
           <div key={point.start} className="flex min-w-0 flex-1 flex-col items-center gap-1">
             <div
-              className="w-full rounded-t-sm bg-sky-400/80"
+              className="w-full rounded-t-sm bg-sky-500"
               style={{ height: `${Math.max(6, (point.wpm / peak) * 100)}%` }}
               title={`${formatTime(point.start)}-${formatTime(point.end)}: ${point.wpm} wpm`}
             />
@@ -79,7 +79,7 @@ export default function DeliveryMetrics({ metrics }) {
   return (
     <section className="rounded-panel border border-line bg-surface-raised p-4 sm:p-5">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h3 className="text-base font-semibold text-white">Delivery detail</h3>
+        <h3 className="text-base font-semibold text-ink">Delivery detail</h3>
         <span className="text-xs text-ink-subtle">Measured from your recording</span>
       </div>
       <p className="mt-1 text-sm leading-6 text-ink-muted">
@@ -113,7 +113,7 @@ export default function DeliveryMetrics({ metrics }) {
           unit={metrics.totalPauseSeconds ? `(${metrics.totalPauseSeconds}s total)` : ''}
           verdict={{
             label: metrics.longPauseCount ? 'Review these' : 'None',
-            tone: metrics.longPauseCount > 4 ? 'text-amber-300' : 'text-emerald-300',
+            tone: metrics.longPauseCount > 4 ? 'text-amber-600' : 'text-emerald-600',
             hint: metrics.longPauseCount
               ? 'Gaps of 1.5s or more.'
               : 'No hesitation gaps detected.',
@@ -126,14 +126,14 @@ export default function DeliveryMetrics({ metrics }) {
 
         {topFillers.length > 0 && (
           <div className="rounded-card border border-line bg-overlay p-4">
-            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-ink-muted">
+            <div className="flex items-center gap-2 text-xs font-semibold tracking-normal text-ink-muted">
               <MessageSquareDashed size={14} />
               Most used fillers
             </div>
             <ul className="mt-3 space-y-2">
               {topFillers.map(([term, count]) => (
                 <li key={term} className="flex items-center justify-between gap-3 text-sm">
-                  <span className="truncate font-medium text-slate-200">&ldquo;{term}&rdquo;</span>
+                  <span className="truncate font-medium text-ink">&ldquo;{term}&rdquo;</span>
                   <span className="shrink-0 rounded-full border border-line bg-overlay px-2.5 py-0.5 text-xs font-semibold text-ink-muted">
                     {count}x
                   </span>
@@ -146,13 +146,13 @@ export default function DeliveryMetrics({ metrics }) {
 
       {metrics.longPauseCount > 0 && (
         <details className="mt-3 rounded-card border border-line bg-overlay p-4">
-          <summary className="cursor-pointer text-sm font-semibold text-slate-200">
+          <summary className="cursor-pointer text-sm font-semibold text-ink">
             Where the long pauses were ({metrics.longPauseCount})
           </summary>
           <ul className="mt-3 space-y-2">
             {metrics.longPauses.map((pause) => (
               <li key={`${pause.start}-${pause.duration}`} className="text-sm leading-6 text-ink-muted">
-                <span className="font-semibold text-slate-200">{formatTime(pause.start)}</span>
+                <span className="font-semibold text-ink">{formatTime(pause.start)}</span>
                 {' · '}
                 {pause.duration}s after &ldquo;{pause.afterWord}&rdquo;
               </li>

@@ -406,7 +406,7 @@ export default function SimulationMode({ onAnalysisUserUpdate, onDownloadReport,
     <div
       ref={shellRef}
       className={focusMode
-        ? 'fixed inset-0 z-[80] overflow-y-auto bg-surface-base px-3 py-3 text-slate-100 sm:px-5 sm:py-5'
+        ? 'fixed inset-0 z-[80] overflow-y-auto bg-surface-base px-3 py-3 text-ink sm:px-5 sm:py-5'
         : 'min-w-0'}
     >
       <div className={focusMode ? 'mx-auto max-w-7xl space-y-4' : 'min-w-0 space-y-6'}>
@@ -414,10 +414,10 @@ export default function SimulationMode({ onAnalysisUserUpdate, onDownloadReport,
           <div className="sticky top-0 z-30 rounded-card border border-line bg-surface-raised/95 p-3 backdrop-blur-xl">
             <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
               <div className="flex min-w-0 flex-wrap items-center gap-2">
-                <div className="rounded-full border border-sky-300/25 bg-sky-300/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-sky-100">
+                <div className="rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-xs font-semibold tracking-normal text-sky-700">
                   Exam focus
                 </div>
-                <div className="rounded-full border border-line bg-overlay px-3 py-1 text-sm font-semibold text-white">
+                <div className="rounded-full border border-line bg-overlay px-3 py-1 text-sm font-semibold text-ink">
                   {STAGE_LABELS[simStep] || 'Simulation'}
                 </div>
                 <div className="rounded-full border border-line bg-overlay px-3 py-1 text-sm text-ink-muted">
@@ -425,13 +425,13 @@ export default function SimulationMode({ onAnalysisUserUpdate, onDownloadReport,
                 </div>
               </div>
               <div className="flex items-center justify-between gap-3 lg:justify-end">
-                <div className="rounded-control border border-line bg-overlay-hover px-4 py-2 text-2xl font-semibold text-white">
+                <div className="rounded-control border border-line bg-overlay-hover px-4 py-2 text-2xl font-semibold text-ink">
                   {focusTimerLabel}
                 </div>
                 <button
                   type="button"
                   onClick={exitFocusMode}
-                  className="inline-flex h-12 w-12 items-center justify-center rounded-control border border-line bg-overlay text-slate-200 transition hover:bg-overlay-hover"
+                  className="inline-flex h-12 w-12 items-center justify-center rounded-control border border-line bg-overlay text-ink transition hover:bg-overlay-hover"
                   aria-label="Exit full screen simulation"
                 >
                   <Minimize2 size={18} />
@@ -459,9 +459,9 @@ export default function SimulationMode({ onAnalysisUserUpdate, onDownloadReport,
                       key={item.id}
                       className={`flex min-h-[44px] items-center justify-center gap-1.5 rounded-control px-1.5 py-2 text-[11px] font-semibold transition sm:gap-2 sm:text-sm ${
                         complete
-                          ? 'bg-emerald-400/10 text-emerald-100'
+                          ? 'bg-emerald-50 text-emerald-700'
                           : item.active
-                            ? 'bg-sky-400/10 text-sky-100'
+                            ? 'bg-sky-50 text-sky-700'
                             : 'text-ink-subtle'
                       }`}
                     >
@@ -476,7 +476,7 @@ export default function SimulationMode({ onAnalysisUserUpdate, onDownloadReport,
         )}
 
         {stageCue && (
-          <div className="rounded-card border border-emerald-400/25 bg-emerald-500/10 px-4 py-3 text-sm font-semibold text-emerald-100" role="status" aria-live="polite">
+          <div className="rounded-card border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700" role="status" aria-live="polite">
             <div className="flex items-center gap-3">
               <Volume2 size={17} />
               <span>{stageCue}</span>
@@ -485,7 +485,7 @@ export default function SimulationMode({ onAnalysisUserUpdate, onDownloadReport,
         )}
 
         {error && (
-          <div className="flex items-start gap-3 rounded-card border border-rose-400/25 bg-rose-500/10 p-4 text-rose-100" role="alert">
+          <div className="flex items-start gap-3 rounded-card border border-rose-200 bg-rose-50 p-4 text-rose-700" role="alert">
             <AlertCircle size={18} className="mt-0.5 shrink-0" />
             <span className="min-w-0 font-medium">{error}</span>
           </div>
@@ -495,11 +495,11 @@ export default function SimulationMode({ onAnalysisUserUpdate, onDownloadReport,
           {simStep === 'intro' && (
             <div className="grid items-stretch gap-5 lg:grid-cols-[minmax(300px,0.48fr)_minmax(0,1fr)]">
               <div className="min-w-0 rounded-card border border-line bg-overlay p-5">
-                <div className="text-xs font-semibold uppercase tracking-[0.16em] text-ink-muted">Session setup</div>
-                <h2 className="mt-2 text-lg font-semibold text-white sm:text-xl">Ready the test flow</h2>
+                <div className="text-xs font-semibold tracking-normal text-ink-muted">Session setup</div>
+                <h2 className="mt-2 text-lg font-semibold text-ink sm:text-xl">Ready the test flow</h2>
 
                 <div className="mt-5 rounded-card border border-line bg-surface-sunken/60 p-4">
-                  <div className="text-base font-semibold text-white">Timing rules</div>
+                  <div className="text-base font-semibold text-ink">Timing rules</div>
                   <div className="mt-3 grid gap-2">
                     {[
                       ['Read', '60 sec'],
@@ -508,7 +508,7 @@ export default function SimulationMode({ onAnalysisUserUpdate, onDownloadReport,
                       ['Export', 'Recording and report'],
                     ].map(([label, value]) => (
                       <div key={label} className="grid grid-cols-[88px_1fr] items-center gap-3 rounded-control bg-overlay px-3 py-2 text-sm">
-                        <span className="font-semibold text-slate-200">{label}</span>
+                        <span className="font-semibold text-ink">{label}</span>
                         <span className="text-ink-muted">{value}</span>
                       </div>
                     ))}
@@ -540,7 +540,7 @@ export default function SimulationMode({ onAnalysisUserUpdate, onDownloadReport,
                   <button
                     type="button"
                     onClick={testMicrophone}
-                    className={`inline-flex w-full items-center justify-center gap-2 rounded-control py-3 font-semibold transition ${micTested ? 'bg-emerald-500 text-white' : 'bg-overlay text-white hover:bg-overlay-hover'}`}
+                    className={`inline-flex w-full items-center justify-center gap-2 rounded-full py-3 font-medium transition ${micTested ? 'bg-emerald-500 text-white' : 'bg-overlay text-ink hover:bg-overlay-hover'}`}
                   >
                     <Mic size={18} />
                     {micTested ? 'Microphone ready' : 'Test microphone'}
@@ -548,7 +548,7 @@ export default function SimulationMode({ onAnalysisUserUpdate, onDownloadReport,
                   <button
                     type="button"
                     onClick={focusMode ? exitFocusMode : enterFocusMode}
-                    className="inline-flex w-full items-center justify-center gap-2 rounded-control border border-line bg-overlay px-4 py-3 text-sm font-semibold text-slate-100 transition hover:bg-overlay-hover"
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-line bg-surface-raised px-4 py-3 text-sm font-medium text-ink transition hover:bg-overlay"
                   >
                     {focusMode || browserFullscreenActive ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
                     {focusMode || browserFullscreenActive ? 'Exit full screen' : 'Full screen'}
@@ -559,20 +559,20 @@ export default function SimulationMode({ onAnalysisUserUpdate, onDownloadReport,
                   type="button"
                   onClick={startSimulation}
                   disabled={!examRulesAccepted || !micTested || isOffline}
-                  className={`mt-3 w-full rounded-control py-3 font-semibold transition ${examRulesAccepted && micTested && !isOffline ? 'bg-sky-500 text-white hover:bg-sky-400' : 'cursor-not-allowed bg-slate-700 text-ink-subtle'}`}
+                  className={`mt-3 w-full rounded-control py-3 font-semibold transition ${examRulesAccepted && micTested && !isOffline ? 'bg-ink text-white hover:bg-ink/85' : 'cursor-not-allowed bg-neutral-200 text-ink-subtle'}`}
                 >
                   {isOffline ? 'Offline, cannot start' : 'Start simulation'}
                 </button>
               </div>
 
               <div className="flex min-w-0 flex-col rounded-card border border-line bg-overlay p-5">
-                <div className="text-xs font-semibold uppercase tracking-[0.16em] text-ink-muted">Question bank</div>
-                <h2 className="mt-2 text-lg font-semibold text-white sm:text-xl">{questionBank.length} questions available</h2>
+                <div className="text-xs font-semibold tracking-normal text-ink-muted">Question bank</div>
+                <h2 className="mt-2 text-lg font-semibold text-ink sm:text-xl">{questionBank.length} questions available</h2>
 
                 <div className="mt-5 flex min-h-0 flex-1">
                   {loadingQuestionBank ? (
                     <div className="flex min-h-[280px] flex-1 items-center justify-center rounded-card border border-line bg-overlay">
-                      <Loader className="animate-spin text-sky-300" size={28} />
+                      <Loader className="animate-spin text-sky-600" size={28} />
                     </div>
                   ) : (
                     <div className="max-h-[360px] min-h-[260px] flex-1 space-y-3 overflow-y-auto overscroll-contain pr-1">
@@ -581,16 +581,16 @@ export default function SimulationMode({ onAnalysisUserUpdate, onDownloadReport,
                         onClick={() => setSelectedQuestionId('random')}
                         className={`w-full min-w-0 rounded-card border p-4 text-left transition ${
                           selectedQuestionId === 'random'
-                            ? 'border-sky-400/35 bg-sky-400/10'
+                            ? 'border-sky-200 bg-sky-50'
                             : 'border-line bg-surface-sunken/60 hover:bg-overlay-hover'
                         }`}
                       >
                         <div className="mb-2 flex items-start justify-between gap-3">
                           <div>
-                            <div className="text-base font-semibold text-white">Random question</div>
+                            <div className="text-base font-semibold text-ink">Random question</div>
                             <div className="text-xs text-ink-subtle">Question bank</div>
                           </div>
-                          {selectedQuestionId === 'random' && <CheckCircle size={18} className="text-sky-200" />}
+                          {selectedQuestionId === 'random' && <CheckCircle size={18} className="text-sky-700" />}
                         </div>
                         <div className="text-sm leading-6 text-ink-muted">The system picks one random question when simulation starts.</div>
                       </button>
@@ -607,13 +607,13 @@ export default function SimulationMode({ onAnalysisUserUpdate, onDownloadReport,
                             onClick={() => setSelectedQuestionId(String(question.id))}
                             className={`w-full min-w-0 rounded-card border p-4 text-left transition ${
                               selectedQuestionId === String(question.id)
-                                ? 'border-sky-400/35 bg-sky-400/10'
+                                ? 'border-sky-200 bg-sky-50'
                                 : 'border-line bg-surface-sunken/60 hover:bg-overlay-hover'
                             }`}
                           >
                             <div className="mb-2 flex items-start justify-between gap-3">
-                              <div className="text-base font-semibold text-white">{question.topic}</div>
-                              {selectedQuestionId === String(question.id) && <CheckCircle size={18} className="text-sky-200" />}
+                              <div className="text-base font-semibold text-ink">{question.topic}</div>
+                              {selectedQuestionId === String(question.id) && <CheckCircle size={18} className="text-sky-700" />}
                             </div>
                             <div className="text-sm leading-6 text-ink-muted">{question.question}</div>
                           </button>
@@ -628,26 +628,26 @@ export default function SimulationMode({ onAnalysisUserUpdate, onDownloadReport,
 
           {simStep === 'reading' && currentQuestion && (
             <div className="grid gap-5 lg:grid-cols-[280px_minmax(0,1fr)]">
-              <div className="rounded-card border border-sky-400/20 bg-sky-400/10 p-6 text-center">
-                <div className="mx-auto mb-4 inline-flex h-14 w-14 items-center justify-center rounded-card bg-sky-400/20 text-sky-200">
+              <div className="rounded-card border border-sky-200 bg-sky-50 p-6 text-center">
+                <div className="mx-auto mb-4 inline-flex h-14 w-14 items-center justify-center rounded-card bg-sky-100 text-sky-700">
                   <Clock3 size={26} />
                 </div>
-                <div className="text-5xl font-semibold text-white">{formatTime(countdown)}</div>
+                <div className="text-5xl font-semibold text-ink">{formatTime(countdown)}</div>
                 <div className="mt-2 text-sm text-ink-muted">Reading time</div>
                 <div className="mt-5 h-2 overflow-hidden rounded-full bg-overlay-hover">
                   <div className="h-full rounded-full bg-sky-400 transition-all" style={{ width: `${((READING_SECONDS - countdown) / READING_SECONDS) * 100}%` }} />
                 </div>
               </div>
               <div className="min-w-0 rounded-card border border-line bg-surface-sunken p-5 sm:p-6">
-                <div className="mb-2 text-xs font-semibold uppercase tracking-[0.16em] text-ink-muted">Question {currentQuestion.id}</div>
-                <div className="mb-4 text-sm font-semibold text-sky-300">{currentQuestion.topic}</div>
-                <div className="rounded-card border border-line bg-overlay p-5 text-lg leading-8 text-white">{currentQuestion.question}</div>
+                <div className="mb-2 text-xs font-semibold tracking-normal text-ink-muted">Question {currentQuestion.id}</div>
+                <div className="mb-4 text-sm font-semibold text-sky-600">{currentQuestion.topic}</div>
+                <div className="rounded-card border border-line bg-overlay p-5 text-lg leading-8 text-ink">{currentQuestion.question}</div>
                 <div className="mt-5 flex flex-col gap-3 sm:flex-row">
-                  <button type="button" onClick={startPreparationTimer} className="inline-flex flex-1 items-center justify-center gap-2 rounded-control bg-sky-500 py-3 font-semibold text-white transition hover:bg-sky-400">
+                  <button type="button" onClick={startPreparationTimer} className="inline-flex flex-1 items-center justify-center gap-2 rounded-control bg-ink py-3 font-semibold text-white transition hover:bg-ink/85">
                     <SkipForward size={16} />
                     Finish reading
                   </button>
-                  <button type="button" onClick={fetchAndSetQuestion} className="inline-flex items-center justify-center gap-2 rounded-control border border-line bg-overlay px-4 py-3 font-semibold text-white transition hover:bg-overlay-hover">
+                  <button type="button" onClick={fetchAndSetQuestion} className="inline-flex items-center justify-center gap-2 rounded-full border border-line bg-surface-raised px-4 py-3 font-medium text-ink transition hover:bg-overlay">
                     <Shuffle size={16} />
                     Randomize again
                   </button>
@@ -658,16 +658,16 @@ export default function SimulationMode({ onAnalysisUserUpdate, onDownloadReport,
 
           {simStep === 'preparation' && currentQuestion && (
             <div className="space-y-6 text-center">
-              <div className="mx-auto inline-flex h-20 w-20 items-center justify-center rounded-full bg-sky-400/10 text-sky-200">
+              <div className="mx-auto inline-flex h-20 w-20 items-center justify-center rounded-full bg-sky-50 text-sky-700">
                 <Clock3 size={34} />
               </div>
-              <h2 className="text-lg font-semibold text-white sm:text-xl">Preparation time</h2>
-              <div className="text-5xl font-semibold text-sky-300">{formatTime(countdown)}</div>
+              <h2 className="text-lg font-semibold text-ink sm:text-xl">Preparation time</h2>
+              <div className="text-5xl font-semibold text-sky-600">{formatTime(countdown)}</div>
               <div className="mx-auto max-w-4xl rounded-card border border-line bg-overlay p-5 text-sm leading-6 text-ink-muted">{currentQuestion.question}</div>
               <div className="h-3 w-full overflow-hidden rounded-full bg-overlay-hover">
                 <div className="h-3 rounded-full bg-sky-400 transition-all" style={{ width: `${((PREPARATION_SECONDS - countdown) / PREPARATION_SECONDS) * 100}%` }} />
               </div>
-              <button type="button" onClick={startRecordingAuto} className="inline-flex items-center justify-center gap-2 rounded-control bg-sky-500 px-6 py-3 font-semibold text-white transition hover:bg-sky-400">
+              <button type="button" onClick={startRecordingAuto} className="inline-flex items-center justify-center gap-2 rounded-full bg-ink px-6 py-3 font-medium text-white transition hover:bg-ink/85">
                 <SkipForward size={16} />
                 Start recording
               </button>
@@ -677,17 +677,17 @@ export default function SimulationMode({ onAnalysisUserUpdate, onDownloadReport,
           {simStep === 'recording' && currentQuestion && (
             <div className="space-y-6 text-center">
               <div className="flex items-center justify-center">
-                <div className="inline-flex h-24 w-24 items-center justify-center rounded-full border border-rose-400/20 bg-rose-500/10">
+                <div className="inline-flex h-24 w-24 items-center justify-center rounded-full border border-rose-200 bg-rose-50">
                   <Circle className="animate-pulse text-rose-500" size={48} fill="currentColor" />
                 </div>
               </div>
-              <h2 className="text-lg font-semibold text-rose-300 sm:text-xl">Recording</h2>
-              <div className="text-5xl font-semibold text-white">{formatTime(recordingTime)}</div>
+              <h2 className="text-lg font-semibold text-rose-600 sm:text-xl">Recording</h2>
+              <div className="text-5xl font-semibold text-ink">{formatTime(recordingTime)}</div>
               <div className="mx-auto max-w-4xl rounded-card border border-line bg-overlay p-5 text-sm leading-6 text-ink-muted">{currentQuestion.question}</div>
               <div className="h-3 w-full overflow-hidden rounded-full bg-overlay-hover">
                 <div className="h-3 rounded-full bg-rose-500 transition-all" style={{ width: `${(recordingTime / RECORDING_SECONDS) * 100}%` }} />
               </div>
-              <button type="button" onClick={stopRecording} className="inline-flex items-center justify-center gap-2 rounded-control bg-rose-500 px-6 py-3 font-semibold text-white transition hover:bg-rose-400">
+              <button type="button" onClick={stopRecording} className="inline-flex items-center justify-center gap-2 rounded-full bg-rose-500 px-6 py-3 font-medium text-white transition hover:bg-rose-400">
                 <Pause size={16} />
                 Stop recording
               </button>
@@ -697,10 +697,10 @@ export default function SimulationMode({ onAnalysisUserUpdate, onDownloadReport,
           {simStep === 'playback' && (
             <div className="space-y-6">
               <div className="text-center">
-                <div className="mx-auto inline-flex h-20 w-20 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-200">
+                <div className="mx-auto inline-flex h-20 w-20 items-center justify-center rounded-full bg-emerald-50 text-emerald-700">
                   <CheckCircle size={34} />
                 </div>
-                <h2 className="mt-4 text-lg font-semibold text-white sm:text-xl">Recording complete</h2>
+                <h2 className="mt-4 text-lg font-semibold text-ink sm:text-xl">Recording complete</h2>
                 <div className="mt-3 inline-flex rounded-full border border-line bg-overlay px-4 py-2 text-sm font-semibold text-ink-muted">
                   Duration: {formatTime(recordingTime)}
                 </div>
@@ -711,17 +711,17 @@ export default function SimulationMode({ onAnalysisUserUpdate, onDownloadReport,
                   type="button"
                   onClick={analyzeRecording}
                   disabled={isOffline}
-                  className={`inline-flex flex-1 items-center justify-center gap-2 rounded-control py-3 font-semibold transition ${isOffline ? 'cursor-not-allowed bg-slate-700 text-ink-subtle opacity-60' : 'bg-sky-500 text-white hover:bg-sky-400'}`}
+                  className={`inline-flex flex-1 items-center justify-center gap-2 rounded-control py-3 font-semibold transition ${isOffline ? 'cursor-not-allowed bg-neutral-200 text-ink-subtle opacity-60' : 'bg-ink text-white hover:bg-ink/85'}`}
                 >
                   <CheckCircle size={16} />
                   {isOffline ? 'Offline, cannot analyze' : 'Analyze my speech'}
                 </button>
-                <button type="button" onClick={downloadRecording} className="inline-flex items-center justify-center gap-2 rounded-control border border-line bg-overlay px-6 py-3 font-semibold text-white transition hover:bg-overlay-hover">
+                <button type="button" onClick={downloadRecording} className="inline-flex items-center justify-center gap-2 rounded-full border border-line bg-surface-raised px-6 py-3 font-medium text-ink transition hover:bg-overlay">
                   <Download size={18} />
                   Download recording
                 </button>
               </div>
-              <button type="button" onClick={resetSimulation} className="inline-flex w-full items-center justify-center gap-2 rounded-control border border-line bg-overlay py-3 font-semibold text-white transition hover:bg-overlay-hover">
+              <button type="button" onClick={resetSimulation} className="inline-flex w-full items-center justify-center gap-2 rounded-control border border-line bg-overlay py-3 font-semibold text-ink transition hover:bg-overlay-hover">
                 <RefreshCcw size={16} />
                 Start new simulation
               </button>
@@ -730,10 +730,10 @@ export default function SimulationMode({ onAnalysisUserUpdate, onDownloadReport,
 
           {simStep === 'analyzing' && (
             <div className="py-12 text-center" role="status" aria-live="polite">
-              <div className="mx-auto mb-5 inline-flex h-20 w-20 items-center justify-center rounded-full border border-sky-400/25 bg-sky-400/10 text-sky-300">
+              <div className="mx-auto mb-5 inline-flex h-20 w-20 items-center justify-center rounded-full border border-sky-200 bg-sky-50 text-sky-600">
                 <Loader className="animate-spin" size={40} />
               </div>
-              <div className="text-lg font-semibold text-white">Analyzing your speech</div>
+              <div className="text-lg font-semibold text-ink">Analyzing your speech</div>
               <div className="mt-2 text-sm text-ink-muted">{progressMessage}</div>
               <p className="mx-auto mt-5 max-w-md text-sm leading-6 text-ink-subtle">
                 This usually takes under a minute. You can switch tabs or leave this page;
@@ -752,7 +752,7 @@ export default function SimulationMode({ onAnalysisUserUpdate, onDownloadReport,
               isLoggedIn={isLoggedIn}
               onOpenAuth={onOpenAuth}
               extraActions={(
-                <button type="button" onClick={downloadRecording} className="inline-flex items-center justify-center gap-2 rounded-control border border-line bg-overlay px-6 py-3 font-semibold text-white transition hover:bg-overlay-hover">
+                <button type="button" onClick={downloadRecording} className="inline-flex items-center justify-center gap-2 rounded-full border border-line bg-surface-raised px-6 py-3 font-medium text-ink transition hover:bg-overlay">
                   <Download size={18} />
                   Download recording
                 </button>

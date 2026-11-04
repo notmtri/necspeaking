@@ -22,7 +22,7 @@ function Delta({ value, unit = '', invert = false }) {
   const Icon = rounded > 0 ? ArrowUpRight : ArrowDownRight;
 
   return (
-    <span className={`inline-flex items-center gap-1 text-xs font-semibold ${better ? 'text-emerald-300' : 'text-rose-300'}`}>
+    <span className={`inline-flex items-center gap-1 text-xs font-semibold ${better ? 'text-emerald-600' : 'text-rose-600'}`}>
       <Icon size={13} />
       {rounded > 0 ? '+' : ''}{rounded}{unit}
     </span>
@@ -71,7 +71,7 @@ export default function AttemptComparison({ topic, isLoggedIn }) {
   }
   if (error) {
     return (
-      <div className="rounded-card border border-rose-400/20 bg-rose-500/10 p-4 text-sm text-rose-100" role="alert">
+      <div className="rounded-card border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700" role="alert">
         {error}
       </div>
     );
@@ -82,7 +82,7 @@ export default function AttemptComparison({ topic, isLoggedIn }) {
   if (attempts.length < 2) {
     return (
       <section className="rounded-panel border border-line bg-surface-raised p-4 sm:p-5">
-        <div className="flex items-center gap-2 text-base font-semibold text-white">
+        <div className="flex items-center gap-2 text-base font-semibold text-ink">
           <History size={17} />
           First attempt at this prompt
         </div>
@@ -108,7 +108,7 @@ export default function AttemptComparison({ topic, isLoggedIn }) {
   return (
     <section className="rounded-panel border border-line bg-surface-raised p-4 sm:p-5">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-2 text-base font-semibold text-white">
+        <div className="flex items-center gap-2 text-base font-semibold text-ink">
           <History size={17} />
           Compared with your last attempt
         </div>
@@ -120,13 +120,13 @@ export default function AttemptComparison({ topic, isLoggedIn }) {
       <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {CRITERIA.map((criterion) => (
           <div key={criterion.key} className="rounded-card border border-line bg-overlay p-4">
-            <div className="text-xs font-semibold uppercase tracking-[0.16em] text-ink-muted">{criterion.label}</div>
+            <div className="text-xs font-semibold tracking-normal text-ink-muted">{criterion.label}</div>
             <div className="mt-2 flex items-center gap-2">
               <span className="text-sm text-ink-subtle">
                 {Number(prior.scores?.[criterion.key] || 0).toFixed(2)}
               </span>
               <ArrowRight size={13} className="text-ink-subtle" />
-              <span className="text-lg font-semibold text-white">
+              <span className="text-lg font-semibold text-ink">
                 {Number(latest.scores?.[criterion.key] || 0).toFixed(2)}
               </span>
             </div>
@@ -140,18 +140,18 @@ export default function AttemptComparison({ topic, isLoggedIn }) {
       {(latest.metrics?.available && prior.metrics?.available) && (
         <div className="mt-3 grid gap-3 sm:grid-cols-3">
           <div className="rounded-card border border-line bg-overlay p-4">
-            <div className="text-xs font-semibold uppercase tracking-[0.16em] text-ink-muted">Pace</div>
-            <div className="mt-2 text-lg font-semibold text-white">{latest.metrics.wordsPerMinute} wpm</div>
+            <div className="text-xs font-semibold tracking-normal text-ink-muted">Pace</div>
+            <div className="mt-2 text-lg font-semibold text-ink">{latest.metrics.wordsPerMinute} wpm</div>
             <div className="mt-1"><Delta value={metricDelta('wordsPerMinute')} unit=" wpm" /></div>
           </div>
           <div className="rounded-card border border-line bg-overlay p-4">
-            <div className="text-xs font-semibold uppercase tracking-[0.16em] text-ink-muted">Fillers</div>
-            <div className="mt-2 text-lg font-semibold text-white">{latest.metrics.fillers?.total ?? 0}</div>
+            <div className="text-xs font-semibold tracking-normal text-ink-muted">Fillers</div>
+            <div className="mt-2 text-lg font-semibold text-ink">{latest.metrics.fillers?.total ?? 0}</div>
             <div className="mt-1"><Delta value={metricDelta('fillers.total')} invert /></div>
           </div>
           <div className="rounded-card border border-line bg-overlay p-4">
-            <div className="text-xs font-semibold uppercase tracking-[0.16em] text-ink-muted">Long pauses</div>
-            <div className="mt-2 text-lg font-semibold text-white">{latest.metrics.longPauseCount ?? 0}</div>
+            <div className="text-xs font-semibold tracking-normal text-ink-muted">Long pauses</div>
+            <div className="mt-2 text-lg font-semibold text-ink">{latest.metrics.longPauseCount ?? 0}</div>
             <div className="mt-1"><Delta value={metricDelta('longPauseCount')} invert /></div>
           </div>
         </div>
@@ -167,7 +167,7 @@ export default function AttemptComparison({ topic, isLoggedIn }) {
               {index === 0 ? 'Latest' : `${index + 1} attempts ago`}
               {attempt.createdAt && ` · ${new Date(attempt.createdAt).toLocaleDateString()}`}
             </span>
-            <span className="shrink-0 font-semibold text-white">
+            <span className="shrink-0 font-semibold text-ink">
               {Number(attempt.scores?.total || 0).toFixed(2)}/2.0
             </span>
           </li>

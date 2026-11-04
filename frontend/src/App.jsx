@@ -23,7 +23,7 @@ const SimulationMode = lazy(() => import('./pages/SimulationMode'));
 function PageFallback() {
   return (
     <div className="flex min-h-[40vh] items-center justify-center" role="status" aria-live="polite">
-      <Loader size={28} className="animate-spin text-sky-300" />
+      <Loader size={28} className="animate-spin text-sky-600" />
       <span className="sr-only">Loading page</span>
     </div>
   );
@@ -604,10 +604,10 @@ export default function SpeakUpApp() {
   };
 
   return (
-    <div className="min-h-screen bg-surface-base text-slate-100">
+    <div className="min-h-screen bg-surface-base text-ink">
       <a
         href="#main-content"
-        className="sr-only rounded-control bg-sky-500 px-4 py-2 font-semibold text-white focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[100]"
+        className="sr-only rounded-control bg-ink px-4 py-2 font-semibold text-white focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[100]"
       >
         Skip to main content
       </a>
@@ -678,7 +678,7 @@ export default function SpeakUpApp() {
         <button
           type="button"
           onClick={openFeedback}
-          className="fixed bottom-4 right-4 z-[60] inline-flex items-center gap-2 rounded-full border border-sky-400/30 bg-surface-raised/95 p-3 text-sm font-semibold text-sky-100 shadow-lg backdrop-blur transition hover:bg-overlay-hover sm:px-4 sm:py-2.5"
+          className="fixed bottom-4 right-4 z-[60] inline-flex items-center gap-2 rounded-full border border-sky-200 bg-surface-raised/95 p-3 text-sm font-semibold text-sky-700 shadow-lg backdrop-blur transition hover:bg-overlay-hover sm:px-4 sm:py-2.5"
           aria-label="Send feedback"
         >
           <MessageSquare size={16} aria-hidden="true" />

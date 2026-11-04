@@ -1,5 +1,5 @@
 import React, { useCallback, useDeferredValue, useEffect, useMemo, useState } from 'react';
-import { ArrowRight, Bell, Search, Trophy, X } from 'lucide-react';
+import { Bell, Search, X } from 'lucide-react';
 import { createAvatarDataUri, getDisplayRole, isAdminProfile } from '../appShared';
 import { apiFetch, isAbortError } from '../apiClient';
 import { PageHeader } from '../components/AppChrome';
@@ -17,7 +17,7 @@ function ProfileOverlayModal({ profile, onClose }) {
   useOverlayDismiss(true, onClose);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-950/80 p-3 backdrop-blur-sm sm:p-6">
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-neutral-900/40 p-3 backdrop-blur-sm sm:p-6">
       <div
         className="relative my-4 w-full max-w-5xl rounded-panel border border-line bg-surface-raised"
         role="dialog"
@@ -27,16 +27,16 @@ function ProfileOverlayModal({ profile, onClose }) {
         <button
           type="button"
           onClick={onClose}
-          className="absolute right-4 top-4 inline-flex h-10 w-10 items-center justify-center rounded-full border border-line bg-overlay text-ink-muted transition hover:bg-overlay-hover hover:text-white"
+          className="absolute right-4 top-4 inline-flex h-10 w-10 items-center justify-center rounded-full border border-line bg-overlay text-ink-muted transition hover:bg-overlay-hover hover:text-ink"
           aria-label="Close profile overlay"
         >
           <X size={18} />
         </button>
 
         <div className="border-b border-line px-5 py-5 sm:px-8 sm:py-6">
-          <div className="pr-12 text-xs font-semibold uppercase tracking-[0.16em] text-sky-200">Public profile</div>
-          <h2 id="profile-overlay-title" className="mt-3 pr-12 text-2xl font-bold tracking-tight text-white sm:text-3xl">{profile.name}</h2>
-          <div className="mt-2 text-base font-semibold text-sky-300">@{profile.username}</div>
+          <div className="pr-12 text-xs font-semibold tracking-normal text-sky-700">Public profile</div>
+          <h2 id="profile-overlay-title" className="mt-3 pr-12 text-2xl font-bold tracking-tight text-ink sm:text-3xl">{profile.name}</h2>
+          <div className="mt-2 text-base font-semibold text-sky-600">@{profile.username}</div>
         </div>
 
         <div className="grid gap-5 px-5 py-5 sm:px-8 sm:py-8 xl:grid-cols-[0.85fr_1.15fr]">
@@ -47,11 +47,11 @@ function ProfileOverlayModal({ profile, onClose }) {
                 alt=""
                 className="h-40 w-40 rounded-panel border border-line object-cover sm:h-48 sm:w-48"
               />
-              <div className="mt-5 inline-flex items-center rounded-full border border-line bg-overlay px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-ink-muted">
+              <div className="mt-5 inline-flex items-center rounded-full border border-line bg-overlay px-3 py-1 text-xs font-semibold tracking-normal text-ink-muted">
                 {displayRole}
               </div>
               {adminProfile && (
-                <div className="mt-3 inline-flex items-center rounded-full border border-amber-300/30 bg-amber-300/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-amber-100">
+                <div className="mt-3 inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-semibold tracking-normal text-amber-800">
                   necs. admin
                 </div>
               )}
@@ -100,12 +100,12 @@ export function rankByAverage(profiles, limit = 5) {
 
 function Leaderboard({ title, description, profiles, accent, valueOf, onSelect }) {
   const accentClasses = accent === 'amber'
-    ? { rank: 'bg-amber-400/10 text-amber-200', value: 'text-amber-200' }
-    : { rank: 'bg-sky-400/10 text-sky-200', value: 'text-emerald-200' };
+    ? { rank: 'bg-amber-50 text-amber-800', value: 'text-amber-800' }
+    : { rank: 'bg-sky-50 text-sky-700', value: 'text-emerald-700' };
 
   return (
     <div className="rounded-card border border-line bg-overlay p-4">
-      <h3 className="text-sm font-semibold text-white">{title}</h3>
+      <h3 className="text-sm font-semibold text-ink">{title}</h3>
       <p className="mt-1 text-sm text-ink-muted">{description}</p>
       {profiles.length === 0 && (
         <p className="mt-4 text-sm text-ink-subtle">No one qualifies yet.</p>
@@ -119,9 +119,9 @@ function Leaderboard({ title, description, profiles, accent, valueOf, onSelect }
               className="flex w-full items-center gap-3 rounded-card border border-line bg-surface-sunken/60 px-3 py-3 text-left transition hover:bg-overlay-hover"
             >
               <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-semibold ${accentClasses.rank}`}>{index + 1}</div>
-              <img src={profile.avatar || createAvatarDataUri(profile.name)} alt="" className="h-10 w-10 shrink-0 rounded-card object-cover ring-1 ring-white/10" />
+              <img src={profile.avatar || createAvatarDataUri(profile.name)} alt="" className="h-10 w-10 shrink-0 rounded-card object-cover ring-1 ring-black/5" />
               <div className="min-w-0 flex-1">
-                <div className="truncate text-sm font-semibold text-white">{profile.name}</div>
+                <div className="truncate text-sm font-semibold text-ink">{profile.name}</div>
                 <div className="truncate text-xs text-ink-subtle">@{profile.username}</div>
               </div>
               <div className={`text-sm font-semibold ${accentClasses.value}`}>{valueOf(profile)}</div>
@@ -254,16 +254,7 @@ export default function CommunityPage({ profiles, selectedProfile, onSelectProfi
 
       <div className="grid gap-5 xl:grid-cols-[minmax(0,2.5fr)_minmax(0,1fr)] sm:gap-6">
         <section className="min-w-0 rounded-panel border border-line bg-surface-raised p-5 sm:p-6">
-          <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
-            <div className="min-w-0">
-              <div className="inline-flex max-w-full items-center gap-2 rounded-full border border-line bg-overlay px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-ink-muted">
-                <ArrowRight size={14} />
-                Community posts
-              </div>
-              <h2 className="mt-4 text-lg font-semibold text-white sm:text-xl">Post to the community</h2>
-            </div>
-            <div className="text-xs uppercase tracking-[0.16em] text-ink-subtle">Live feed</div>
-          </div>
+          <h2 className="text-lg font-semibold text-ink sm:text-xl">Post to the community</h2>
 
           <div className="mt-5 rounded-card border border-line bg-overlay p-4">
             {needsVerification ? (
@@ -277,7 +268,7 @@ export default function CommunityPage({ profiles, selectedProfile, onSelectProfi
               <>
                 <div className="grid gap-3">
                   <label className="block">
-                    <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-ink-muted">Title</span>
+                    <span className="mb-2 block text-xs font-semibold tracking-normal text-ink-muted">Title</span>
                     <input
                       value={postDraft.title}
                       maxLength={MAX_TITLE_LENGTH}
@@ -287,7 +278,7 @@ export default function CommunityPage({ profiles, selectedProfile, onSelectProfi
                     />
                   </label>
                   <label className="block">
-                    <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-ink-muted">Post body</span>
+                    <span className="mb-2 block text-xs font-semibold tracking-normal text-ink-muted">Post body</span>
                     <textarea
                       value={postDraft.body}
                       maxLength={MAX_BODY_LENGTH}
@@ -306,7 +297,7 @@ export default function CommunityPage({ profiles, selectedProfile, onSelectProfi
                     type="button"
                     onClick={submitPost}
                     disabled={!canSubmitPost}
-                    className="inline-flex items-center justify-center gap-2 rounded-control bg-sky-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-sky-400 disabled:cursor-not-allowed disabled:opacity-70"
+                    className="inline-flex items-center justify-center gap-2 rounded-full bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-ink/85 disabled:cursor-not-allowed disabled:opacity-70"
                   >
                     <Bell size={15} />
                     {postSubmitting ? 'Publishing...' : 'Publish post'}
@@ -316,18 +307,15 @@ export default function CommunityPage({ profiles, selectedProfile, onSelectProfi
             ) : (
               <div className="flex flex-col gap-4 rounded-card border border-dashed border-line bg-surface-sunken/60 p-5 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <div className="text-sm font-semibold text-white">Log in to post in the community</div>
+                  <div className="text-sm font-semibold text-ink">Log in to post in the community</div>
                   <div className="mt-1 text-sm leading-6 text-ink-muted">
                     The composer unlocks as soon as you sign in. Right now the feed is view-only for guests.
                   </div>
                 </div>
-                <div className="shrink-0 rounded-full border border-line bg-overlay px-4 py-2 text-sm font-semibold text-slate-200">
-                  Guest view
-                </div>
               </div>
             )}
             {postError && (
-              <div className="mt-4 rounded-card border border-rose-400/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-100" role="alert">
+              <div className="mt-4 rounded-card border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700" role="alert">
                 {postError}
               </div>
             )}
@@ -344,7 +332,7 @@ export default function CommunityPage({ profiles, selectedProfile, onSelectProfi
               <article key={item.id} className="min-w-0 rounded-card border border-line bg-overlay p-4">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div className="flex min-w-0 items-center gap-3">
-                    <div className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-card bg-sky-400/20 text-sky-200">
+                    <div className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-card bg-sky-100 text-sky-700">
                       <Bell size={16} />
                     </div>
                     <div className="min-w-0">
@@ -352,21 +340,21 @@ export default function CommunityPage({ profiles, selectedProfile, onSelectProfi
                       <div className="truncate text-[11px] text-ink-subtle">@{item.author?.username || 'unknown'}</div>
                     </div>
                   </div>
-                  <div className="text-xs font-semibold uppercase tracking-[0.16em] text-ink-subtle">
+                  <div className="text-xs font-semibold tracking-normal text-ink-subtle">
                     {item.createdAt ? new Date(item.createdAt).toLocaleDateString() : ''}
                   </div>
                 </div>
-                <h3 className="mt-3 text-base font-semibold text-white">{item.title}</h3>
+                <h3 className="mt-3 text-base font-semibold text-ink">{item.title}</h3>
                 <p className="mt-2 whitespace-pre-line text-sm leading-6 text-ink-muted">{item.body}</p>
                 <div className="mt-3 flex flex-wrap items-center gap-2">
-                  <div className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] ${isAdminProfile(item.author) ? 'border-amber-300/30 bg-amber-300/10 text-amber-100' : 'border-line bg-overlay text-ink-muted'}`}>
+                  <div className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold tracking-normal ${isAdminProfile(item.author) ? 'border-amber-200 bg-amber-50 text-amber-800' : 'border-line bg-overlay text-ink-muted'}`}>
                     {getDisplayRole(item.author)}
                   </div>
                   <button
                     type="button"
                     onClick={() => reportPost(item.id)}
                     disabled={reportingPostId === item.id || reportedPostIds.has(item.id)}
-                    className="inline-flex rounded-full border border-line bg-overlay px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-ink-muted transition hover:bg-overlay-hover disabled:opacity-60"
+                    className="inline-flex rounded-full border border-line bg-overlay px-3 py-1 text-xs font-semibold tracking-normal text-ink-muted transition hover:bg-overlay-hover disabled:opacity-60"
                   >
                     {reportingPostId === item.id ? 'Reporting...' : reportedPostIds.has(item.id) ? 'Reported' : 'Report'}
                   </button>
@@ -378,11 +366,7 @@ export default function CommunityPage({ profiles, selectedProfile, onSelectProfi
 
         <div className="space-y-5 sm:space-y-6">
           <section className="min-w-0 rounded-panel border border-line bg-surface-raised p-5 sm:p-6">
-            <div className="inline-flex max-w-full items-center gap-2 rounded-full border border-line bg-overlay px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-ink-muted">
-              <Search size={14} />
-              Search for user
-            </div>
-            <h2 className="mt-4 text-lg font-semibold text-white sm:text-xl">Find a public profile</h2>
+            <h2 className="text-lg font-semibold text-ink sm:text-xl">Find a public profile</h2>
 
             <label className="mt-5 flex items-center gap-3 rounded-card border border-line bg-overlay px-4 py-3">
               <Search size={16} className="shrink-0 text-ink-subtle" />
@@ -392,7 +376,7 @@ export default function CommunityPage({ profiles, selectedProfile, onSelectProfi
                 value={searchTerm}
                 onChange={(event) => setSearchTerm(event.target.value)}
                 placeholder="Type an exact username"
-                className="w-full min-w-0 bg-transparent text-sm text-white outline-none placeholder:text-ink-subtle"
+                className="w-full min-w-0 bg-transparent text-sm text-ink outline-none placeholder:text-ink-subtle"
               />
             </label>
 
@@ -406,21 +390,21 @@ export default function CommunityPage({ profiles, selectedProfile, onSelectProfi
               <div className="mt-5 rounded-card border border-line bg-overlay p-5">
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                   <div className="min-w-0">
-                    <div className="text-xs font-semibold uppercase tracking-[0.16em] text-ink-muted">Search result</div>
+                    <div className="text-xs font-semibold tracking-normal text-ink-muted">Search result</div>
                     <div className="mt-2 flex flex-wrap items-center gap-2">
-                      <div className="text-base font-semibold text-white">{previewProfile.name}</div>
+                      <div className="text-base font-semibold text-ink">{previewProfile.name}</div>
                       {isAdminProfile(previewProfile) && (
-                        <span className="rounded-full border border-amber-300/30 bg-amber-300/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-amber-100">
+                        <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-semibold tracking-normal text-amber-800">
                           admin
                         </span>
                       )}
                     </div>
-                    <div className="mt-1 text-sm text-sky-300">@{previewProfile.username}</div>
+                    <div className="mt-1 text-sm text-sky-600">@{previewProfile.username}</div>
                   </div>
                   <button
                     type="button"
                     onClick={() => setOverlayProfile(previewProfile)}
-                    className="inline-flex shrink-0 items-center justify-center gap-2 rounded-control bg-sky-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-sky-400"
+                    className="inline-flex shrink-0 items-center justify-center gap-2 rounded-full bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-ink/85"
                   >
                     Open full profile
                   </button>
@@ -434,11 +418,7 @@ export default function CommunityPage({ profiles, selectedProfile, onSelectProfi
           </section>
 
           <section className="min-w-0 rounded-panel border border-line bg-surface-raised p-5 sm:p-6">
-            <div className="inline-flex max-w-full items-center gap-2 rounded-full border border-line bg-overlay px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-ink-muted">
-              <Trophy size={14} />
-              Leaderboards
-            </div>
-            <h2 className="mt-4 text-lg font-semibold text-white sm:text-xl">Top all-time performers</h2>
+            <h2 className="text-lg font-semibold text-ink sm:text-xl">Top all-time performers</h2>
 
             <div className="mt-5 space-y-4">
               {profiles.length === 0 && !loading ? (

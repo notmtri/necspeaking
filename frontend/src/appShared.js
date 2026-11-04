@@ -67,9 +67,9 @@ export const formatTime = (seconds = 0) => {
 /** Maps a criterion score to the app's semantic accent ramp. */
 export const getScoreColor = (score, max) => {
   const percentage = max > 0 ? (score / max) * 100 : 0;
-  if (percentage >= 80) return 'text-emerald-300';
-  if (percentage >= 60) return 'text-amber-300';
-  return 'text-rose-300';
+  if (percentage >= 80) return 'text-emerald-700';
+  if (percentage >= 60) return 'text-amber-700';
+  return 'text-rose-700';
 };
 
 export const HOME_STATS = [

@@ -1,5 +1,5 @@
 import React, { useCallback, useDeferredValue, useEffect, useMemo, useState } from 'react';
-import { Download, Eye, FileAudio, Loader, Play, Search, X } from 'lucide-react';
+import { Download, Eye, Loader, Play, Search, X } from 'lucide-react';
 import { PageHeader } from '../components/AppChrome';
 import AudioPlayer from '../components/AudioPlayer';
 import { useOverlayDismiss } from '../components/AppOverlays';
@@ -7,25 +7,40 @@ import { apiFetch, isAbortError } from '../apiClient';
 
 function SampleActionButton({ tone = 'ghost', onClick, children }) {
   const toneClasses = tone === 'primary'
-    ? 'border-sky-400/20 bg-sky-500 text-white hover:bg-sky-400'
-    : 'border-line bg-overlay text-slate-200 hover:bg-overlay-hover';
+    ? 'border-ink bg-ink text-white hover:bg-ink/85'
+    : 'border-line bg-surface-raised text-ink hover:bg-overlay';
 
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`inline-flex items-center justify-center gap-2 rounded-control border px-4 py-2.5 text-sm font-semibold transition ${toneClasses}`}
+      className={`inline-flex items-center justify-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition-colors duration-200 ${toneClasses}`}
     >
       {children}
     </button>
   );
 }
 
+// 1.7 and 1.71 side by side read as different precisions; always two places.
+const formatSampleScore = (score) => {
+  const value = Number(score);
+  return Number.isFinite(value) ? value.toFixed(2) : score;
+};
+
+/** Tags other than the topic, speaker and score the card already shows. */
+const extraTags = (sample) => (Array.isArray(sample.tags) ? sample.tags : []).filter((tag) => {
+  const text = String(tag).trim().toLowerCase();
+  return text
+    && text !== String(sample.topic || '').trim().toLowerCase()
+    && text !== String(sample.speaker || '').trim().toLowerCase()
+    && !/^\d(\.\d+)?\s*\/\s*2(\.0)?$/.test(text);
+});
+
 function SampleDetailModal({ sample, onClose }) {
   useOverlayDismiss(true, onClose);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/75 p-3 backdrop-blur-sm sm:p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-neutral-900/40 p-3 backdrop-blur-sm sm:p-4">
       <div
         className="max-h-[85vh] w-full max-w-3xl overflow-y-auto rounded-panel border border-line bg-surface-raised p-5 sm:p-6"
         role="dialog"
@@ -34,17 +49,13 @@ function SampleDetailModal({ sample, onClose }) {
       >
         <div className="mb-4 flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-sky-400/20 bg-sky-400/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-sky-200">
-              <FileAudio size={14} />
-              Sample detail
-            </div>
-            <h2 id="sample-details-title" className="text-lg font-semibold text-white sm:text-xl">{sample.topic}</h2>
-            <div className="mt-1 text-sm text-ink-muted">{sample.speaker} | {sample.score}/2.0</div>
+            <h2 id="sample-details-title" className="text-lg font-semibold text-ink sm:text-xl">{sample.topic}</h2>
+            <div className="mt-1 text-sm text-ink-muted">{sample.speaker} | {formatSampleScore(sample.score)}/2.0</div>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-line bg-overlay text-slate-200 transition hover:bg-overlay-hover"
+            className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-line bg-overlay text-ink transition hover:bg-overlay-hover"
             aria-label="Close sample details"
           >
             <X size={18} />
@@ -52,13 +63,13 @@ function SampleDetailModal({ sample, onClose }) {
         </div>
         {sample.transcript && (
           <section className="mb-4">
-            <h3 className="mb-2 text-base font-semibold text-white">Transcript</h3>
+            <h3 className="mb-2 text-base font-semibold text-ink">Transcript</h3>
             <div className="rounded-card border border-line bg-overlay p-4 text-sm leading-6 text-ink-muted">{sample.transcript}</div>
           </section>
         )}
         {sample.feedback && (
           <section>
-            <h3 className="mb-2 text-base font-semibold text-white">Why this speech scored high</h3>
+            <h3 className="mb-2 text-base font-semibold text-ink">Why this speech scored high</h3>
             <div className="rounded-card border border-line bg-overlay p-4 text-sm leading-6 text-ink-muted">{sample.feedback}</div>
           </section>
         )}
@@ -122,8 +133,8 @@ export default function SampleLibrary() {
   if (loading) {
     return (
       <div className="rounded-panel border border-line bg-surface-raised px-5 py-12 text-center">
-        <Loader className="mx-auto mb-3 animate-spin text-sky-300" size={36} />
-        <div className="font-semibold text-white">Loading samples...</div>
+        <Loader className="mx-auto mb-3 animate-spin text-sky-600" size={36} />
+        <div className="font-semibold text-ink">Loading samples...</div>
       </div>
     );
   }
@@ -137,7 +148,7 @@ export default function SampleLibrary() {
       />
 
       {error && (
-        <div className="rounded-card border border-rose-400/25 bg-rose-500/10 px-4 py-3 text-sm text-rose-100" role="alert">
+        <div className="rounded-card border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700" role="alert">
           {error}
         </div>
       )}
@@ -152,11 +163,11 @@ export default function SampleLibrary() {
               placeholder="Search by topic, speaker, or tag..."
               value={searchTerm}
               onChange={(event) => setSearchTerm(event.target.value)}
-              className="w-full min-w-0 bg-transparent text-sm text-white outline-none placeholder:text-ink-subtle"
+              className="w-full min-w-0 bg-transparent text-sm text-ink outline-none placeholder:text-ink-subtle"
             />
           </label>
           <div className="rounded-control border border-line bg-overlay px-4 py-3 text-sm text-ink-muted">
-            <span className="font-semibold text-white">{filteredSamples.length}</span> / {samples.length}
+            <span className="font-semibold text-ink">{filteredSamples.length}</span> / {samples.length}
           </div>
         </div>
       </section>
@@ -171,15 +182,18 @@ export default function SampleLibrary() {
             <article key={sample.id} className="min-w-0 rounded-panel border border-line bg-surface-raised p-5">
               <div className="mb-2 flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <h2 className="text-base font-semibold text-white">{sample.topic}</h2>
-                  <div className="mt-1 text-xs font-semibold uppercase tracking-[0.14em] text-ink-subtle">{sample.speaker || 'Unknown speaker'}</div>
+                  <h2 className="text-base font-semibold text-ink">{sample.topic}</h2>
+                  <div className="mt-1 text-xs font-semibold tracking-normal text-ink-subtle">{sample.speaker || 'Unknown speaker'}</div>
                 </div>
-                <div className="shrink-0 rounded-card border border-sky-400/20 bg-sky-400/10 px-3 py-2 text-2xl font-semibold text-sky-200">{sample.score}</div>
+                <div className="shrink-0 text-right">
+                  <div className="font-display text-2xl font-semibold leading-none tracking-[-0.03em] text-ink tabular">{formatSampleScore(sample.score)}</div>
+                  <div className="mt-1 text-xs text-ink-subtle">out of 2.0</div>
+                </div>
               </div>
-              <div className="mt-4 rounded-card border border-line bg-overlay p-4 text-sm leading-6 text-ink-muted">{sample.question || '(no question provided)'}</div>
-              {Array.isArray(sample.tags) && sample.tags.length > 0 && (
+              <p className="mt-4 rounded-card bg-surface-sunken p-4 text-sm leading-6 text-ink-muted">{sample.question || '(no question provided)'}</p>
+              {extraTags(sample).length > 0 && (
                 <div className="mt-4 flex flex-wrap gap-2">
-                  {sample.tags.map((tag) => (
+                  {extraTags(sample).map((tag) => (
                     <span key={tag} className="rounded-full border border-line bg-overlay px-3 py-1 text-xs font-semibold text-ink-muted">
                       {tag}
                     </span>
@@ -187,17 +201,17 @@ export default function SampleLibrary() {
                 </div>
               )}
               <div className="mt-5 flex flex-wrap gap-2">
-                <SampleActionButton onClick={() => setPlayingSample(sample)}>
+                <SampleActionButton tone="primary" onClick={() => setPlayingSample(sample)}>
                   <Play size={15} />
-                  Playback
+                  Listen
+                </SampleActionButton>
+                <SampleActionButton onClick={() => setSelectedSample(sample)}>
+                  <Eye size={15} />
+                  Read transcript
                 </SampleActionButton>
                 <SampleActionButton onClick={() => downloadAudio(sample.filename, sample.audioUrl)}>
                   <Download size={15} />
                   Download
-                </SampleActionButton>
-                <SampleActionButton tone="primary" onClick={() => setSelectedSample(sample)}>
-                  <Eye size={15} />
-                  View
                 </SampleActionButton>
               </div>
             </article>

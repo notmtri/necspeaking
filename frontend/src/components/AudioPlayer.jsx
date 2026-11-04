@@ -84,7 +84,7 @@ const AudioPlayer = memo(function AudioPlayer({ audioUrl, variant = 'inline', au
       <button
         type="button"
         onClick={togglePlay}
-        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-sky-500 text-white transition hover:bg-sky-400"
+        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-ink text-white transition hover:bg-ink/85"
         aria-label={isPlaying ? 'Pause playback' : 'Play recording'}
       >
         {isPlaying ? <Pause size={18} /> : <Play size={18} />}

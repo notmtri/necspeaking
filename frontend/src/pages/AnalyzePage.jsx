@@ -309,9 +309,9 @@ export default function AnalyzePage({ onDownloadReport, onAnalysisUserUpdate, is
                 key={item.label}
                 className={`flex min-h-[44px] items-center justify-center gap-2 rounded-control px-2 py-2 text-xs font-semibold transition sm:text-sm ${
                   item.complete
-                    ? 'bg-emerald-400/10 text-emerald-100'
+                    ? 'bg-emerald-50 text-emerald-700'
                     : item.active
-                      ? 'bg-sky-400/10 text-sky-100'
+                      ? 'bg-sky-50 text-sky-700'
                       : 'text-ink-subtle'
                 }`}
               >
@@ -324,7 +324,7 @@ export default function AnalyzePage({ onDownloadReport, onAnalysisUserUpdate, is
       </div>
 
       {error && (
-        <div className="flex items-start gap-3 rounded-card border border-rose-400/25 bg-rose-500/10 p-3 text-sm text-rose-100 sm:p-4" role="alert">
+        <div className="flex items-start gap-3 rounded-card border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700 sm:p-4" role="alert">
           <AlertCircle size={18} className="mt-0.5 shrink-0" />
           <span className="min-w-0 font-medium">{error}</span>
         </div>
@@ -335,25 +335,25 @@ export default function AnalyzePage({ onDownloadReport, onAnalysisUserUpdate, is
           <div className="grid gap-4 lg:grid-cols-[minmax(0,1.08fr)_minmax(320px,0.92fr)]">
             <div className="min-w-0 rounded-card border border-line bg-overlay p-4 sm:p-5">
               <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-control bg-sky-400/10 text-sky-200 sm:h-11 sm:w-11">
+                <div className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-control bg-sky-50 text-sky-700 sm:h-11 sm:w-11">
                   <ClipboardList size={20} />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <div className="text-base font-semibold text-white">Speaking prompt</div>
+                  <div className="text-base font-semibold text-ink">Speaking prompt</div>
                   <div className="mt-1 text-sm leading-6 text-ink-muted">Pick a past NEC question, or type the exact question you were given.</div>
                 </div>
                 <button
                   type="button"
                   onClick={() => setPickerOpen((open) => !open)}
                   aria-expanded={pickerOpen}
-                  className="inline-flex min-h-[40px] shrink-0 items-center justify-center gap-2 rounded-control border border-sky-400/20 bg-sky-400/10 px-4 py-2 text-sm font-semibold text-sky-100 transition hover:bg-sky-400/20"
+                  className="inline-flex min-h-[40px] shrink-0 items-center justify-center gap-2 rounded-full border border-sky-200 bg-sky-50 px-4 py-2 text-sm font-medium text-sky-700 transition hover:bg-sky-100"
                 >
                   <BookOpen size={15} />
                   {pickerOpen ? 'Hide past questions' : 'Past NEC questions'}
                 </button>
               </div>
               {starterQuestion && !pickerOpen && (
-                <p className="mb-4 rounded-control border border-sky-400/20 bg-sky-400/10 px-4 py-3 text-sm leading-6 text-sky-100">
+                <p className="mb-4 rounded-control border border-sky-200 bg-sky-50 px-4 py-3 text-sm leading-6 text-sky-700">
                   Here&apos;s a random past NEC question to start with. Take a minute to plan, then record your answer below, up to 5 minutes. Want a different one? Open Past NEC questions.
                 </p>
               )}
@@ -376,12 +376,12 @@ export default function AnalyzePage({ onDownloadReport, onAnalysisUserUpdate, is
                   value={topic}
                   onChange={(event) => setTopic(event.target.value)}
                   placeholder="Enter the topic or question."
-                  className="min-h-[178px] w-full resize-y rounded-control border border-line bg-surface-sunken px-4 py-3 text-white outline-none transition placeholder:text-ink-subtle focus:border-sky-400/40 focus:ring-2 focus:ring-sky-400/10 sm:min-h-[220px] sm:px-5 sm:py-4"
+                  className="min-h-[178px] w-full resize-y rounded-control border border-line bg-surface-sunken px-4 py-3 text-ink outline-none transition placeholder:text-ink-subtle focus:border-sky-300 focus:ring-2 focus:ring-sky-100 sm:min-h-[220px] sm:px-5 sm:py-4"
                   rows="6"
                 />
               </label>
               {pickedQuestion && topic === pickedQuestion.promptText && (
-                <div className="mt-3 inline-flex items-center gap-2 rounded-full border border-sky-400/20 bg-sky-400/10 px-3 py-1 text-xs font-semibold text-sky-100">
+                <div className="mt-3 inline-flex items-center gap-2 rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-xs font-semibold text-sky-700">
                   <BookOpen size={13} />
                   {pickedQuestion.label}
                 </div>
@@ -389,17 +389,17 @@ export default function AnalyzePage({ onDownloadReport, onAnalysisUserUpdate, is
             </div>
 
             <div className="min-w-0 space-y-4">
-              <div className="rounded-card border border-sky-400/25 bg-sky-400/10 p-4 sm:p-5">
-                <div className="mb-4 inline-flex h-11 w-11 items-center justify-center rounded-control bg-sky-400/20 text-sky-200 sm:h-12 sm:w-12">
+              <div className="rounded-card border border-sky-200 bg-sky-50 p-4 sm:p-5">
+                <div className="mb-4 inline-flex h-11 w-11 items-center justify-center rounded-control bg-sky-100 text-sky-700 sm:h-12 sm:w-12">
                   <FileAudio size={22} />
                 </div>
-                <div className="text-base font-semibold text-white">Upload audio</div>
+                <div className="text-base font-semibold text-ink">Upload audio</div>
                 <div id="recording-file-help" className="mt-2 text-sm leading-6 text-ink-muted">MP3, WAV, M4A, WEBM, or OGG. Max 50 MB.</div>
                 <button
                   type="button"
                   onClick={() => uploadInputRef.current?.click()}
                   aria-describedby="recording-file-help"
-                  className="mt-4 inline-flex w-full items-center justify-center gap-3 rounded-control bg-sky-500 px-4 py-3 font-semibold text-white transition hover:bg-sky-400 active:translate-y-px"
+                  className="mt-4 inline-flex w-full items-center justify-center gap-3 rounded-full bg-ink px-4 py-3 font-medium text-white transition hover:bg-ink/85 active:translate-y-px"
                 >
                   <Upload size={18} />
                   Upload audio
@@ -407,16 +407,16 @@ export default function AnalyzePage({ onDownloadReport, onAnalysisUserUpdate, is
                 <input ref={uploadInputRef} type="file" accept="audio/*" onChange={handleFileUpload} className="hidden" />
               </div>
 
-              <div className={`rounded-card border p-4 transition sm:p-5 ${isRecording ? 'border-rose-400/30 bg-rose-500/10' : 'border-line bg-overlay'}`}>
+              <div className={`rounded-card border p-4 transition sm:p-5 ${isRecording ? 'border-rose-200 bg-rose-50' : 'border-line bg-overlay'}`}>
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <div className="inline-flex h-10 w-10 items-center justify-center rounded-control bg-emerald-400/10 text-emerald-200 sm:h-11 sm:w-11">
+                    <div className="inline-flex h-10 w-10 items-center justify-center rounded-control bg-emerald-50 text-emerald-700 sm:h-11 sm:w-11">
                       <Mic size={20} />
                     </div>
-                    <div className="mt-4 text-base font-semibold text-white">Record audio</div>
+                    <div className="mt-4 text-base font-semibold text-ink">Record audio</div>
                     <div className="mt-2 text-sm leading-6 text-ink-muted">Use your microphone, then preview before analysis.</div>
                   </div>
-                  <div className={`rounded-full border px-3 py-1 text-sm font-semibold ${isRecording ? 'border-rose-300/30 bg-rose-300/10 text-rose-100' : 'border-line bg-overlay text-ink-muted'}`}>
+                  <div className={`rounded-full border px-3 py-1 text-sm font-semibold ${isRecording ? 'border-rose-200 bg-rose-50 text-rose-700' : 'border-line bg-overlay text-ink-muted'}`}>
                     {formatTime(recordingSeconds)}
                   </div>
                 </div>
@@ -428,16 +428,16 @@ export default function AnalyzePage({ onDownloadReport, onAnalysisUserUpdate, is
                 </div>
                 {isRecording ? (
                   <div className="mt-5 grid grid-cols-[1fr_auto] gap-2">
-                    <button type="button" onClick={stopRecording} className="inline-flex items-center justify-center gap-2 rounded-control bg-rose-500 px-4 py-3 font-semibold text-white transition hover:bg-rose-400">
+                    <button type="button" onClick={stopRecording} className="inline-flex items-center justify-center gap-2 rounded-full bg-rose-500 px-4 py-3 font-medium text-white transition hover:bg-rose-400">
                       <Square size={16} fill="currentColor" />
                       Stop recording
                     </button>
-                    <button type="button" onClick={cancelRecording} className="inline-flex h-12 w-12 items-center justify-center rounded-control border border-line bg-overlay text-slate-200 transition hover:bg-overlay-hover" aria-label="Cancel recording">
+                    <button type="button" onClick={cancelRecording} className="inline-flex h-12 w-12 items-center justify-center rounded-control border border-line bg-overlay text-ink transition hover:bg-overlay-hover" aria-label="Cancel recording">
                       <RotateCcw size={16} />
                     </button>
                   </div>
                 ) : (
-                  <button type="button" onClick={startRecording} className="mt-5 inline-flex w-full items-center justify-center gap-3 rounded-control border border-emerald-400/20 bg-emerald-400/10 px-4 py-3 font-semibold text-emerald-100 transition hover:bg-emerald-400/20 active:translate-y-px">
+                  <button type="button" onClick={startRecording} className="mt-5 inline-flex w-full items-center justify-center gap-3 rounded-full border border-emerald-200 bg-emerald-50 px-4 py-3 font-medium text-emerald-700 transition hover:bg-emerald-100 active:translate-y-px">
                     <Mic size={18} />
                     Start recording
                   </button>
@@ -450,11 +450,11 @@ export default function AnalyzePage({ onDownloadReport, onAnalysisUserUpdate, is
         {step === 'preview' && (
           <div className="grid gap-5 lg:grid-cols-[minmax(280px,0.85fr)_minmax(0,1.15fr)]">
             <div className="rounded-card border border-line bg-overlay p-5 text-center sm:p-6">
-              <div className="mb-4 inline-flex h-16 w-16 items-center justify-center rounded-card bg-sky-400/10 text-sky-200 sm:h-20 sm:w-20">
+              <div className="mb-4 inline-flex h-16 w-16 items-center justify-center rounded-card bg-sky-50 text-sky-700 sm:h-20 sm:w-20">
                 <FileAudio size={36} />
               </div>
               <div className="text-sm font-semibold text-ink-muted">{audioSourceType === 'recording' ? 'Browser recording' : 'Uploaded file'}</div>
-              <div className="mt-3 break-all text-base font-semibold text-white">{audioFile?.name}</div>
+              <div className="mt-3 break-all text-base font-semibold text-ink">{audioFile?.name}</div>
               <div className="mt-2 text-sm text-ink-muted">
                 {audioSourceType === 'recording'
                   ? `Recorded in the browser. Duration: ${formatTime(recordingSeconds)}.`
@@ -464,40 +464,40 @@ export default function AnalyzePage({ onDownloadReport, onAnalysisUserUpdate, is
                 <button
                   type="button"
                   onClick={() => replaceInputRef.current?.click()}
-                  className="inline-flex items-center justify-center gap-2 rounded-control border border-line bg-overlay px-4 py-2.5 text-sm font-semibold text-slate-200 transition hover:bg-overlay-hover"
+                  className="inline-flex items-center justify-center gap-2 rounded-full border border-line bg-surface-raised px-4 py-2.5 text-sm font-medium text-ink transition hover:bg-overlay"
                 >
                   <Upload size={15} />
                   Replace file
                 </button>
                 <input ref={replaceInputRef} type="file" accept="audio/*" onChange={handleFileUpload} className="hidden" />
-                <button type="button" onClick={startRecording} className="inline-flex items-center justify-center gap-2 rounded-control border border-emerald-400/20 bg-emerald-400/10 px-4 py-2.5 text-sm font-semibold text-emerald-100 transition hover:bg-emerald-400/20">
+                <button type="button" onClick={startRecording} className="inline-flex items-center justify-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm font-medium text-emerald-700 transition hover:bg-emerald-100">
                   <Mic size={15} />
                   Record again
                 </button>
               </div>
             </div>
             <div className="rounded-card border border-line bg-surface-sunken p-5 sm:p-6">
-              <div className="text-base font-semibold text-white">Ready for submission</div>
+              <div className="text-base font-semibold text-ink">Ready for submission</div>
               <div className="mt-3 rounded-control border border-line bg-overlay p-4">
                 <div className="text-sm font-semibold text-ink-muted">Prompt</div>
                 <div className="mt-2 max-h-28 overflow-y-auto text-sm leading-6 text-ink-muted">{topic || 'No prompt entered yet.'}</div>
               </div>
               <div className="mt-5 flex flex-col gap-3 sm:flex-row">
-                <button type="button" onClick={togglePlayback} className="inline-flex items-center justify-center gap-2 rounded-control border border-line bg-overlay px-6 py-3 font-semibold text-white transition hover:bg-overlay-hover">
+                <button type="button" onClick={togglePlayback} className="inline-flex items-center justify-center gap-2 rounded-full border border-line bg-surface-raised px-6 py-3 font-medium text-ink transition hover:bg-overlay">
                   {isPlaying ? <><Pause size={16} /> Pause preview</> : <><Volume2 size={16} /> Play preview</>}
                 </button>
                 <button
                   type="button"
                   onClick={analyzeAudio}
                   disabled={isOffline}
-                  className={`inline-flex items-center justify-center gap-2 rounded-control px-6 py-3 font-semibold text-white transition ${isOffline ? 'cursor-not-allowed bg-slate-700 opacity-50' : 'bg-sky-500 hover:bg-sky-400'}`}
+                  className={`inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 font-medium text-ink transition ${isOffline ? 'cursor-not-allowed bg-neutral-200 opacity-50' : 'bg-ink hover:bg-ink/85'}`}
                 >
                   <CheckCircle size={16} /> {isOffline ? 'Offline, cannot analyze' : 'Analyze speech'}
                 </button>
               </div>
               <div className="mt-5 grid gap-3 sm:grid-cols-3">
                 {['Content', 'Accuracy', 'Delivery'].map((label) => (
-                  <div key={label} className="rounded-control border border-line bg-overlay px-4 py-3 text-center text-sm font-semibold text-slate-200">
+                  <div key={label} className="rounded-control border border-line bg-overlay px-4 py-3 text-center text-sm font-semibold text-ink">
                     {label}
                   </div>
                 ))}
@@ -509,10 +509,10 @@ export default function AnalyzePage({ onDownloadReport, onAnalysisUserUpdate, is
 
         {step === 'uploading' && (
           <div className="py-14 text-center" role="status" aria-live="polite">
-            <div className="mx-auto mb-5 inline-flex h-20 w-20 items-center justify-center rounded-full border border-sky-400/25 bg-sky-400/10 text-sky-200">
+            <div className="mx-auto mb-5 inline-flex h-20 w-20 items-center justify-center rounded-full border border-sky-200 bg-sky-50 text-sky-700">
               <Loader className="animate-spin" size={40} />
             </div>
-            <div className="text-lg font-semibold text-white">Analyzing speech</div>
+            <div className="text-lg font-semibold text-ink">Analyzing speech</div>
             <div className="mt-2 text-sm text-ink-muted">{progressMessage}</div>
             <div className="mx-auto mt-6 h-2 max-w-md overflow-hidden rounded-full bg-overlay">
               <div className="h-full w-1/2 animate-pulse rounded-full bg-sky-400" />

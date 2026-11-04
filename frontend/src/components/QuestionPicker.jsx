@@ -126,7 +126,7 @@ export default function QuestionPicker({ onSelect, selectedId = null }) {
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           placeholder="Search by topic or year, e.g. tourism or 24-25"
-          className="min-w-0 flex-1 bg-transparent py-1.5 text-sm text-white outline-none placeholder:text-ink-subtle"
+          className="min-w-0 flex-1 bg-transparent py-1.5 text-sm text-ink outline-none placeholder:text-ink-subtle"
         />
       </label>
       <div className="max-h-80 overflow-y-auto p-2">
@@ -136,7 +136,7 @@ export default function QuestionPicker({ onSelect, selectedId = null }) {
           <p className="px-2 py-4 text-sm text-ink-muted">No past question matches &quot;{query}&quot;.</p>
         ) : groups.map(([paper, items]) => (
           <div key={paper || 'other'} className="mb-2">
-            <div className="px-2 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-sky-200">{paper || 'Other'}</div>
+            <div className="px-2 py-1 text-xs font-semibold tracking-normal text-sky-700">{paper || 'Other'}</div>
             <ul className="space-y-1">
               {items.map((question) => (
                 <li key={question.id}>
@@ -145,13 +145,13 @@ export default function QuestionPicker({ onSelect, selectedId = null }) {
                     onClick={() => onSelect(question)}
                     aria-pressed={selectedId === question.id}
                     className={`flex w-full min-w-0 items-start gap-3 rounded-control px-2 py-2 text-left transition ${
-                      selectedId === question.id ? 'bg-sky-400/15' : 'hover:bg-overlay-hover'
+                      selectedId === question.id ? 'bg-sky-50' : 'hover:bg-overlay-hover'
                     }`}
                   >
                     <span className="mt-0.5 shrink-0 rounded-full border border-line px-2 py-0.5 text-xs font-semibold text-ink-muted">
                       {question.number ? `Q${question.number}` : '-'}
                     </span>
-                    <span className="min-w-0 text-sm leading-6 text-slate-200">{question.text}</span>
+                    <span className="min-w-0 text-sm leading-6 text-ink">{question.text}</span>
                   </button>
                 </li>
               ))}

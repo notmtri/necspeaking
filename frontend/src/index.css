@@ -3,25 +3,38 @@
 @tailwind utilities;
 
 /*
- * Design tokens. These are the single source of truth for surfaces, lines and
- * radii; tailwind.config.js maps them onto utilities (bg-surface-raised,
- * border-line, rounded-card, ...). Prefer those utilities over raw hex values
- * so the palette stays consistent across pages.
+ * Design tokens. These are the single source of truth for surfaces, lines,
+ * ink and type; tailwind.config.js maps them onto utilities (bg-surface-raised,
+ * border-line, text-ink-muted, font-display, ...). Prefer those utilities over
+ * raw values so the palette stays consistent across pages.
+ *
+ * Light theme, modelled on oneprep.com: a near-white canvas, near-black ink,
+ * neutrals tinted a hair toward the sky accent (hue 240), and sky-500 as the
+ * one accent. Primary actions are near-black pills; sky marks selection,
+ * progress and links.
  */
 :root {
-  --surface-base: #070f1a;
-  --surface-raised: #0b1626;
-  --surface-sunken: #050c15;
-  --overlay: rgba(255, 255, 255, 0.04);
-  --overlay-hover: rgba(255, 255, 255, 0.08);
-  --line: rgba(255, 255, 255, 0.09);
+  --surface-base: oklch(0.995 0.002 240);
+  --surface-raised: oklch(1 0 0);
+  /* Inner panels and chips sit one quiet step below white. */
+  --surface-sunken: oklch(0.982 0.003 240);
+  --overlay: oklch(0.975 0.004 240);
+  --overlay-hover: oklch(0.945 0.006 240);
+  --line: oklch(0.91 0.006 240);
 
-  --ink: #f1f5f9;
-  --ink-muted: #94a3b8;
-  /* slate-500 (#64748b) measured 3.81:1 on surface-raised, under the 4.5:1
-     WCAG AA floor for normal text. This is 5.27:1 and still reads dimmer
-     than --ink-muted, so the hierarchy survives. */
-  --ink-subtle: #7d8ba3;
+  --ink: oklch(0.2 0.012 250);
+  /* Both pass WCAG AA on every surface above: muted ~7:1, subtle ~4.9:1. */
+  --ink-muted: oklch(0.45 0.014 250);
+  --ink-subtle: oklch(0.54 0.012 250);
+
+  --font-body: 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
+  /* Be Vietnam Pro: geometric like the reference's DM Sans, but drawn for
+     Vietnamese, so student names keep their diacritics in one typeface. */
+  --font-display: 'Be Vietnam Pro', 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
+
+  --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
+
+  /* Layers: sticky header 40, floating button 50, modal 70, confirm 80, toast 90. */
 }
 
 html, body, #root {
@@ -34,8 +47,8 @@ html, body {
   margin: 0;
   background: var(--surface-base);
   color: var(--ink-muted);
-  font-family: 'Nunito Sans', ui-sans-serif, system-ui, sans-serif;
-  font-variant-numeric: tabular-nums;
+  font-family: var(--font-body);
+  font-feature-settings: 'cv11', 'ss01';
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -50,6 +63,25 @@ body {
 
 *, *::before, *::after {
   box-sizing: border-box;
+}
+
+h1, h2 {
+  font-family: var(--font-display);
+  letter-spacing: -0.025em;
+  text-wrap: balance;
+}
+
+h3 {
+  text-wrap: balance;
+}
+
+p {
+  text-wrap: pretty;
+}
+
+/* Scores, timers and counts line up digit for digit. */
+.tabular, time, dd, td {
+  font-variant-numeric: tabular-nums;
 }
 
 button,
@@ -68,6 +100,12 @@ button:not(:disabled) {
   cursor: pointer;
 }
 
+/* Tactile press on every enabled button; transforms only, so layout stays put. */
+button:not(:disabled):active,
+a[role='button']:active {
+  transform: translateY(1px);
+}
+
 img,
 video,
 canvas {
@@ -79,7 +117,7 @@ input:focus-visible,
 textarea:focus-visible,
 select:focus-visible,
 a:focus-visible {
-  outline: 2px solid rgba(96, 165, 250, 0.9);
+  outline: 2px solid oklch(0.68 0.15 237);
   outline-offset: 2px;
 }
 
@@ -93,17 +131,32 @@ svg.lucide {
   display: inline-block;
   flex-shrink: 0;
   stroke: currentColor;
-  stroke-width: 2;
+  stroke-width: 1.75;
   vector-effect: non-scaling-stroke;
 }
 
 input[type="range"] {
-  accent-color: #38bdf8;
+  accent-color: oklch(0.68 0.15 237);
 }
 
 ::selection {
-  background: rgba(56, 189, 248, 0.28);
-  color: #ffffff;
+  background: oklch(0.9 0.06 237);
+  color: var(--ink);
+}
+
+/* Home page entrance: content is visible by default; motion only adds a lift. */
+@media (prefers-reduced-motion: no-preference) {
+  .rise-in {
+    animation: rise-in 0.7s var(--ease-out-quart) both;
+    animation-delay: calc(var(--rise-index, 0) * 90ms);
+  }
+
+  @keyframes rise-in {
+    from {
+      opacity: 0;
+      transform: translateY(14px);
+    }
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

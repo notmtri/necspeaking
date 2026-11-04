@@ -8,19 +8,19 @@ export default function ResultsInsights({ results }) {
   const plan = buildImprovementPlan(results);
 
   return (
-    <section className="rounded-panel border border-emerald-400/20 bg-emerald-400/10 p-4 sm:p-5">
+    <section className="rounded-panel border border-emerald-200 bg-emerald-50 p-4 sm:p-5">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0">
-          <div className="inline-flex items-center gap-2 rounded-full border border-emerald-300/25 bg-emerald-300/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-emerald-100">
+          <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold tracking-normal text-emerald-700">
             <Target size={14} />
             Next practice plan
           </div>
-          <h3 className="mt-3 text-lg font-semibold text-white sm:text-xl">Focus on {plan.priority.label.toLowerCase()} first</h3>
+          <h3 className="mt-3 text-lg font-semibold text-ink sm:text-xl">Focus on {plan.priority.label.toLowerCase()} first</h3>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-ink-muted">
             Target {plan.targetScore.toFixed(2)}/2.0 next attempt by improving {plan.priority.label.toLowerCase()} while maintaining your strongest area: {plan.strongest.label.toLowerCase()}.
           </p>
         </div>
-        <div className="rounded-control border border-line bg-overlay-hover px-4 py-3 text-sm font-semibold text-emerald-100">
+        <div className="rounded-control border border-line bg-overlay-hover px-4 py-3 text-sm font-semibold text-emerald-700">
           {plan.priority.score.toFixed(2)} / {plan.priority.max.toFixed(1)}
         </div>
       </div>
@@ -29,11 +29,11 @@ export default function ResultsInsights({ results }) {
         {plan.focusItems.map((item) => (
           <div key={item.key} className="rounded-card border border-line bg-surface-sunken/60 p-4">
             <div className="flex items-center justify-between gap-3">
-              <div className="text-base font-semibold text-white">{item.label} drill</div>
-              <ArrowUpRight size={16} className="text-emerald-200" />
+              <div className="text-base font-semibold text-ink">{item.label} drill</div>
+              <ArrowUpRight size={16} className="text-emerald-700" />
             </div>
             <p className="mt-2 text-sm leading-6 text-ink-muted">{item.focus}</p>
-            <div className="mt-3 rounded-control border border-line bg-overlay p-3 text-sm leading-6 text-slate-200">
+            <div className="mt-3 rounded-control border border-line bg-overlay p-3 text-sm leading-6 text-ink">
               {item.drill}
             </div>
           </div>
@@ -43,9 +43,9 @@ export default function ResultsInsights({ results }) {
       <div className="mt-4 grid gap-3 lg:grid-cols-3">
         {plan.checklist.map((item) => (
           <div key={item.label} className="flex items-start gap-3 rounded-control border border-line bg-overlay p-3 text-sm leading-6 text-ink-muted">
-            <CheckCircle size={16} className="mt-0.5 shrink-0 text-emerald-200" />
+            <CheckCircle size={16} className="mt-0.5 shrink-0 text-emerald-700" />
             <div>
-              <span className="font-semibold text-white">{item.label}: </span>
+              <span className="font-semibold text-ink">{item.label}: </span>
               {item.text}
             </div>
           </div>

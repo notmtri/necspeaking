@@ -5,7 +5,7 @@ import { apiFetch } from '../apiClient';
 /** Keeps the six digits of an emailed code, whatever else was pasted with them. */
 export const cleanCode = (value) => String(value || '').replace(/\D/g, '').slice(0, 6);
 
-export const CODE_INPUT_CLASSNAME = 'w-36 rounded-control border border-line bg-surface-sunken px-4 py-2 text-center font-mono text-lg tracking-[0.3em] text-white outline-none focus:border-sky-400/50';
+export const CODE_INPUT_CLASSNAME = 'w-36 rounded-control border border-line bg-surface-sunken px-4 py-2 text-center font-mono text-lg tracking-[0.3em] text-ink outline-none focus:border-sky-300';
 
 /**
  * Asks a logged-in student to confirm their email: send a 6-digit code, type
@@ -45,12 +45,12 @@ export default function VerifyEmailNotice({ email, title = 'Confirm your email',
   };
 
   return (
-    <div className="rounded-card border border-amber-300/25 bg-amber-300/10 p-4 text-sm text-amber-50">
+    <div className="rounded-card border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
       <div className="flex min-w-0 items-start gap-3">
         <MailCheck size={18} className="mt-0.5 shrink-0" aria-hidden="true" />
         <div className="min-w-0">
-          <div className="font-semibold text-white">{title}</div>
-          <div className="mt-1 leading-6 text-amber-50/90">
+          <div className="font-semibold text-ink">{title}</div>
+          <div className="mt-1 leading-6 text-amber-800">
             {reason} Enter the 6-digit code we emailed to {email}.
           </div>
         </div>
@@ -68,7 +68,7 @@ export default function VerifyEmailNotice({ email, title = 'Confirm your email',
         <button
           type="submit"
           disabled={confirming || code.length !== 6}
-          className="rounded-full bg-amber-300/90 px-4 py-2 font-semibold text-slate-950 transition hover:bg-amber-200 disabled:cursor-not-allowed disabled:opacity-60"
+          className="rounded-full bg-amber-300 px-4 py-2 font-semibold text-slate-950 transition hover:bg-amber-200 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {confirming ? 'Checking...' : 'Confirm'}
         </button>
@@ -76,13 +76,13 @@ export default function VerifyEmailNotice({ email, title = 'Confirm your email',
           type="button"
           onClick={send}
           disabled={sending}
-          className="rounded-full border border-amber-300/30 px-4 py-2 font-semibold text-amber-50 transition hover:bg-amber-300/10 disabled:cursor-not-allowed disabled:opacity-60"
+          className="rounded-full border border-amber-200 px-4 py-2 font-semibold text-amber-800 transition hover:bg-amber-50 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {sending ? 'Sending...' : 'Send me a code'}
         </button>
       </form>
       {status && (
-        <p className={`mt-3 ${status.tone === 'error' ? 'text-rose-200' : 'text-emerald-200'}`} role="status">{status.text}</p>
+        <p className={`mt-3 ${status.tone === 'error' ? 'text-rose-700' : 'text-emerald-700'}`} role="status">{status.text}</p>
       )}
     </div>
   );

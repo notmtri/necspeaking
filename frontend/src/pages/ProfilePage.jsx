@@ -60,9 +60,9 @@ function PracticeTrend({ sessions }) {
         return (
           <div key={session.id || index} className="flex min-w-0 flex-col items-center gap-2">
             <div className="flex h-28 w-full items-end">
-              <div className="w-full rounded-t-control bg-sky-400/80" style={{ height: `${height}%` }} />
+              <div className="w-full rounded-t-control bg-sky-500" style={{ height: `${height}%` }} />
             </div>
-            <div className="text-xs font-semibold text-white">{score.toFixed(2)}</div>
+            <div className="text-xs font-semibold text-ink">{score.toFixed(2)}</div>
             <div className="max-w-full truncate text-[10px] text-ink-subtle">
               {session.createdAt ? new Date(session.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : `#${index + 1}`}
             </div>
@@ -82,7 +82,7 @@ function CriteriaBars({ averages }) {
         return (
           <div key={criterion.key} className="rounded-card border border-line bg-overlay p-4">
             <div className="flex items-center justify-between gap-3">
-              <div className="text-sm font-semibold text-white">{criterion.label}</div>
+              <div className="text-sm font-semibold text-ink">{criterion.label}</div>
               <div className="text-sm font-semibold text-ink-muted">{value.toFixed(2)} / {criterion.max.toFixed(1)}</div>
             </div>
             <div className="mt-3 h-2 overflow-hidden rounded-full bg-overlay-hover">
@@ -114,9 +114,9 @@ function AchievementBadges({ stats, analytics }) {
       {badges.map((badge) => {
         const Icon = badge.icon;
         return (
-          <div key={badge.label} className={`rounded-card border p-4 ${badge.unlocked ? 'border-amber-300/25 bg-amber-300/10 text-amber-100' : 'border-line bg-overlay text-ink-subtle'}`}>
+          <div key={badge.label} className={`rounded-card border p-4 ${badge.unlocked ? 'border-amber-200 bg-amber-50 text-amber-800' : 'border-line bg-overlay text-ink-subtle'}`}>
             <div className="flex items-center gap-3">
-              <div className={`inline-flex h-10 w-10 items-center justify-center rounded-card ${badge.unlocked ? 'bg-amber-300/20' : 'bg-overlay'}`}>
+              <div className={`inline-flex h-10 w-10 items-center justify-center rounded-card ${badge.unlocked ? 'bg-amber-100' : 'bg-overlay'}`}>
                 <Icon size={18} />
               </div>
               <div className="min-w-0">
@@ -139,7 +139,7 @@ function ProfileTabButton({ active, onClick, children }) {
       aria-pressed={active}
       className={`rounded-full border px-4 py-2 text-sm font-semibold transition ${
         active
-          ? 'border-sky-400/20 bg-sky-400/10 text-sky-200'
+          ? 'border-sky-200 bg-sky-50 text-sky-700'
           : 'border-line bg-overlay text-ink-muted hover:bg-overlay-hover'
       }`}
     >
@@ -159,13 +159,13 @@ function FirstPracticeCard({ onStartPractice }) {
     'Get scored on Content, Accuracy and Delivery, with written feedback.',
   ];
   return (
-    <section className="rounded-panel border border-sky-400/25 bg-sky-400/10 p-5 sm:p-6" aria-labelledby="first-practice-title">
-      <div className="text-xs font-semibold uppercase tracking-[0.16em] text-sky-300">Start here</div>
-      <h2 id="first-practice-title" className="mt-2 text-xl font-semibold text-white">Do your first practice</h2>
-      <ol className="mt-4 space-y-2 text-sm leading-6 text-slate-100">
+    <section className="rounded-panel border border-sky-200 bg-sky-50 p-5 sm:p-6" aria-labelledby="first-practice-title">
+      <div className="text-xs font-semibold tracking-normal text-sky-600">Start here</div>
+      <h2 id="first-practice-title" className="mt-2 text-xl font-semibold text-ink">Do your first practice</h2>
+      <ol className="mt-4 space-y-2 text-sm leading-6 text-ink">
         {steps.map((step, index) => (
           <li key={step} className="flex gap-3">
-            <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-sky-400/20 text-xs font-semibold text-sky-100">{index + 1}</span>
+            <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-sky-100 text-xs font-semibold text-sky-700">{index + 1}</span>
             <span>{step}</span>
           </li>
         ))}
@@ -174,7 +174,7 @@ function FirstPracticeCard({ onStartPractice }) {
         <button
           type="button"
           onClick={() => onStartPractice('analyze')}
-          className="inline-flex items-center justify-center gap-2 rounded-control bg-sky-500 px-5 py-3 font-semibold text-white transition hover:bg-sky-400"
+          className="inline-flex items-center justify-center gap-2 rounded-full bg-ink px-5 py-3 font-medium text-white transition hover:bg-ink/85"
         >
           <Mic size={17} />
           Start my first practice
@@ -182,7 +182,7 @@ function FirstPracticeCard({ onStartPractice }) {
         <button
           type="button"
           onClick={() => onStartPractice('simulation')}
-          className="inline-flex items-center justify-center gap-2 rounded-control border border-line bg-overlay px-5 py-3 font-semibold text-white transition hover:bg-overlay-hover"
+          className="inline-flex items-center justify-center gap-2 rounded-full border border-line bg-surface-raised px-5 py-3 font-medium text-ink transition hover:bg-overlay"
         >
           Try the timed test instead
         </button>
@@ -218,10 +218,10 @@ export default function ProfilePage({ currentUser, practiceHistory, onSave, onLo
   if (!currentUser || !draft) {
     return (
       <section className="rounded-panel border border-line bg-surface-raised p-5 text-center sm:p-8">
-        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full border border-line bg-overlay text-sky-300">
+        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full border border-line bg-overlay text-sky-600">
           <User size={28} />
         </div>
-        <h1 className="mt-5 text-2xl font-bold tracking-tight text-white sm:text-3xl">Log in to view your profile</h1>
+        <h1 className="mt-5 text-2xl font-bold tracking-tight text-ink sm:text-3xl">Log in to view your profile</h1>
         <p className="mt-3 text-sm leading-6 text-ink-muted">This page shows the account currently stored in the backend session.</p>
       </section>
     );
@@ -277,7 +277,7 @@ export default function ProfilePage({ currentUser, practiceHistory, onSave, onLo
   };
 
   return (
-    <div className="w-full min-w-0 space-y-5 text-slate-100 sm:space-y-6">
+    <div className="w-full min-w-0 space-y-5 text-ink sm:space-y-6">
       <PageHeader
         id="profile-page-title"
         title="Your profile"
@@ -290,7 +290,7 @@ export default function ProfilePage({ currentUser, practiceHistory, onSave, onLo
       </div>
 
       {authError && (
-        <div className="rounded-card border border-rose-400/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-100" role="alert">
+        <div className="rounded-card border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700" role="alert">
           {authError}
         </div>
       )}
@@ -316,13 +316,13 @@ export default function ProfilePage({ currentUser, practiceHistory, onSave, onLo
                 alt=""
                 className="h-44 w-44 rounded-panel border border-line object-cover sm:h-56 sm:w-56"
               />
-              <h2 className="mt-5 text-lg font-semibold text-white sm:text-xl">{draft.name}</h2>
-              <div className="mt-1 text-base font-semibold text-sky-300">@{draft.username}</div>
-              <div className="mt-3 inline-flex items-center rounded-full border border-line bg-overlay px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-ink-muted">
+              <h2 className="mt-5 text-lg font-semibold text-ink sm:text-xl">{draft.name}</h2>
+              <div className="mt-1 text-base font-semibold text-sky-600">@{draft.username}</div>
+              <div className="mt-3 inline-flex items-center rounded-full border border-line bg-overlay px-3 py-1 text-xs font-semibold tracking-normal text-ink-muted">
                 {displayRole}
               </div>
               {adminProfile && (
-                <div className="mt-3 inline-flex items-center rounded-full border border-amber-300/30 bg-amber-300/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-amber-100">
+                <div className="mt-3 inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-semibold tracking-normal text-amber-800">
                   necs. admin
                 </div>
               )}
@@ -351,27 +351,30 @@ export default function ProfilePage({ currentUser, practiceHistory, onSave, onLo
             </div>
           </ProfileSectionCard>
 
+          {/* Trends and a "current focus" mean nothing before the first saved attempt. */}
+          {(stats.practices > 0 || practiceHistory?.length > 0) && (
           <ProfileSectionCard title="Practice dashboard" eyebrow="Analytics" className="xl:col-span-2">
             <div className="grid gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(260px,0.8fr)]">
               <div className="min-w-0">
-                <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-white">
+                <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-ink">
                   <BarChart3 size={17} />
                   Recent score trend
                 </h3>
                 <PracticeTrend sessions={analytics.trend} />
               </div>
               <div className="min-w-0">
-                <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-white">
+                <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-ink">
                   <Target size={17} />
                   Criterion averages
                 </h3>
                 <CriteriaBars averages={analytics.averages} />
               </div>
             </div>
-            <div className="mt-4 rounded-card border border-sky-400/20 bg-sky-400/10 p-4 text-sm leading-6 text-sky-100">
+            <div className="mt-4 rounded-card border border-sky-200 bg-sky-50 p-4 text-sm leading-6 text-sky-700">
               Current focus: <span className="font-semibold">{analytics.weakest?.label || 'Content'}</span>. This is the lowest average criterion across saved sessions.
             </div>
           </ProfileSectionCard>
+          )}
 
           <ProfileSectionCard title="Achievements" eyebrow="Badges" className="xl:col-span-2">
             <AchievementBadges stats={stats} analytics={analytics} />
@@ -393,15 +396,15 @@ export default function ProfilePage({ currentUser, practiceHistory, onSave, onLo
         <div className="space-y-5 sm:space-y-6">
           <ProfileSectionCard title="Settings" eyebrow="Personal info">
             <div className="mb-5 rounded-card border border-line bg-overlay p-4">
-              <div className="text-sm font-semibold text-white">Profile photo</div>
+              <div className="text-sm font-semibold text-ink">Profile photo</div>
               <div className="mt-1 text-sm text-ink-muted">Upload a new avatar. Large photos are resized automatically.</div>
-              <label className="mt-4 inline-flex cursor-pointer items-center gap-2 rounded-full border border-line bg-sky-400/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-sky-200 transition hover:bg-sky-400/20">
+              <label className="mt-4 inline-flex cursor-pointer items-center gap-2 rounded-full border border-line bg-sky-50 px-4 py-2 text-xs font-semibold tracking-normal text-sky-700 transition hover:bg-sky-100">
                 <Upload size={14} />
                 Upload photo
                 <input type="file" accept="image/*" onChange={(event) => updatePhoto(event.target.files?.[0])} className="hidden" />
               </label>
               {photoError && (
-                <div className="mt-3 rounded-control border border-rose-400/20 bg-rose-500/10 px-3 py-2 text-sm text-rose-100" role="alert">
+                <div className="mt-3 rounded-control border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700" role="alert">
                   {photoError}
                 </div>
               )}
@@ -420,7 +423,7 @@ export default function ProfilePage({ currentUser, practiceHistory, onSave, onLo
             <button
               type="button"
               onClick={() => onSave(draft)}
-              className="mt-4 inline-flex items-center justify-center gap-2 rounded-control bg-sky-500 px-5 py-3 font-semibold text-white transition hover:bg-sky-400"
+              className="mt-4 inline-flex items-center justify-center gap-2 rounded-full bg-ink px-5 py-3 font-medium text-white transition hover:bg-ink/85"
             >
               <CheckCircle size={17} />
               Save changes
@@ -448,7 +451,7 @@ export default function ProfilePage({ currentUser, practiceHistory, onSave, onLo
                 type="button"
                 onClick={handlePasswordSubmit}
                 disabled={passwordSubmitting}
-                className="inline-flex items-center justify-center gap-2 rounded-control bg-sky-500 px-5 py-3 font-semibold text-white transition hover:bg-sky-400 disabled:cursor-not-allowed disabled:opacity-70"
+                className="inline-flex items-center justify-center gap-2 rounded-full bg-ink px-5 py-3 font-medium text-white transition hover:bg-ink/85 disabled:cursor-not-allowed disabled:opacity-70"
               >
                 <Lock size={16} />
                 {passwordSubmitting ? 'Updating...' : 'Update password'}
@@ -458,7 +461,7 @@ export default function ProfilePage({ currentUser, practiceHistory, onSave, onLo
 
           <ProfileSectionCard title="Danger zone" eyebrow="Account">
             <div className="space-y-4">
-              <div className="rounded-card border border-rose-400/20 bg-rose-500/10 p-4 text-sm leading-6 text-rose-100">
+              <div className="rounded-card border border-rose-200 bg-rose-50 p-4 text-sm leading-6 text-rose-700">
                 Type <span className="font-semibold">{DELETE_PHRASE}</span> to permanently delete this account and its saved practice history.
               </div>
               <label className="block">
@@ -473,13 +476,13 @@ export default function ProfilePage({ currentUser, practiceHistory, onSave, onLo
                   className={FIELD_CLASSNAME}
                 />
               </label>
-              {deleteError && <div className="text-sm font-medium text-rose-200" role="alert">{deleteError}</div>}
+              {deleteError && <div className="text-sm font-medium text-rose-700" role="alert">{deleteError}</div>}
               <div className="flex flex-col gap-3 sm:flex-row">
-                <button type="button" onClick={() => onLogout()} className="inline-flex w-full items-center justify-center gap-2 rounded-control border border-line bg-overlay px-5 py-3 font-semibold text-slate-200 transition hover:bg-overlay-hover sm:w-auto">
+                <button type="button" onClick={() => onLogout()} className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-line bg-surface-raised px-5 py-3 font-medium text-ink transition hover:bg-overlay sm:w-auto">
                   <LogOut size={16} />
                   Log out
                 </button>
-                <button type="button" onClick={handleDelete} className="inline-flex w-full items-center justify-center gap-2 rounded-control bg-rose-500 px-5 py-3 font-semibold text-white transition hover:bg-rose-400 sm:w-auto">
+                <button type="button" onClick={handleDelete} className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-rose-500 px-5 py-3 font-medium text-white transition hover:bg-rose-400 sm:w-auto">
                   <Trash2 size={16} />
                   Delete account
                 </button>

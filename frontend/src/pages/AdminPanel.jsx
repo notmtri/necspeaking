@@ -22,7 +22,7 @@ function AdminField({ label, required, children, hint }) {
     <label className="block">
       <span className="mb-2 block text-sm font-semibold text-ink-muted">
         {label}
-        {required && <span className="ml-1 text-rose-300" aria-hidden="true">*</span>}
+        {required && <span className="ml-1 text-rose-600" aria-hidden="true">*</span>}
       </span>
       {children}
       {hint && <span className="mt-1 block text-xs text-ink-subtle">{hint}</span>}
@@ -35,8 +35,8 @@ function AdminCard({ title, icon: Icon, children }) {
     <section className="rounded-card border border-line bg-overlay p-4 sm:p-5">
       {title && (
         <div className="mb-4 flex items-center gap-2">
-          {Icon && <Icon size={18} className="text-sky-200" />}
-          <h3 className="text-base font-semibold text-white">{title}</h3>
+          {Icon && <Icon size={18} className="text-sky-700" />}
+          <h3 className="text-base font-semibold text-ink">{title}</h3>
         </div>
       )}
       {children}
@@ -46,11 +46,11 @@ function AdminCard({ title, icon: Icon, children }) {
 
 function AdminButton({ tone = 'primary', onClick, disabled, className = '', children, ...rest }) {
   const toneClasses = {
-    primary: 'bg-sky-500 text-white hover:bg-sky-400',
-    neutral: 'border border-line bg-overlay text-slate-200 hover:bg-overlay-hover',
+    primary: 'bg-ink text-white hover:bg-ink/85',
+    neutral: 'border border-line bg-overlay text-ink hover:bg-overlay-hover',
     success: 'bg-emerald-500 text-white hover:bg-emerald-400',
-    danger: 'border border-rose-400/25 bg-rose-500/10 text-rose-100 hover:bg-rose-500/20',
-    warning: 'border border-amber-300/25 bg-amber-300/10 text-amber-100 hover:bg-amber-300/20',
+    danger: 'border border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100',
+    warning: 'border border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100',
   }[tone];
 
   return (
@@ -120,8 +120,8 @@ export default function AdminPanel({ onClose, onLogout, notify, announcement, on
     if (!status?.text) return null;
 
     const toneClasses = status.tone === 'error'
-      ? 'border-rose-400/20 bg-rose-500/10 text-rose-100'
-      : 'border-emerald-400/20 bg-emerald-500/10 text-emerald-100';
+      ? 'border-rose-200 bg-rose-50 text-rose-700'
+      : 'border-emerald-200 bg-emerald-50 text-emerald-700';
 
     return (
       <div className={`mb-4 rounded-card border px-4 py-3 text-sm ${toneClasses}`} role={status.tone === 'error' ? 'alert' : 'status'}>
@@ -460,7 +460,7 @@ export default function AdminPanel({ onClose, onLogout, notify, announcement, on
   ] : [];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-950/80 p-3 backdrop-blur-sm sm:p-5">
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-neutral-900/40 p-3 backdrop-blur-sm sm:p-5">
       <div
         className="my-4 w-full max-w-7xl overflow-hidden rounded-panel border border-line bg-surface-raised"
         role="dialog"
@@ -469,7 +469,7 @@ export default function AdminPanel({ onClose, onLogout, notify, announcement, on
       >
         <div className="border-b border-line px-4 py-3 sm:px-6">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="inline-flex w-fit items-center gap-2 rounded-full border border-amber-300/25 bg-amber-300/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-amber-100">
+            <div className="inline-flex w-fit items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-semibold tracking-normal text-amber-800">
               <Lock size={14} />
               <h2 id="admin-panel-title">Admin CMS</h2>
             </div>
@@ -481,7 +481,7 @@ export default function AdminPanel({ onClose, onLogout, notify, announcement, on
               <button
                 type="button"
                 onClick={onClose}
-                className="inline-flex h-12 w-12 items-center justify-center rounded-control border border-line bg-overlay text-slate-200 transition hover:bg-overlay-hover"
+                className="inline-flex h-12 w-12 items-center justify-center rounded-control border border-line bg-overlay text-ink transition hover:bg-overlay-hover"
                 aria-label="Close admin panel"
               >
                 <X size={18} />
@@ -502,10 +502,10 @@ export default function AdminPanel({ onClose, onLogout, notify, announcement, on
                   role="tab"
                   aria-selected={active}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`inline-flex shrink-0 items-center gap-2 rounded-control px-4 py-3 text-sm font-semibold transition ${
+                  className={`inline-flex shrink-0 items-center gap-2 rounded-full px-4 py-3 text-sm font-medium transition ${
                     active
                       ? 'bg-white text-slate-950'
-                      : 'border border-line bg-overlay text-ink-muted hover:bg-overlay-hover hover:text-white'
+                      : 'border border-line bg-surface-raised text-ink-muted hover:bg-overlay hover:text-ink'
                   }`}
                 >
                   <Icon size={16} />
@@ -527,7 +527,7 @@ export default function AdminPanel({ onClose, onLogout, notify, announcement, on
                       type="file"
                       accept="audio/*"
                       onChange={(event) => setAudioFile(event.target.files[0] || null)}
-                      className="w-full rounded-control border border-line bg-overlay px-4 py-3 text-sm text-ink-muted file:mr-3 file:rounded-control file:border-0 file:bg-sky-500 file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-white"
+                      className="w-full rounded-control border border-line bg-overlay px-4 py-3 text-sm text-ink-muted file:mr-3 file:rounded-control file:border-0 file:bg-ink file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-ink"
                     />
                   </AdminField>
                   <div className="grid gap-4 md:grid-cols-2">
@@ -563,7 +563,7 @@ export default function AdminPanel({ onClose, onLogout, notify, announcement, on
               {renderStatus('manage')}
               {loadingSamples ? (
                 <div className="py-8 text-center text-ink-muted">
-                  <Loader className="mx-auto mb-2 animate-spin text-sky-300" size={36} />
+                  <Loader className="mx-auto mb-2 animate-spin text-sky-600" size={36} />
                   <div>Loading samples...</div>
                 </div>
               ) : samples.length === 0 ? (
@@ -576,7 +576,7 @@ export default function AdminPanel({ onClose, onLogout, notify, announcement, on
                     <AdminCard key={sample.id}>
                       <div className="flex flex-wrap items-start justify-between gap-3">
                         <div className="min-w-0">
-                          <div className="text-base font-semibold text-white">{sample.topic}</div>
+                          <div className="text-base font-semibold text-ink">{sample.topic}</div>
                           <div className="mt-1 text-xs text-ink-subtle">{sample.speaker} | {sample.score}/2.0</div>
                         </div>
                         <div className="flex shrink-0 gap-2">
@@ -590,7 +590,7 @@ export default function AdminPanel({ onClose, onLogout, notify, announcement, on
                             href={sample.audioUrl}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-flex items-center justify-center gap-2 rounded-control border border-line bg-overlay px-4 py-2.5 text-sm font-semibold text-slate-200 transition hover:bg-overlay-hover"
+                            className="inline-flex items-center justify-center gap-2 rounded-full border border-line bg-surface-raised px-4 py-2.5 text-sm font-medium text-ink transition hover:bg-overlay"
                           >
                             <Eye size={14} />
                             Open
@@ -648,9 +648,9 @@ export default function AdminPanel({ onClose, onLogout, notify, announcement, on
               </AdminCard>
 
               <div>
-                <h3 className="mb-3 text-base font-semibold text-white">Question bank ({questions.length})</h3>
+                <h3 className="mb-3 text-base font-semibold text-ink">Question bank ({questions.length})</h3>
                 {loadingQuestions ? (
-                  <div className="py-8 text-center"><Loader className="mx-auto animate-spin text-sky-300" size={36} /></div>
+                  <div className="py-8 text-center"><Loader className="mx-auto animate-spin text-sky-600" size={36} /></div>
                 ) : questions.length === 0 ? (
                   <div className="rounded-card border border-dashed border-line bg-overlay p-5 text-sm text-ink-muted">
                     No questions yet. Add your first question above.
@@ -675,7 +675,7 @@ export default function AdminPanel({ onClose, onLogout, notify, announcement, on
                         ) : (
                           <>
                             <div className="mb-2 flex items-start justify-between gap-3">
-                              <div className="text-base font-semibold text-white">{questionItem.topic}</div>
+                              <div className="text-base font-semibold text-ink">{questionItem.topic}</div>
                               <div className="flex shrink-0 gap-2">
                                 <AdminButton tone="neutral" onClick={() => startEditQuestion(questionItem)} aria-label="Edit question">
                                   <Edit3 size={14} />
@@ -703,7 +703,7 @@ export default function AdminPanel({ onClose, onLogout, notify, announcement, on
                 <div className="space-y-4">
                   <label className="flex items-center justify-between gap-4 rounded-control border border-line bg-overlay px-4 py-3">
                     <span>
-                      <span className="block font-semibold text-white">Show announcement</span>
+                      <span className="block font-semibold text-ink">Show announcement</span>
                       <span className="mt-1 block text-sm text-ink-muted">Display the banner directly under the main menu.</span>
                     </span>
                     <input
@@ -724,9 +724,9 @@ export default function AdminPanel({ onClose, onLogout, notify, announcement, on
                     />
                   </AdminField>
                   <div className="rounded-control border border-line bg-surface-sunken/60 p-4">
-                    <div className="mb-2 text-xs font-semibold uppercase tracking-[0.16em] text-ink-subtle">Preview</div>
+                    <div className="mb-2 text-xs font-semibold tracking-normal text-ink-subtle">Preview</div>
                     {announcementDraft.enabled && announcementDraft.message ? (
-                      <div className="rounded-control border border-sky-400/20 bg-sky-400/10 px-4 py-2 text-center text-sm font-medium text-sky-200">
+                      <div className="rounded-control border border-sky-200 bg-sky-50 px-4 py-2 text-center text-sm font-medium text-sky-700">
                         {announcementDraft.message}
                       </div>
                     ) : (
@@ -746,7 +746,7 @@ export default function AdminPanel({ onClose, onLogout, notify, announcement, on
               {renderStatus('moderation')}
               {loadingCommunityPosts ? (
                 <div className="py-8 text-center text-ink-muted">
-                  <Loader className="mx-auto mb-2 animate-spin text-sky-300" size={36} />
+                  <Loader className="mx-auto mb-2 animate-spin text-sky-600" size={36} />
                   <div>Loading community posts...</div>
                 </div>
               ) : communityPosts.length === 0 ? (
@@ -759,7 +759,7 @@ export default function AdminPanel({ onClose, onLogout, notify, announcement, on
                     <AdminCard key={post.id}>
                       <div className="flex flex-wrap items-start justify-between gap-3">
                         <div className="min-w-0">
-                          <div className="text-base font-semibold text-white">{post.title}</div>
+                          <div className="text-base font-semibold text-ink">{post.title}</div>
                           <div className="mt-1 text-xs text-ink-subtle">@{post.author?.username || 'unknown'} | reports: {post.reportedCount || 0}</div>
                         </div>
                         <div className="flex shrink-0 gap-2">
@@ -791,7 +791,7 @@ export default function AdminPanel({ onClose, onLogout, notify, announcement, on
               {renderStatus('feedback')}
               {loadingFeedback ? (
                 <div className="py-8 text-center text-ink-muted">
-                  <Loader className="mx-auto mb-2 animate-spin text-sky-300" size={36} />
+                  <Loader className="mx-auto mb-2 animate-spin text-sky-600" size={36} />
                   <div>Loading feedback...</div>
                 </div>
               ) : feedbackItems.length === 0 ? (
@@ -816,7 +816,7 @@ export default function AdminPanel({ onClose, onLogout, notify, announcement, on
                             {item.resolved ? 'Reopen' : 'Mark done'}
                           </AdminButton>
                         </div>
-                        <p className="mt-3 whitespace-pre-line break-words text-sm leading-6 text-white">{item.message}</p>
+                        <p className="mt-3 whitespace-pre-line break-words text-sm leading-6 text-ink">{item.message}</p>
                       </div>
                     </AdminCard>
                   ))}
@@ -834,9 +834,9 @@ export default function AdminPanel({ onClose, onLogout, notify, announcement, on
                 ) : runtimeStatus ? (
                   <dl className="grid gap-3 sm:grid-cols-2">
                     {runtimeRows.map(([label, value]) => (
-                      <div key={label} className="rounded-control border border-line bg-surface-sunken/60 p-3 text-sm text-slate-200">
+                      <div key={label} className="rounded-control border border-line bg-surface-sunken/60 p-3 text-sm text-ink">
                         <dt className="inline text-ink-muted">{label}: </dt>
-                        <dd className="inline font-semibold text-white">{value}</dd>
+                        <dd className="inline font-semibold text-ink">{value}</dd>
                       </div>
                     ))}
                   </dl>

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { apiFetch } from '../apiClient';
 import { CODE_INPUT_CLASSNAME, cleanCode } from '../components/VerifyEmailNotice';
-import { Lock, LogIn, Mail, UserPlus, UserRound } from 'lucide-react';
+import { Check, Lock, LogIn, Mail, UserPlus, UserRound } from 'lucide-react';
 import { FIELD_CLASSNAME, LabeledInput } from '../components/ProfileBits';
 
 const emptyForm = (currentUser) => ({
@@ -58,7 +58,7 @@ function ForgotPasswordPanel({ email, onPasswordReset }) {
 
   return (
     <div className="rounded-card border border-line bg-overlay p-4">
-      <div className="font-semibold text-white">Reset your password</div>
+      <div className="font-semibold text-ink">Reset your password</div>
       {!codeSent ? (
         <>
           <p className="mt-1 text-ink-muted">Enter your account email above, and we&apos;ll email you a 6-digit code.</p>
@@ -66,7 +66,7 @@ function ForgotPasswordPanel({ email, onPasswordReset }) {
             type="button"
             onClick={sendCode}
             disabled={busy || !email.trim()}
-            className="mt-3 inline-flex items-center justify-center rounded-control bg-sky-500 px-4 py-2 font-semibold text-white transition hover:bg-sky-400 disabled:cursor-not-allowed disabled:opacity-60"
+            className="mt-3 inline-flex items-center justify-center rounded-full bg-ink px-4 py-2 font-medium text-white transition hover:bg-ink/85 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {busy ? 'Sending...' : 'Email me a code'}
           </button>
@@ -99,7 +99,7 @@ function ForgotPasswordPanel({ email, onPasswordReset }) {
             <button
               type="submit"
               disabled={busy || code.length !== 6}
-              className="inline-flex items-center justify-center rounded-control bg-sky-500 px-4 py-2 font-semibold text-white transition hover:bg-sky-400 disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex items-center justify-center rounded-full bg-ink px-4 py-2 font-medium text-white transition hover:bg-ink/85 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {busy ? 'Saving...' : 'Set new password'}
             </button>
@@ -107,7 +107,7 @@ function ForgotPasswordPanel({ email, onPasswordReset }) {
               type="button"
               onClick={sendCode}
               disabled={busy}
-              className="rounded-control border border-line px-4 py-2 font-semibold text-slate-200 transition hover:bg-overlay-hover disabled:cursor-not-allowed disabled:opacity-60"
+              className="rounded-full border border-line px-4 py-2 font-medium text-ink transition hover:bg-overlay disabled:cursor-not-allowed disabled:opacity-60"
             >
               Send a new code
             </button>
@@ -115,7 +115,7 @@ function ForgotPasswordPanel({ email, onPasswordReset }) {
         </form>
       )}
       {status && (
-        <p className={`mt-3 ${status.tone === 'error' ? 'text-rose-200' : 'text-emerald-200'}`} role="status">{status.text}</p>
+        <p className={`mt-3 ${status.tone === 'error' ? 'text-rose-700' : 'text-emerald-700'}`} role="status">{status.text}</p>
       )}
     </div>
   );
@@ -147,42 +147,38 @@ export default function AuthPage({ authMode, setAuthMode, onSubmit, onContinueAs
     <section className="mx-auto min-w-0 max-w-5xl overflow-hidden rounded-panel border border-line bg-surface-raised">
       <div className="grid min-w-0 gap-0 lg:grid-cols-[minmax(0,0.92fr)_minmax(0,1.08fr)]">
         <div className="border-b border-line bg-surface-sunken p-5 sm:p-8 lg:border-b-0 lg:border-r">
-          <div className="inline-flex max-w-full items-center gap-2 rounded-full border border-sky-400/30 bg-sky-400/10 px-3 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-sky-200 sm:px-4">
-            {isSignup ? <UserPlus size={14} /> : <LogIn size={14} />}
-            Account access
-          </div>
-          <h1 className="mt-5 text-2xl font-bold tracking-tight text-white sm:text-3xl">
+          <h1 className="text-[1.75rem] font-semibold leading-tight text-ink sm:text-[2rem]">
             {isSignup ? 'Create your necs. profile' : 'Welcome back to necs.'}
           </h1>
-          <p className="mt-4 text-sm leading-6 text-ink-muted">
+          <p className="mt-3 text-sm leading-6 text-ink-muted">
             {isSignup
               ? 'Create one account, keep one profile, and edit the details later from your settings page.'
               : 'Log in to restore your saved profile and continue with the same account details.'}
           </p>
-          <div className="mt-6 space-y-3">
-            <div className="rounded-card border border-line bg-overlay p-4 text-sm text-ink-muted">
-              <div className="font-semibold text-white">Consistent account data</div>
-              <div className="mt-2">Your email, username and profile details stay tied to one account.</div>
-            </div>
-            <div className="rounded-card border border-line bg-overlay p-4 text-sm text-ink-muted">
-              <div className="font-semibold text-white">Saved practice history</div>
-              <div className="mt-2">Signed-in sessions are stored, so scores and streaks build up over time.</div>
-            </div>
-            <div className="rounded-card border border-line bg-overlay p-4 text-sm text-ink-muted">
-              <div className="font-semibold text-white">Or practise as a guest</div>
-              <div className="mt-2">You can analyse a recording without an account. Guest sessions are not saved.</div>
-            </div>
-          </div>
+          <ul className="mt-8 space-y-4 text-sm leading-6">
+            {[
+              ['Every attempt is kept', 'Scores, written feedback and the report stay on your profile.'],
+              ['Progress you can see', 'Your average, best score and streak build up as you practise.'],
+            ].map(([title, body]) => (
+              <li key={title} className="flex gap-3">
+                <Check size={18} className="mt-0.5 shrink-0 text-sky-600" />
+                <span>
+                  <span className="block font-medium text-ink">{title}</span>
+                  <span className="text-ink-muted">{body}</span>
+                </span>
+              </li>
+            ))}
+          </ul>
         </div>
 
         <div className="min-w-0 p-5 sm:p-8">
           {authChecking && !currentUser && (
-            <div className="mb-4 rounded-card border border-line bg-overlay px-4 py-3 text-sm text-slate-200" role="status">
+            <div className="mb-4 rounded-card border border-line bg-overlay px-4 py-3 text-sm text-ink" role="status">
               Checking account session...
             </div>
           )}
           {authError && (
-            <div className="mb-4 rounded-card border border-rose-400/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-100" role="alert">
+            <div className="mb-4 rounded-card border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700" role="alert">
               {authError}
             </div>
           )}
@@ -250,7 +246,7 @@ export default function AuthPage({ authMode, setAuthMode, onSubmit, onContinueAs
             <button
               type="submit"
               disabled={authSubmitting}
-              className="inline-flex w-full items-center justify-center gap-2 rounded-control bg-sky-500 px-6 py-3 font-semibold text-white transition hover:bg-sky-400 disabled:cursor-not-allowed disabled:opacity-70"
+              className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-ink px-6 py-3 font-medium text-white transition hover:bg-ink/85 disabled:cursor-not-allowed disabled:opacity-70"
             >
               {isSignup ? <UserPlus size={17} /> : <LogIn size={17} />}
               {authSubmitting ? 'Please wait...' : isSignup ? 'Create account' : 'Log in'}
@@ -260,7 +256,7 @@ export default function AuthPage({ authMode, setAuthMode, onSubmit, onContinueAs
           {!isSignup && (
             <div className="mt-4 text-sm">
               {!forgotOpen ? (
-                <button type="button" onClick={() => setForgotOpen(true)} className="font-semibold text-sky-300 transition hover:text-sky-200">
+                <button type="button" onClick={() => setForgotOpen(true)} className="font-semibold text-sky-600 transition hover:text-sky-700">
                   Forgot password?
                 </button>
               ) : (
@@ -274,7 +270,7 @@ export default function AuthPage({ authMode, setAuthMode, onSubmit, onContinueAs
             <button
               type="button"
               onClick={() => setAuthMode(isSignup ? 'login' : 'signup')}
-              className="font-semibold text-sky-300 transition hover:text-sky-200"
+              className="font-semibold text-sky-600 transition hover:text-sky-700"
             >
               {isSignup ? 'Log in instead' : 'Create one'}
             </button>
@@ -285,7 +281,7 @@ export default function AuthPage({ authMode, setAuthMode, onSubmit, onContinueAs
               <button
                 type="button"
                 onClick={onContinueAsGuest}
-                className="inline-flex w-full items-center justify-center gap-2 rounded-control border border-line bg-overlay px-6 py-3 font-semibold text-slate-200 transition hover:bg-overlay-hover"
+                className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-line bg-surface-raised px-6 py-3 font-medium text-ink transition hover:bg-overlay"
               >
                 <UserRound size={17} />
                 Continue as guest

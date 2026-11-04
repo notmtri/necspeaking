@@ -48,10 +48,10 @@ export default function PracticeHistoryItem({ session }) {
     <div className="rounded-card border border-line bg-overlay px-4 py-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="min-w-0">
-          <div className="truncate text-sm font-semibold text-white">{session.topic}</div>
+          <div className="truncate text-sm font-semibold text-ink">{session.topic}</div>
           <div className="mt-1 text-xs text-ink-subtle">{new Date(session.createdAt).toLocaleString()}</div>
         </div>
-        <div className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 text-sm font-semibold text-emerald-100">
+        <div className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-sm font-semibold text-emerald-700">
           {session.scores?.total ?? 0}/2.0
         </div>
       </div>
@@ -67,7 +67,7 @@ export default function PracticeHistoryItem({ session }) {
         onClick={toggle}
         aria-expanded={open}
         aria-controls={panelId}
-        className="mt-3 inline-flex min-h-[40px] items-center gap-2 rounded-control px-2 text-sm font-semibold text-sky-200 transition hover:text-sky-100"
+        className="mt-3 inline-flex min-h-[40px] items-center gap-2 rounded-control px-2 text-sm font-semibold text-sky-700 transition hover:text-sky-700"
       >
         <ChevronDown size={16} className={`transition-transform ${open ? 'rotate-180' : ''}`} />
         {open ? 'Hide feedback' : 'View feedback'}
@@ -85,33 +85,33 @@ export default function PracticeHistoryItem({ session }) {
               <Loader size={16} className="animate-spin" /> Loading feedback...
             </div>
           )}
-          {error && <p className="text-sm text-rose-200" role="alert">{error}</p>}
+          {error && <p className="text-sm text-rose-700" role="alert">{error}</p>}
           {detail?.feedback && (
             <>
               <div className="grid gap-3 lg:grid-cols-3">
                 {CRITERIA.map((criterion) => (
                   <div key={criterion.key} className="rounded-control border border-line bg-surface-sunken p-3">
-                    <div className="text-sm font-semibold text-white">{criterion.label}</div>
+                    <div className="text-sm font-semibold text-ink">{criterion.label}</div>
                     <div className="mt-1 text-sm leading-6 text-ink-muted">{detail.feedback[criterion.key]}</div>
                   </div>
                 ))}
               </div>
               {detail.sampleResponse && (
-                <details className="rounded-control border border-amber-400/20 bg-amber-400/10 p-3">
-                  <summary className="cursor-pointer text-sm font-semibold text-white">Sample 2.0 response</summary>
-                  <div className="mt-2 whitespace-pre-line text-sm leading-6 text-slate-200">{detail.sampleResponse}</div>
+                <details className="rounded-control border border-amber-200 bg-amber-50 p-3">
+                  <summary className="cursor-pointer text-sm font-semibold text-ink">Sample 2.0 response</summary>
+                  <div className="mt-2 whitespace-pre-line text-sm leading-6 text-ink">{detail.sampleResponse}</div>
                 </details>
               )}
               {detail.transcript && (
                 <details className="rounded-control border border-line bg-surface-sunken p-3">
-                  <summary className="cursor-pointer text-sm font-semibold text-white">Your transcript</summary>
+                  <summary className="cursor-pointer text-sm font-semibold text-ink">Your transcript</summary>
                   <div className="mt-2 whitespace-pre-line text-sm leading-6 text-ink-muted">{detail.transcript}</div>
                 </details>
               )}
               <button
                 type="button"
                 onClick={downloadReport}
-                className="inline-flex items-center justify-center gap-2 rounded-control border border-line bg-overlay px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-overlay-hover"
+                className="inline-flex items-center justify-center gap-2 rounded-full border border-line bg-surface-raised px-4 py-2.5 text-sm font-medium text-ink transition hover:bg-overlay"
               >
                 <Download size={15} />
                 Download report
