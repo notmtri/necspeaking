@@ -1,7 +1,7 @@
 import React, { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import QuestionPicker, { describeQuestion, resetQuestionBankCache } from './QuestionPicker';
+import QuestionPicker, { describeQuestion, newestPapersFirst, resetQuestionBankCache } from './QuestionPicker';
 
 const json = (payload, status = 200) => ({
   ok: status < 400, status, headers: { get: () => 'application/json' }, json: async () => payload,
@@ -38,6 +38,19 @@ describe('describeQuestion', () => {
     const q = describeQuestion(BANK[2]);
     expect(q.number).toBe(10);
     expect(q.text.startsWith('"One of the most difficult')).toBe(true);
+  });
+});
+
+describe('newestPapersFirst', () => {
+  it('puts the newest paper on top, each paper in its printed order', () => {
+    const bank = [
+      { id: 281, topic: 'NEC 24-25', question: 'Question 2. Second.' },
+      { id: 280, topic: 'NEC 24-25', question: 'Question 1. First.' },
+      { id: 341, topic: 'NEC 18-19', question: '1. Old.' },
+      { id: 352, topic: 'NEC 25-26', question: '"Passage two."', number: 2 },
+      { id: 351, topic: 'NEC 25-26', question: '"Passage one."', number: 1 },
+    ];
+    expect(newestPapersFirst(bank).map((q) => q.id)).toEqual([351, 352, 280, 281, 341]);
   });
 });
 

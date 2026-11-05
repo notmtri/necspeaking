@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { AlertCircle, BookOpen, Check, CheckCircle, Circle, ClipboardCheck, Clock3, Download, Loader, Maximize2, Mic, Minimize2, Pause, RefreshCcw, Shuffle, SkipForward, Volume2 } from 'lucide-react';
 import { PageHeader } from '../components/AppChrome';
 import AudioPlayer from '../components/AudioPlayer';
+import { newestPapersFirst } from '../components/QuestionPicker';
 import ResultsPanel from '../components/ResultsPanel';
 import { TONES, formatTime } from '../appShared';
 import { apiFetch, isAbortError } from '../apiClient';
@@ -302,7 +303,7 @@ export default function SimulationMode({ onAnalysisUserUpdate, onDownloadReport,
     setLoadingQuestionBank(true);
     try {
       const data = await apiFetch('/api/questions', { signal });
-      setQuestionBank(data.questions || []);
+      setQuestionBank(newestPapersFirst(data.questions));
     } catch (fetchError) {
       if (isAbortError(fetchError)) return;
       setQuestionBank([]);

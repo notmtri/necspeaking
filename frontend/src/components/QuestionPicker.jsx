@@ -33,6 +33,19 @@ function paperYear(paper) {
   return match ? Number(match[1]) : -1;
 }
 
+/**
+ * Bank questions newest paper first, each paper in its printed order: the
+ * order the picker shows and Simulation lists. Questions are added oldest
+ * year first, so the server's order puts the newest paper last.
+ */
+export function newestPapersFirst(questions) {
+  return (questions || [])
+    .map((question) => ({ question, described: describeQuestion(question) }))
+    .sort((a, b) => paperYear(b.described.paper) - paperYear(a.described.paper)
+      || (a.described.number ?? 99) - (b.described.number ?? 99))
+    .map(({ question }) => question);
+}
+
 let bankRequest = null;
 function loadBank() {
   // The bank rarely changes; one request per page load is plenty. It is
