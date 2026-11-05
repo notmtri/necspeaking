@@ -161,9 +161,9 @@ export const HOME_FEEDBACK = [
   { name: 'Ha Van Gia Cat', role: 'First prize - NEC 25-26', quote: '"Amazing app, intuitive design, 10/10."', image: '/gcat.jpg' },
   { name: 'Annie Le Hamel', role: 'Third prize - NEC 25-26', quote: '"Great app! It really helps boost pronunciation and speaking confidence with quick, useful feedback and tailored examples."', image: '/annie.jpg' },
   { name: 'Doan Tran Anh Huy', role: 'Third prize - NEC 25-26', quote: '"After 2 weeks of intensively honing my speaking skills on NECS, I attained the second highest speaking score nationwide!"', image: '/ahuy.jpg' },
-  { name: 'Nguyen Minh Tien', role: 'Second prize - NEC 24-25 & 25-26', quote: '"Students liked having one place to practice, compare examples, and build confidence before the real assessment."' },
-  { name: 'Dinh Thi Lam Tra', role: 'Teacher | Le Quy Don HSGS - Nam Nha Trang', quote: 'The interface felt clear and fast, so I could focus on speaking instead of figuring out what to click next.' },
-  { name: 'Tran Khanh Minh', role: 'Khanh Hoa NEC Team 25-26', quote: 'The report format made it easier to review patterns across multiple practice sessions.' },
+  { name: 'Nguyen Minh Tien', role: 'Second prize - NEC 24-25 & 25-26', quote: '"Students liked having one place to practice, compare examples, and build confidence before the real assessment."', image: '/mtien.jpg' },
+  { name: 'Dinh Thi Lam Tra', role: 'Teacher | Le Quy Don HSGS - Nam Nha Trang', quote: 'The interface felt clear and fast, so I could focus on speaking instead of figuring out what to click next.', image: '/lamtra.jpg' },
+  { name: 'Tran Khanh Minh', role: 'Khanh Hoa NEC Team 25-26', quote: 'The report format made it easier to review patterns across multiple practice sessions.', image: '/kminh.jpg' },
 ];
 
 export const HOME_BENEFITS = [
