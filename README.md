@@ -89,8 +89,13 @@ From the repo root, `npm run start` forwards to the frontend dev server.
   never return the session cookie that holds the token, so requiring it
   rejected every guest upload from those browsers.
 - The API is served as **`https://api.necspeaking.com`** (Render custom domain
-  on `necspeaking-backend`, `CNAME api -> necspeaking-backend.onrender.com` in
-  Vercel DNS). That makes it the same site as `www.necspeaking.com`, so the
+  on `necspeaking-api-sg`, region **Singapore**, `CNAME api ->
+  necspeaking-api-sg.onrender.com` in Vercel DNS). It moved from Oregon on
+  2026-11-05: the database is Supabase in Mumbai, and from Oregon every
+  database round trip cost about 250 ms (1.2-3 s per signed-in request);
+  from Singapore the same requests take 0.1-0.7 s. The old Oregon service
+  `necspeaking-backend` is suspended, not deleted. The new service has no
+  Root Directory set; its commands `cd backend` instead. That makes it the same site as `www.necspeaking.com`, so the
   session cookie is first-party and logins persist in browsers that block
   third-party cookies (Safari/iOS, Brave, incognito Chrome); on the old
   `onrender.com` host they silently did not. Production sets
