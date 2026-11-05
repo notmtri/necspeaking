@@ -1898,7 +1898,9 @@ def delete_sample(sample_id):
 
 @app.route('/api/questions', methods=['GET'])
 def get_questions():
-    questions = Question.query.all()
+    # In the order they were added: within a year that is the paper's order,
+    # which the picker keeps when questions carry no "Question N." number.
+    questions = Question.query.order_by(Question.id).all()
     return jsonify({"questions": [q.to_dict() for q in questions]})
 
 

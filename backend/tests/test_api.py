@@ -669,6 +669,17 @@ class ApiSmokeTests(unittest.TestCase):
         blanked = self.client.put(f'/api/questions/{question_id}', json={'question': '   '})
         self.assertEqual(blanked.status_code, 400)
 
+    def test_questions_come_back_in_the_order_they_were_added(self):
+        """Without a "Question N." number the picker keeps the server's order,
+        and Postgres returns an edited row wherever it likes unless asked."""
+        with self.client.session_transaction() as session:
+            session['admin_authenticated'] = True
+        ids = [self.client.post('/api/questions', json={'topic': 'NEC 25-26', 'question': f'Passage {n}'}).get_json()['id']
+               for n in range(1, 4)]
+        self.client.put(f'/api/questions/{ids[0]}', json={'question': 'Passage 1, edited'})
+        listed = [q['id'] for q in self.client.get('/api/questions').get_json()['questions']]
+        self.assertEqual([i for i in listed if i in ids], ids)
+
     def test_sample_score_is_validated(self):
         with app_module.app.app_context():
             sample = Sample(filename='s.mp3', topic='t', speaker='s', transcript='x', feedback='y')
