@@ -25,7 +25,7 @@ import random
 from sqlalchemy import inspect, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.engine import make_url
-from sqlalchemy.orm import configure_mappers, defer
+from sqlalchemy.orm import configure_mappers, defer, joinedload
 
 from analysis_service import allowed_file, build_job_storage_path, cleanup_old_files, generate_docx, get_audio_duration
 from database import MAX_AVATAR_CHARS, MAX_COVER_CHARS, MAX_POST_IMAGE_CHARS, POST_REACTIONS, AnalysisJob, AppAnnouncement, CommunityPost, CommunityPostReaction, CommunityPostReport, FeedbackMessage, Question, RateLimitEntry, Sample, User, UserPracticeSession, avatar_from_name, build_prompt_key, db, utcnow
@@ -756,15 +756,16 @@ def auth_community():
     query = User.query.order_by(User.updated_at.desc(), User.created_at.desc())
     # A plain count; Query.count() wraps a SELECT of every column, avatar included.
     total = db.session.query(db.func.count(User.id)).scalar()
-    # Oversized legacy avatars are never served, so never fetch them either.
+    # No picture leaves the database: only whether each person has a photo,
+    # which the list then links to (User.has_photo_column).
     rows = (
         query.options(defer(User.avatar))
-        .add_columns(User.servable_avatar_column().label('servable_avatar'))
+        .add_columns(User.has_photo_column().label('has_photo'))
         .offset(offset).limit(limit).all()
     )
 
     return jsonify({
-        "profiles": [user.to_public_dict(stored_avatar=avatar) for user, avatar in rows],
+        "profiles": [user.to_public_dict(has_photo=bool(has_photo)) for user, has_photo in rows],
         "total": total,
         "limit": limit,
         "offset": offset,
@@ -823,12 +824,28 @@ def reaction_summary(post_ids, user=None):
     return counts, mine
 
 
+def load_posts(query):
+    """Posts with their authors in one query, and which authors have a photo
+    in one more. Loading each author on its own cost a round trip to the
+    database per author; their photos are linked, never fetched."""
+    posts = query.options(joinedload(CommunityPost.user).defer(User.avatar)).all()
+    author_ids = {post.user_id for post in posts if post.user_id}
+    has_photo = dict(
+        db.session.query(User.id, User.has_photo_column()).filter(User.id.in_(author_ids)).all()
+    ) if author_ids else {}
+    return posts, has_photo
+
+
 @app.route('/api/community/posts', methods=['GET'])
 def get_community_posts():
-    posts = CommunityPost.query.filter_by(hidden=False).order_by(CommunityPost.created_at.desc()).limit(50).all()
+    posts, has_photo = load_posts(
+        CommunityPost.query.filter_by(hidden=False).order_by(CommunityPost.created_at.desc()).limit(50)
+    )
     counts, mine = reaction_summary([post.id for post in posts], get_current_user())
     return jsonify({"posts": [
-        post.to_dict(reactions=counts.get(post.id), my_reactions=mine.get(post.id)) for post in posts
+        post.to_dict(reactions=counts.get(post.id), my_reactions=mine.get(post.id),
+                     author_has_photo=bool(has_photo.get(post.user_id)))
+        for post in posts
     ]})
 
 
@@ -898,6 +915,18 @@ def public_achievements(user_id):
     if not user:
         return jsonify({"error": "Profile not found."}), 404
     return jsonify({"achievements": earned_badges(*achievement_inputs(user))})
+
+
+@app.route('/api/users/<int:user_id>/avatar', methods=['GET'])
+def get_user_avatar(user_id):
+    """An uploaded profile photo, linked from lists of people (avatarUrl)."""
+    user = db.session.get(User, user_id)
+    if not user or not user.has_servable_photo():
+        return jsonify({"error": "Photo not found."}), 404
+    match = IMAGE_DATA_URI.match(user.avatar)
+    if not match:
+        return jsonify({"error": "Photo not found."}), 404
+    return send_data_uri_image(user.avatar, match.group(1))
 
 
 @app.route('/api/users/<int:user_id>/cover', methods=['GET'])
@@ -1532,8 +1561,11 @@ def admin_runtime_status():
 @app.route('/api/admin/community/posts', methods=['GET'])
 @require_admin()
 def admin_community_posts():
-    posts = CommunityPost.query.order_by(CommunityPost.created_at.desc()).limit(100).all()
-    return jsonify({"posts": [post.to_dict(include_moderation=True) for post in posts]})
+    posts, has_photo = load_posts(CommunityPost.query.order_by(CommunityPost.created_at.desc()).limit(100))
+    return jsonify({"posts": [
+        post.to_dict(include_moderation=True, author_has_photo=bool(has_photo.get(post.user_id)))
+        for post in posts
+    ]})
 
 
 @app.route('/api/admin/community/posts/<int:post_id>/visibility', methods=['PUT'])

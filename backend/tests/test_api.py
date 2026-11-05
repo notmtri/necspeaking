@@ -583,13 +583,18 @@ class ApiSmokeTests(unittest.TestCase):
 
         response = self.client.get('/api/auth/community')
         profile = response.get_json()['profiles'][0]
-        self.assertTrue(profile['avatar'].startswith('data:image/svg+xml'))
+        # No photo link, so the site shows its placeholder; nothing big is sent.
+        self.assertEqual(profile['avatar'], '')
+        self.assertIsNone(profile['avatarUrl'])
         self.assertLess(len(response.get_data()), 20 * 1024)
+        user_id = int(profile['id'].split('-')[1])
+        self.assertEqual(self.client.get(f'/api/users/{user_id}/avatar').status_code, 404)
 
-    def test_community_listing_never_fetches_oversized_avatars(self):
-        """Discarding big photos in Python still pulled ~2.4 MB across regions
-        per listing. The query must leave them in the database, without
-        falling back to one lazy load per user."""
+    def test_community_listing_never_fetches_avatars(self):
+        """Every listing used to carry every avatar from the database across
+        regions (230 KB for 121 people). The query must leave all of them in
+        the database, link to the photos instead, and not fall back to one
+        lazy load per user."""
         from sqlalchemy import event
 
         small = 'data:image/jpeg;base64,' + 'B' * 5000
@@ -614,8 +619,15 @@ class ApiSmokeTests(unittest.TestCase):
             event.remove(engine, 'before_cursor_execute', capture)
 
         profiles = {p['username']: p for p in response.get_json()['profiles']}
-        self.assertEqual(profiles['smallone']['avatar'], small)
-        self.assertTrue(profiles['bigone']['avatar'].startswith('data:image/svg+xml'))
+        self.assertEqual(profiles['smallone']['avatar'], '')
+        self.assertRegex(profiles['smallone']['avatarUrl'], r'^/api/users/\d+/avatar\?v=\d+$')
+        self.assertIsNone(profiles['bigone']['avatarUrl'])  # oversized: placeholder, as before
+        self.assertNotIn(b'BBBBBBBBBB', response.get_data())
+
+        photo = self.client.get(profiles['smallone']['avatarUrl'])
+        self.assertEqual(photo.status_code, 200)
+        self.assertEqual(photo.mimetype, 'image/jpeg')
+        self.assertIn('immutable', photo.headers['Cache-Control'])
 
         user_selects = [s for s in statements if 'FROM users' in s]
         self.assertEqual(len(user_selects), 2, 'one count and one page query, no per-user lazy loads')

@@ -128,6 +128,56 @@ class CommunityMediaTests(unittest.TestCase):
         removed = student.put('/api/auth/profile', json={'cover': ''}).get_json()['user']
         self.assertIsNone(removed['coverUrl'])
 
+    # --- profile photos in lists ---
+
+    def test_post_authors_link_to_their_photo_instead_of_carrying_it(self):
+        author = self.account('author')
+        author.put('/api/auth/profile', json={'avatar': PNG_URI})
+        self.post(author)
+        plain = self.account('plain')
+        self.post(plain)
+
+        posts = app_module.app.test_client().get('/api/community/posts').get_json()['posts']
+        by_name = {p['author']['username']: p['author'] for p in posts}
+        self.assertEqual(by_name['author']['avatar'], '')
+        self.assertIsNone(by_name['plain']['avatarUrl'])  # generated initials: the placeholder
+
+        photo = app_module.app.test_client().get(by_name['author']['avatarUrl'])
+        self.assertEqual(photo.status_code, 200)
+        self.assertEqual(photo.mimetype, 'image/png')
+        self.assertEqual(photo.data, PNG_BYTES)
+
+    def test_posts_load_their_authors_without_one_query_each(self):
+        from sqlalchemy import event
+        for name in ('ana', 'bao', 'chi', 'dan'):
+            self.post(self.account(name))
+        statements = []
+        with app_module.app.app_context():
+            engine = db.engine
+        capture = lambda conn, cursor, statement, *args: statements.append(statement)  # noqa: E731
+        event.listen(engine, 'before_cursor_execute', capture)
+        try:
+            response = app_module.app.test_client().get('/api/community/posts')
+        finally:
+            event.remove(engine, 'before_cursor_execute', capture)
+        self.assertEqual(len(response.get_json()['posts']), 4)
+        user_queries = [s for s in statements if 'FROM users' in s or 'JOIN users' in s]
+        self.assertLessEqual(len(user_queries), 2, 'posts with their authors, then who has a photo')
+        for statement in user_queries:
+            self.assertNotIn('users.avatar AS', statement)
+
+    def test_a_new_photo_gets_a_new_link(self):
+        browser = self.account('mover')
+        browser.put('/api/auth/profile', json={'avatar': PNG_URI})
+        self.post(browser)
+        first = app_module.app.test_client().get('/api/auth/community').get_json()['profiles'][0]['avatarUrl']
+        import time
+        time.sleep(1.1)  # the link's version is the save time, to the second
+        other = 'data:image/png;base64,' + base64.b64encode(PNG_BYTES + bytes(1)).decode()
+        browser.put('/api/auth/profile', json={'avatar': other})
+        second = app_module.app.test_client().get('/api/auth/community').get_json()['profiles'][0]['avatarUrl']
+        self.assertNotEqual(first, second)
+
     def test_saving_only_a_cover_keeps_the_profile_photo(self):
         student = self.account('student')
         with_photo = student.put('/api/auth/profile', json={'avatar': PNG_URI}).get_json()['user']

@@ -1,5 +1,5 @@
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import case, func
+from sqlalchemy import and_, case, func, or_
 from sqlalchemy.orm import deferred
 from datetime import datetime, timezone
 import hashlib
@@ -27,6 +27,8 @@ ADMIN_USERNAMES = {'notmtri'}
 # hard ceiling regardless of what the client sends. The frontend downscales to a
 # 256px JPEG (tens of KB); this is the independent backstop.
 MAX_AVATAR_CHARS = 200 * 1024
+# Photo types /api/users/<id>/avatar serves (the same as app.IMAGE_DATA_URI).
+SERVABLE_PHOTO_TYPES = ('image/jpeg', 'image/png', 'image/webp')
 # Cover photos and post images are wider and kept out of listing queries
 # (deferred columns, served from their own cached URLs), so they can be larger.
 MAX_COVER_CHARS = 700 * 1024
@@ -108,6 +110,33 @@ class User(db.Model):
         """
         return case((func.length(cls.avatar) <= MAX_AVATAR_CHARS, cls.avatar), else_='')
 
+    @classmethod
+    def has_photo_column(cls):
+        """SQL: does this user have an uploaded photo we would serve?
+
+        Lists of people (the community, post authors) send a link to the photo
+        instead of the photo itself: true here means "link to
+        /api/users/<id>/avatar", false means "no photo, show the placeholder".
+        Only the answer leaves the database, not the picture -- every listing
+        used to carry every avatar from Mumbai, 230 KB for 121 people, 116 of
+        them generated initials the site never shows.
+        """
+        return case(
+            (and_(
+                or_(*(cls.avatar.like(f'data:{mime};base64,%') for mime in SERVABLE_PHOTO_TYPES)),
+                func.length(cls.avatar) <= MAX_AVATAR_CHARS,
+            ), True),
+            else_=False,
+        )
+
+    def avatar_url(self, has_photo):
+        """Link to the uploaded photo, or None. The version changes whenever the
+        profile is saved, so a new photo is never served from an old cache."""
+        if not has_photo:
+            return None
+        version = int(self.updated_at.timestamp()) if self.updated_at else 0
+        return f'/api/users/{self.id}/avatar?v={version}'
+
     def display_avatar(self, stored=None):
         """The avatar to serve, never larger than MAX_AVATAR_CHARS.
 
@@ -121,6 +150,12 @@ class User(db.Model):
         if not avatar or len(avatar) > MAX_AVATAR_CHARS:
             return avatar_from_name(self.name)
         return avatar
+
+    def has_servable_photo(self):
+        """has_photo_column, in Python, for a user already loaded."""
+        avatar = self.avatar or ''
+        return (any(avatar.startswith(f'data:{mime};base64,') for mime in SERVABLE_PHOTO_TYPES)
+                and len(avatar) <= MAX_AVATAR_CHARS)
 
     def cover_url(self):
         if not self.cover_updated_at:
@@ -153,8 +188,13 @@ class User(db.Model):
         data['emailVerified'] = self.email_verified_at is not None
         return data
 
-    def to_public_dict(self, stored_avatar=None):
-        return self._base_profile(stored_avatar)
+    def to_public_dict(self, has_photo=False):
+        """A profile as anyone may see it, with the photo as a link (avatarUrl)
+        rather than inline. avatar is '' so the site shows its placeholder."""
+        data = self._base_profile(stored_avatar='')
+        data['avatar'] = ''
+        data['avatarUrl'] = self.avatar_url(has_photo)
+        return data
 
 
 # "Question 2." / "Question 2:" / "22." -- how a question was numbered on the
@@ -281,7 +321,7 @@ class CommunityPost(db.Model):
 
     user = db.relationship('User', backref=db.backref('community_posts', lazy=True, cascade='all, delete-orphan'))
 
-    def to_dict(self, include_moderation=False, reactions=None, my_reactions=None):
+    def to_dict(self, include_moderation=False, reactions=None, my_reactions=None, author_has_photo=None):
         author = self.user
         author_is_admin = is_special_admin(author.username) if author else False
         payload = {
@@ -300,7 +340,13 @@ class CommunityPost(db.Model):
                 'username': author.username if author else '',
                 'role': 'Admin' if author_is_admin else (author.role if author else 'Student'),
                 'isAdmin': author_is_admin,
-                'avatar': author.display_avatar() if author else '',
+                # A link, not the picture: see User.has_photo_column. Callers
+                # that list posts pass author_has_photo; a lone post (just
+                # created) looks it up from the loaded author.
+                'avatar': '',
+                'avatarUrl': author.avatar_url(
+                    author_has_photo if author_has_photo is not None else author.has_servable_photo()
+                ) if author else None,
             }
         }
         if include_moderation:

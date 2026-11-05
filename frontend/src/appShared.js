@@ -82,6 +82,8 @@ const isGeneratedAvatar = (src) => !src || String(src).startsWith('data:image/sv
 
 /** The picture to show for a profile: theirs, else the placeholder, else initials. */
 export const profileAvatar = (profile) => {
+  // Lists of people link to the photo instead of carrying it (avatarUrl).
+  if (profile?.avatarUrl) return apiAssetUrl(profile.avatarUrl);
   const src = profile?.avatar;
   if (isGeneratedAvatar(src) && DEFAULT_AVATAR_IMAGE) return DEFAULT_AVATAR_IMAGE;
   return src || createAvatarDataUri(profile?.name);
