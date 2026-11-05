@@ -86,6 +86,7 @@ export default function AdminPanel({ open = true, onExitComplete, onClose, onLog
   const [loadingQuestions, setLoadingQuestions] = useState(true);
   const [newQuestionTopic, setNewQuestionTopic] = useState('');
   const [newQuestionText, setNewQuestionText] = useState('');
+  const [newQuestionNumber, setNewQuestionNumber] = useState('');
   const [editingQuestionId, setEditingQuestionId] = useState(null);
   const [editQuestionData, setEditQuestionData] = useState({});
   const [announcementDraft, setAnnouncementDraft] = useState(announcement || EMPTY_ANNOUNCEMENT);
@@ -310,13 +311,14 @@ export default function AdminPanel({ open = true, onExitComplete, onClose, onLog
     try {
       const data = await apiFetch('/api/questions', {
         method: 'POST',
-        body: { topic: newQuestionTopic, question: newQuestionText },
+        body: { topic: newQuestionTopic, question: newQuestionText, number: newQuestionNumber },
       });
       if (data.success) {
         setScopedStatus('questions', 'Question added successfully.');
         notify?.('Question added.', 'success');
         setNewQuestionTopic('');
         setNewQuestionText('');
+        setNewQuestionNumber('');
         await fetchQuestions();
       } else {
         setScopedStatus('questions', data.error || 'Failed to add question.', 'error');
@@ -324,11 +326,11 @@ export default function AdminPanel({ open = true, onExitComplete, onClose, onLog
     } catch (error) {
       setScopedStatus('questions', error.message || 'Connection failed.', 'error');
     }
-  }, [fetchQuestions, newQuestionText, newQuestionTopic, notify, setScopedStatus]);
+  }, [fetchQuestions, newQuestionNumber, newQuestionText, newQuestionTopic, notify, setScopedStatus]);
 
   const startEditQuestion = useCallback((questionItem) => {
     setEditingQuestionId(questionItem.id);
-    setEditQuestionData({ topic: questionItem.topic || '', question: questionItem.question || '' });
+    setEditQuestionData({ topic: questionItem.topic || '', question: questionItem.question || '', number: questionItem.number ?? '' });
   }, []);
 
   const cancelEditQuestion = useCallback(() => {
@@ -632,9 +634,14 @@ export default function AdminPanel({ open = true, onExitComplete, onClose, onLog
               {renderStatus('questions')}
               <AdminCard title="Add new question" icon={HelpCircle}>
                 <div className="space-y-3">
-                  <AdminField label="Source">
-                    <input value={newQuestionTopic} onChange={(event) => setNewQuestionTopic(event.target.value)} placeholder="NEC 25-26" className={FIELD_CLASSNAME} />
-                  </AdminField>
+                  <div className="grid gap-3 sm:grid-cols-[1fr_8rem]">
+                    <AdminField label="Source">
+                      <input value={newQuestionTopic} onChange={(event) => setNewQuestionTopic(event.target.value)} placeholder="NEC 25-26" className={FIELD_CLASSNAME} />
+                    </AdminField>
+                    <AdminField label="Number (optional)">
+                      <input type="number" inputMode="numeric" min="1" max="99" value={newQuestionNumber} onChange={(event) => setNewQuestionNumber(event.target.value)} placeholder="1" className={FIELD_CLASSNAME} />
+                    </AdminField>
+                  </div>
                   <AdminField label="Question text">
                     <textarea value={newQuestionText} onChange={(event) => setNewQuestionText(event.target.value)} rows="3" className={FIELD_CLASSNAME} />
                   </AdminField>
@@ -656,9 +663,14 @@ export default function AdminPanel({ open = true, onExitComplete, onClose, onLog
                       <AdminCard key={questionItem.id}>
                         {editingQuestionId === questionItem.id ? (
                           <div className="space-y-3">
-                            <AdminField label="Source">
-                              <input value={editQuestionData.topic} onChange={(event) => setEditQuestionData({ ...editQuestionData, topic: event.target.value })} className={FIELD_CLASSNAME} />
-                            </AdminField>
+                            <div className="grid gap-3 sm:grid-cols-[1fr_8rem]">
+                              <AdminField label="Source">
+                                <input value={editQuestionData.topic} onChange={(event) => setEditQuestionData({ ...editQuestionData, topic: event.target.value })} className={FIELD_CLASSNAME} />
+                              </AdminField>
+                              <AdminField label="Number (optional)">
+                                <input type="number" inputMode="numeric" min="1" max="99" value={editQuestionData.number ?? ''} onChange={(event) => setEditQuestionData({ ...editQuestionData, number: event.target.value })} className={FIELD_CLASSNAME} />
+                              </AdminField>
+                            </div>
                             <AdminField label="Question text">
                               <textarea value={editQuestionData.question} onChange={(event) => setEditQuestionData({ ...editQuestionData, question: event.target.value })} rows="3" className={FIELD_CLASSNAME} />
                             </AdminField>
@@ -670,7 +682,10 @@ export default function AdminPanel({ open = true, onExitComplete, onClose, onLog
                         ) : (
                           <>
                             <div className="mb-2 flex items-start justify-between gap-3">
-                              <div className="text-base font-semibold text-ink">{questionItem.topic}</div>
+                              <div className="text-base font-semibold text-ink">
+                                {questionItem.topic}
+                                {Number.isInteger(questionItem.number) && <span className="ml-2 text-sm font-medium text-ink-muted">Q{questionItem.number}</span>}
+                              </div>
                               <div className="flex shrink-0 gap-2">
                                 <AdminButton tone="neutral" onClick={() => startEditQuestion(questionItem)} aria-label="Edit question">
                                   <Edit3 size={14} />

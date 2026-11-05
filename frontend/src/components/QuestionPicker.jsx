@@ -10,16 +10,20 @@ export function describeQuestion(question) {
   const raw = String(question?.question || '');
   const match = raw.match(NUMBERING);
   const text = raw.replace(NUMBERING, '').replace(BOILERPLATE, ' ').replace(/\s+/g, ' ').trim();
-  const number = match ? Number(match[1]) : null;
+  // A stored number (NEC 25-26 on) labels and sorts the question while its
+  // text stays exactly as entered; older years carry "Question N." in the text.
+  const stored = Number.isInteger(question?.number) ? question.number : null;
+  const number = stored ?? (match ? Number(match[1]) : null);
   const paper = String(question?.topic || '').trim();
   return {
     id: question?.id,
     paper,
     number,
     text,
-    // What goes into the prompt box: the paper's own numbering, which the
-    // grader uses for its "My question is..." opening, without the boilerplate.
-    promptText: number ? `Question ${number}. ${text}` : text,
+    // What goes into the prompt box: the paper's own numbering when the text
+    // carries it (the grader uses it for its "My question is..." opening),
+    // without the boilerplate; a stored-number question goes in as written.
+    promptText: stored !== null ? raw.trim() : (match ? `Question ${number}. ${text}` : text),
     label: [paper, number ? `Question ${number}` : ''].filter(Boolean).join(' · '),
   };
 }

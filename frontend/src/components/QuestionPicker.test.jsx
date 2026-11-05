@@ -26,6 +26,14 @@ describe('describeQuestion', () => {
     expect(q.label).toBe('NEC 20-21 · Question 1');
   });
 
+  it('uses a stored number and keeps the text exactly as written', () => {
+    const raw = '"Some believe \"clean eating\" improves their health."\n\nDeliver a five-minute talk to elaborate on and evaluate the ideas in the text.';
+    const q = describeQuestion({ id: 351, topic: 'NEC 25-26', question: raw, number: 1 });
+    expect(q.number).toBe(1);
+    expect(q.label).toBe('NEC 25-26 · Question 1');
+    expect(q.promptText).toBe(raw); // no "Question 1." added, blank line kept
+  });
+
   it('reads the bare "10." numbering style', () => {
     const q = describeQuestion(BANK[2]);
     expect(q.number).toBe(10);

@@ -669,6 +669,31 @@ class ApiSmokeTests(unittest.TestCase):
         blanked = self.client.put(f'/api/questions/{question_id}', json={'question': '   '})
         self.assertEqual(blanked.status_code, 400)
 
+    def test_a_question_can_carry_its_number_apart_from_its_text(self):
+        with self.client.session_transaction() as session:
+            session['admin_authenticated'] = True
+        created = self.client.post('/api/questions', json={
+            'topic': 'NEC 25-26', 'question': '"A passage."\n\nDeliver a talk.', 'number': '3'})
+        self.assertEqual(created.status_code, 200)
+        question_id = created.get_json()['id']
+
+        listed = {q['id']: q for q in self.client.get('/api/questions').get_json()['questions']}
+        self.assertEqual(listed[question_id]['number'], 3)
+        self.assertEqual(listed[question_id]['question'], '"A passage."\n\nDeliver a talk.')
+
+        for bad in ('three', 0, 100, 2.5):
+            response = self.client.put(f'/api/questions/{question_id}', json={'number': bad})
+            self.assertEqual(response.status_code, 400, bad)
+        self.assertEqual(self.client.put(f'/api/questions/{question_id}', json={'number': ''}).status_code, 200)
+        listed = {q['id']: q for q in self.client.get('/api/questions').get_json()['questions']}
+        self.assertIsNone(listed[question_id]['number'])
+
+        # Editing other fields leaves the number alone.
+        self.client.put(f'/api/questions/{question_id}', json={'number': 7})
+        self.client.put(f'/api/questions/{question_id}', json={'topic': 'NEC 25-26 (day 2)'})
+        listed = {q['id']: q for q in self.client.get('/api/questions').get_json()['questions']}
+        self.assertEqual(listed[question_id]['number'], 7)
+
     def test_questions_come_back_in_the_order_they_were_added(self):
         """Without a "Question N." number the picker keeps the server's order,
         and Postgres returns an edited row wherever it likes unless asked."""

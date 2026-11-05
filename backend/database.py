@@ -495,6 +495,9 @@ class Question(db.Model):
     topic = db.Column(db.String(500), nullable=False)
     question = db.Column(db.Text, nullable=False)
     category = db.Column(db.String(200), default='General')
+    # Its number on the paper, when the text does not start with "Question N."
+    # (NEC 25-26 is stored as passage + task only). None = read it from the text.
+    number = db.Column(db.Integer, nullable=True)
     created_at = db.Column(db.DateTime, default=utcnow)
     
     def to_dict(self):
@@ -502,6 +505,7 @@ class Question(db.Model):
             'id': self.id,
             'topic': self.topic,
             'question': self.question,
+            'number': self.number,
             'category': self.category,
             'created_at': self.created_at.isoformat() if self.created_at else None
         }

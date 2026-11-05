@@ -1923,6 +1923,20 @@ def read_question_payload(partial=False):
             return None, f"{key.capitalize()} cannot be empty."
         fields[key] = value or 'General'
 
+    if 'number' in data:
+        # Optional: blank or null clears it; otherwise a whole number 1-99.
+        raw = data.get('number')
+        if raw is None or (isinstance(raw, str) and not raw.strip()):
+            fields['number'] = None
+        else:
+            try:
+                number = int(str(raw).strip())
+            except (TypeError, ValueError):
+                return None, "Number must be a whole number."
+            if not 1 <= number <= 99:
+                return None, "Number must be between 1 and 99."
+            fields['number'] = number
+
     if not partial:
         for key in ('topic', 'question'):
             if key not in fields:
