@@ -1,9 +1,35 @@
 import React from 'react';
-import { Check, Download, RefreshCw, RotateCcw } from 'lucide-react';
+import { AlertCircle, Check, Download, RefreshCw, RotateCcw, Swords } from 'lucide-react';
 import { CRITERIA, TONES } from '../appShared';
 import ResultsInsights from './ResultsInsights';
 import DeliveryMetrics from './DeliveryMetrics';
 import AttemptComparison from './AttemptComparison';
+
+// The Takes verdict. When the student did not argue against the take, the
+// grader caps Content at 0.3 (UNOPPOSED_TAKE_CONTENT_CAP in the backend).
+const REBUTTAL_VERDICTS = {
+  opposed: { title: 'You argued against the take', tone: 'bg-emerald-50 text-emerald-800 dark:bg-emerald-400/10 dark:text-emerald-200', icon: Swords },
+  agreed: { title: 'You ended up agreeing with the take', tone: 'bg-amber-50 text-amber-900 dark:bg-amber-400/10 dark:text-amber-100', icon: AlertCircle },
+  unclear: { title: 'Your stance on the take was not clear', tone: 'bg-amber-50 text-amber-900 dark:bg-amber-400/10 dark:text-amber-100', icon: AlertCircle },
+};
+
+export function RebuttalVerdict({ rebuttal }) {
+  const verdict = REBUTTAL_VERDICTS[rebuttal?.stance];
+  if (!verdict) return null;
+  const Icon = verdict.icon;
+  return (
+    <section className={`flex gap-3 rounded-panel p-5 sm:p-6 ${verdict.tone}`} aria-label="Rebuttal">
+      <Icon size={20} className="mt-0.5 shrink-0" />
+      <div className="min-w-0">
+        <h3 className="font-semibold">{verdict.title}</h3>
+        {rebuttal.summary && <p className="mt-1 max-w-[70ch] text-sm leading-6 opacity-90">{rebuttal.summary}</p>}
+        {rebuttal.stance !== 'opposed' && (
+          <p className="mt-2 text-sm leading-6 opacity-90">Content is capped at 0.30 until you argue against the take.</p>
+        )}
+      </div>
+    </section>
+  );
+}
 
 /**
  * Score summary, per-criterion feedback, improvement plan and export actions.
@@ -24,6 +50,10 @@ export default function ResultsPanel({
   isLoggedIn = false,
   onOpenAuth = null,
   onPracticeAgain = null,
+  practiceAgainLabel = 'Practise this prompt again',
+  sampleTitle = 'Sample 2.0 response',
+  sampleNote = 'The same question, answered at full marks.',
+  savedMessage = 'Saved to your profile. You can reopen this feedback and its report any time under Recent practice.',
 }) {
   if (!results?.scores) return null;
 
@@ -64,6 +94,8 @@ export default function ResultsPanel({
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_300px] lg:items-start">
         <div className="min-w-0 space-y-6">
+          <RebuttalVerdict rebuttal={results.rebuttal} />
+
           <section className="rounded-panel border border-line bg-surface-raised p-5 sm:p-7" aria-labelledby="feedback-heading">
             <h3 id="feedback-heading" className="font-display text-lg font-semibold tracking-[-0.02em] text-ink">Feedback</h3>
             <div className="mt-5 space-y-5">
@@ -86,8 +118,8 @@ export default function ResultsPanel({
 
           {results.sample_response && (
             <section className="rounded-panel border border-line bg-surface-raised p-5 sm:p-7">
-              <h3 className="font-display text-lg font-semibold tracking-[-0.02em] text-ink">Sample 2.0 response</h3>
-              <p className="mt-1 text-sm text-ink-subtle">The same question, answered at full marks.</p>
+              <h3 className="font-display text-lg font-semibold tracking-[-0.02em] text-ink">{sampleTitle}</h3>
+              <p className="mt-1 text-sm text-ink-subtle">{sampleNote}</p>
               <div className="mt-4 whitespace-pre-line rounded-card bg-amber-50 p-4 text-sm leading-7 text-ink dark:bg-amber-400/10">{results.sample_response}</div>
             </section>
           )}
@@ -97,7 +129,7 @@ export default function ResultsPanel({
           {results.practice_session_id && (
             <p className="flex gap-2.5 rounded-card bg-emerald-50 px-4 py-3 text-sm leading-6 text-emerald-800 dark:bg-emerald-400/10 dark:text-emerald-200">
               <Check size={18} className="mt-0.5 shrink-0" />
-              Saved to your profile. You can reopen this feedback and its report any time under Recent practice.
+              {savedMessage}
             </p>
           )}
 
@@ -143,7 +175,7 @@ export default function ResultsPanel({
                 className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-line bg-surface-raised px-5 py-3 font-medium text-ink transition-colors duration-200 hover:bg-overlay"
               >
                 <RefreshCw size={16} />
-                Practise this prompt again
+                {practiceAgainLabel}
               </button>
             )}
             {extraActions}

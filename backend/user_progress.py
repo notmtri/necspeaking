@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta
 
-from database import UserPracticeSession, build_prompt_key, db, utcnow
+from database import UserPracticeSession, build_prompt_key, db, is_nec_practice, utcnow
 
 
 def round_score(value):
@@ -72,7 +72,11 @@ def calculate_streak(sessions):
 
 def refresh_user_stats(user):
     practices = UserPracticeSession.query.filter_by(user_id=user.id).order_by(UserPracticeSession.created_at.asc()).all()
-    totals = [float((practice.scores or {}).get('total') or 0) for practice in practices]
+    # Scores (average, best, the progress chart, leaderboards) come from NEC
+    # practice only; Unscripted talks are shorter and judged differently.
+    # Every practice still counts as practice: the count, streak and calendar.
+    nec_practices = [practice for practice in practices if is_nec_practice(practice)]
+    totals = [float((practice.scores or {}).get('total') or 0) for practice in nec_practices]
     average_score = (sum(totals) / len(totals)) if totals else 0
     best_score = max(totals) if totals else 0
 
@@ -82,12 +86,16 @@ def refresh_user_stats(user):
         "streak": calculate_streak(practices),
         "bestScore": round_score(best_score)
     }
-    user.progress = build_progress_points(practices)
+    user.progress = build_progress_points(nec_practices)
     user.commit_weeks = build_commit_weeks(practices)
 
 
 def create_practice_session(user, topic, transcript_text, duration, scores, metrics=None,
-                            feedback=None, sample_response=None, grader=None, source=None):
+                            feedback=None, sample_response=None, grader=None, source=None,
+                            rebuttal=None):
+    if rebuttal:
+        # Kept with the feedback, so history and rebuilt reports still show it.
+        feedback = {**(feedback or {}), 'rebuttal': rebuttal}
     practice = UserPracticeSession(
         user_id=user.id,
         topic=topic,

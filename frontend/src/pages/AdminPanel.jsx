@@ -1,9 +1,10 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Activity, Bell, CheckCircle, Database, Edit3, Eye, EyeOff, FileAudio, HelpCircle, Inbox, Loader, Lock, LogOut, MessageSquare, RotateCcw, Trash2, X } from 'lucide-react';
+import { Activity, Bell, CheckCircle, Database, Dices, Edit3, Eye, EyeOff, FileAudio, HelpCircle, Inbox, Loader, Lock, LogOut, MessageSquare, RotateCcw, Trash2, X } from 'lucide-react';
 import { ConfirmModal } from '../components/AppOverlays';
 import Sheet from '../components/Sheet';
 import { FIELD_CLASSNAME } from '../components/ProfileBits';
 import { apiFetch, isAbortError } from '../apiClient';
+import { UNSCRIPTED_THEMES } from '../unscriptedShared';
 
 const EMPTY_ANNOUNCEMENT = { enabled: false, message: '' };
 const MAX_ANNOUNCEMENT_LENGTH = 500;
@@ -12,6 +13,7 @@ const ADMIN_TABS = [
   { id: 'upload', label: 'Upload sample', icon: FileAudio },
   { id: 'manage', label: 'Samples', icon: Database },
   { id: 'questions', label: 'Questions', icon: HelpCircle },
+  { id: 'unscripted', label: 'Unscripted', icon: Dices },
   { id: 'announcement', label: 'Announcement', icon: Bell },
   { id: 'moderation', label: 'Moderation', icon: MessageSquare },
   { id: 'feedback', label: 'Feedback', icon: Inbox },
@@ -64,6 +66,196 @@ function AdminButton({ tone = 'primary', onClick, disabled, className = '', chil
     >
       {children}
     </button>
+  );
+}
+
+const UNSCRIPTED_KINDS = [['topic', 'Topics'], ['take', 'Takes']];
+
+/**
+ * Topics (Deep research) and takes (Takes) for the Unscripted page. Turning
+ * one off hides it from students and keeps it here to bring back.
+ */
+function UnscriptedAdmin({ notify, askToConfirm }) {
+  const [kind, setKind] = useState('topic');
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [status, setStatus] = useState(null);
+  const [draft, setDraft] = useState({ category: UNSCRIPTED_THEMES[0], text: '' });
+  const [editingId, setEditingId] = useState(null);
+  const [editDraft, setEditDraft] = useState({});
+  const [busyId, setBusyId] = useState(null);
+
+  const load = useCallback(async (signal) => {
+    setLoading(true);
+    try {
+      const data = await apiFetch('/api/unscripted/prompts?all=1', { signal });
+      setItems(data.prompts || []);
+    } catch (error) {
+      if (!isAbortError(error)) setStatus({ text: error.message || 'Could not load topics and takes.' });
+    } finally {
+      if (!signal?.aborted) setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    load(controller.signal);
+    return () => controller.abort();
+  }, [load]);
+
+  const save = useCallback(async (id, body, done) => {
+    setBusyId(id ?? 'new');
+    try {
+      const data = await apiFetch(id ? `/api/unscripted/prompts/${id}` : '/api/unscripted/prompts', { method: id ? 'PUT' : 'POST', body });
+      setItems((current) => (id ? current.map((item) => (item.id === id ? data.prompt : item)) : [...current, data.prompt]));
+      setStatus(null);
+      done?.(data.prompt);
+    } catch (error) {
+      setStatus({ text: error.message || 'Could not save.' });
+    } finally {
+      setBusyId(null);
+    }
+  }, []);
+
+  const add = useCallback(() => {
+    if (!draft.text.trim()) {
+      setStatus({ text: `Write the ${kind} first.` });
+      return;
+    }
+    save(null, { kind, ...draft }, () => {
+      setDraft((current) => ({ ...current, text: '' }));
+      notify?.(kind === 'topic' ? 'Topic added.' : 'Take added.', 'success');
+    });
+  }, [draft, kind, notify, save]);
+
+  const remove = useCallback((item) => {
+    askToConfirm({
+      title: `Delete this ${item.kind}?`,
+      message: 'It is removed for good. To hide it from students but keep it, turn it off instead.',
+      confirmLabel: 'Delete',
+      onConfirm: async () => {
+        try {
+          await apiFetch(`/api/unscripted/prompts/${item.id}`, { method: 'DELETE' });
+          setItems((current) => current.filter((entry) => entry.id !== item.id));
+          notify?.('Deleted.', 'success');
+        } catch (error) {
+          setStatus({ text: error.message || 'Delete failed.' });
+        }
+      },
+    });
+  }, [askToConfirm, notify]);
+
+  const shown = items.filter((item) => item.kind === kind);
+  const activeCount = shown.filter((item) => item.active).length;
+  const offCount = shown.length - activeCount;
+
+  return (
+    <div className="space-y-5">
+      {status && (
+        <div className="rounded-card border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-400/25 dark:bg-rose-400/10 dark:text-rose-300" role="alert">
+          {status.text}
+        </div>
+      )}
+      <div role="radiogroup" aria-label="Kind" className="inline-grid grid-cols-2 gap-1 rounded-full bg-overlay p-1">
+        {UNSCRIPTED_KINDS.map(([value, label]) => (
+          <button
+            key={value}
+            type="button"
+            role="radio"
+            aria-checked={kind === value}
+            onClick={() => { setKind(value); setEditingId(null); }}
+            className={`rounded-full px-4 py-2 text-sm font-medium transition-colors ${kind === value ? 'bg-surface-raised text-ink shadow-sm' : 'text-ink-muted hover:text-ink'}`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      <AdminCard title={kind === 'topic' ? 'Add a topic' : 'Add a take'} icon={Dices}>
+        <div className="grid gap-3 sm:grid-cols-[14rem_1fr]">
+          <AdminField label="Theme">
+            <select value={draft.category} onChange={(event) => setDraft({ ...draft, category: event.target.value })} className={FIELD_CLASSNAME}>
+              {UNSCRIPTED_THEMES.map((name) => <option key={name} value={name}>{name}</option>)}
+            </select>
+          </AdminField>
+          <AdminField
+            label={kind === 'topic' ? 'Topic name' : 'Take'}
+            hint={kind === 'topic' ? 'Only the name is shown. Working out what it is, is the research.' : 'One unpopular opinion as a full sentence. Students argue against it.'}
+          >
+            <input
+              value={draft.text}
+              maxLength={300}
+              onChange={(event) => setDraft({ ...draft, text: event.target.value })}
+              onKeyDown={(event) => { if (event.key === 'Enter') add(); }}
+              placeholder={kind === 'topic' ? 'Goodhart’s law' : 'Homework should be banned.'}
+              className={FIELD_CLASSNAME}
+            />
+          </AdminField>
+        </div>
+        <AdminButton onClick={add} disabled={busyId === 'new'} className="mt-3 w-full py-3">
+          {busyId === 'new' ? <Loader size={16} className="animate-spin" /> : null}
+          {kind === 'topic' ? 'Add topic' : 'Add take'}
+        </AdminButton>
+      </AdminCard>
+
+      <div>
+        <h3 className="mb-3 text-base font-semibold text-ink">
+          {kind === 'topic' ? 'Topics' : 'Takes'} ({activeCount} on{offCount ? `, ${offCount} off` : ''})
+        </h3>
+        {loading ? (
+          <div className="py-8 text-center"><Loader className="mx-auto animate-spin text-sky-600 dark:text-sky-300" size={36} /></div>
+        ) : shown.length === 0 ? (
+          <div className="rounded-card border border-dashed border-line bg-overlay p-5 text-sm text-ink-muted">
+            None yet. Add the first one above.
+          </div>
+        ) : (
+          <ul className="divide-y divide-line overflow-hidden rounded-card border border-line">
+            {shown.map((item) => (
+              <li key={item.id} className={`p-4 ${item.active ? '' : 'bg-surface-sunken'}`}>
+                {editingId === item.id ? (
+                  <div className="space-y-3">
+                    <div className="grid gap-3 sm:grid-cols-[14rem_1fr]">
+                      <select value={editDraft.category} onChange={(event) => setEditDraft({ ...editDraft, category: event.target.value })} className={FIELD_CLASSNAME} aria-label="Theme">
+                        {UNSCRIPTED_THEMES.map((name) => <option key={name} value={name}>{name}</option>)}
+                      </select>
+                      <input value={editDraft.text} maxLength={300} onChange={(event) => setEditDraft({ ...editDraft, text: event.target.value })} className={FIELD_CLASSNAME} aria-label="Text" />
+                    </div>
+                    <div className="flex gap-2">
+                      <AdminButton tone="success" disabled={busyId === item.id} onClick={() => save(item.id, editDraft, () => setEditingId(null))}>Save</AdminButton>
+                      <AdminButton tone="neutral" onClick={() => setEditingId(null)}>Cancel</AdminButton>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className={`break-words text-sm leading-6 ${item.active ? 'text-ink' : 'text-ink-subtle line-through'}`}>{item.text}</div>
+                      <div className="mt-0.5 text-xs text-ink-subtle">{item.active ? item.category : `${item.category} | off`}</div>
+                    </div>
+                    <div className="flex shrink-0 gap-2">
+                      <AdminButton
+                        tone="neutral"
+                        disabled={busyId === item.id}
+                        onClick={() => save(item.id, { active: !item.active })}
+                        aria-label={item.active ? 'Turn off' : 'Turn on'}
+                        title={item.active ? 'Turn off (hide from students)' : 'Turn on'}
+                      >
+                        {item.active ? <EyeOff size={14} /> : <Eye size={14} />}
+                      </AdminButton>
+                      <AdminButton tone="neutral" onClick={() => { setEditingId(item.id); setEditDraft({ category: item.category, text: item.text }); }} aria-label="Edit">
+                        <Edit3 size={14} />
+                      </AdminButton>
+                      <AdminButton tone="danger" onClick={() => remove(item)} aria-label="Delete">
+                        <Trash2 size={14} />
+                      </AdminButton>
+                    </div>
+                  </div>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -704,6 +896,19 @@ export default function AdminPanel({ open = true, onExitComplete, onClose, onLog
                 )}
               </div>
             </div>
+          )}
+
+          {activeTab === 'unscripted' && (
+            <UnscriptedAdmin
+              notify={notify}
+              askToConfirm={({ onConfirm, ...rest }) => setConfirmState({
+                ...rest,
+                onConfirm: async () => {
+                  setConfirmState(null);
+                  await onConfirm();
+                },
+              })}
+            />
           )}
 
           {activeTab === 'announcement' && (

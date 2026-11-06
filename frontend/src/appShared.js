@@ -15,6 +15,7 @@ export const PAGE_PATHS = {
   analyze: '/analyze',
   samples: '/samples',
   simulation: '/simulation',
+  unscripted: '/unscripted',
 };
 
 const PATH_PAGES = Object.entries(PAGE_PATHS).reduce((pages, [page, path]) => {
@@ -39,6 +40,7 @@ export const PAGE_TITLES = {
   analyze: 'Analyze your speaking | necs.',
   samples: 'High-scoring NEC samples | necs.',
   simulation: 'NEC speaking mock test | necs.',
+  unscripted: 'Unscripted speaking practice | necs.',
   community: 'Community | necs.',
   profile: 'Your profile | necs.',
   auth: 'Log in | necs.',

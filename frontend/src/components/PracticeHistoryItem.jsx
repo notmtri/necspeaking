@@ -3,6 +3,9 @@ import { ChevronDown, Download, Loader } from 'lucide-react';
 import { apiFetch } from '../apiClient';
 import { API_BASE_URL, CRITERIA, TONES } from '../appShared';
 
+// Unscripted attempts are labelled; their scores sit outside the NEC average.
+export const UNSCRIPTED_MODE_LABELS = { research: 'Deep research', takes: 'Takes' };
+
 /**
  * One past attempt. Expands to the full feedback, the sample answer and the
  * transcript, fetched on first open, and can re-download its report.
@@ -16,6 +19,7 @@ export default function PracticeHistoryItem({ session }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const panelId = `practice-${session.id}-detail`;
+  const modeLabel = UNSCRIPTED_MODE_LABELS[session.source];
 
   const toggle = useCallback(async () => {
     const next = !open;
@@ -42,8 +46,11 @@ export default function PracticeHistoryItem({ session }) {
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
           <div className="line-clamp-2 text-sm font-medium leading-6 text-ink">{session.topic}</div>
-          <div className="mt-0.5 text-xs text-ink-subtle">
-            {new Date(session.createdAt).toLocaleString()} | {Math.round(session.duration || 0)}s
+          <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-ink-subtle">
+            {modeLabel && (
+              <span className="rounded-full bg-overlay px-2 py-0.5 font-medium text-ink-muted">Unscripted: {modeLabel}</span>
+            )}
+            <span>{new Date(session.createdAt).toLocaleString()} | {Math.round(session.duration || 0)}s</span>
           </div>
         </div>
         <div className="shrink-0 text-right">

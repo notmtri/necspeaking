@@ -23,6 +23,20 @@ def utcnow():
 
 ADMIN_USERNAMES = {'notmtri'}
 
+# Where a practice came from. 'research' and 'takes' are the Unscripted modes:
+# kept in history and counted as practice, but not in NEC scores (averages,
+# best score, leaderboards, score badges). NULL = saved before Nov 2026 (NEC).
+PRACTICE_SOURCES = ('analyze', 'simulation', 'research', 'takes')
+NEC_SOURCES = (None, 'analyze', 'simulation')
+UNSCRIPTED_KINDS = ('topic', 'take')
+UNSCRIPTED_CATEGORIES = ('Ideas', 'Society & education', 'Science & tech', 'Culture & everyday life')
+
+
+def is_nec_practice(practice):
+    """True for practice on NEC-style questions (Analyze, Simulation, older rows)."""
+    return getattr(practice, 'source', None) in NEC_SOURCES
+
+
 # Avatars are stored inline and echoed in the community listing, so they need a
 # hard ceiling regardless of what the client sends. The frontend downscales to a
 # 256px JPEG (tens of KB); this is the independent backstop.
@@ -258,7 +272,7 @@ class UserPracticeSession(db.Model):
     feedback = db.Column(db.JSON, nullable=True)
     sample_response = db.Column(db.Text, nullable=True)
     grader = db.Column(db.String(64), nullable=True)
-    # 'analyze' or 'simulation'; NULL for attempts saved before Nov 2026.
+    # One of PRACTICE_SOURCES; NULL for attempts saved before Nov 2026.
     source = db.Column(db.String(20), nullable=True)
     created_at = db.Column(db.DateTime, default=utcnow, index=True)
 
@@ -278,6 +292,7 @@ class UserPracticeSession(db.Model):
             'scores': self.scores or {},
             'metrics': self.metrics or None,
             'hasFeedback': self.has_feedback(),
+            'source': self.source or None,
             'createdAt': self.created_at.isoformat() if self.created_at else None
         }
 
@@ -293,10 +308,12 @@ class UserPracticeSession(db.Model):
 
     def grading_result(self):
         """The stored attempt in the shape generate_docx expects."""
+        feedback = self.feedback or {}
         return {
             'scores': self.scores or {},
-            'feedback': self.feedback or {},
+            'feedback': feedback,
             'sample_response': self.sample_response or '',
+            'rebuttal': feedback.get('rebuttal') if isinstance(feedback, dict) else None,
         }
 
 
@@ -487,6 +504,33 @@ class RateLimitEntry(db.Model):
     __table_args__ = (
         db.UniqueConstraint('scope', 'identifier', 'window_key', name='uq_rate_limit_scope_identifier_window'),
     )
+
+class PracticePrompt(db.Model):
+    """A Deep research topic or a Take for the Unscripted page.
+
+    Kept apart from `questions` (the NEC past papers) so Analyze and
+    Simulation never offer them. Edited in the admin panel.
+    """
+    __tablename__ = 'practice_prompts'
+
+    id = db.Column(db.Integer, primary_key=True)
+    kind = db.Column(db.String(10), nullable=False, index=True)  # UNSCRIPTED_KINDS
+    category = db.Column(db.String(60), nullable=False, default='Ideas')
+    # A topic is shown as its name alone, no hint: working out what it is
+    # is part of the research.
+    text = db.Column(db.String(300), nullable=False)
+    active = db.Column(db.Boolean, nullable=False, default=True)
+    created_at = db.Column(db.DateTime, default=utcnow)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'kind': self.kind,
+            'category': self.category,
+            'text': self.text,
+            'active': bool(self.active),
+        }
+
 
 class Question(db.Model):
     __tablename__ = 'questions'

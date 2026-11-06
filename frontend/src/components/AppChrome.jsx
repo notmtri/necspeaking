@@ -8,6 +8,7 @@ const NAV_ITEMS = [
   { id: 'analyze', label: 'Analyze' },
   { id: 'samples', label: 'Samples' },
   { id: 'simulation', label: 'Simulation' },
+  { id: 'unscripted', label: 'Unscripted' },
   { id: 'community', label: 'Community' },
 ];
 
@@ -16,6 +17,7 @@ const footerLinks = [
   { label: 'Analyze', page: 'analyze' },
   { label: 'Samples', page: 'samples' },
   { label: 'Simulation', page: 'simulation' },
+  { label: 'Unscripted', page: 'unscripted' },
   { label: 'Community', page: 'community' },
   { label: 'Profile', page: 'profile' },
 ];
@@ -175,14 +177,14 @@ export function AppHeader({
                 <button
                   type="button"
                   onClick={() => openAuth('login')}
-                  className="rounded-full bg-overlay px-4 py-2 text-sm font-medium text-ink transition-colors duration-200 hover:bg-overlay-hover"
+                  className="whitespace-nowrap rounded-full bg-overlay px-4 py-2 text-sm font-medium text-ink transition-colors duration-200 hover:bg-overlay-hover"
                 >
                   Log in
                 </button>
                 <button
                   type="button"
                   onClick={() => openAuth('signup')}
-                  className="rounded-full bg-ink px-4 py-2 text-sm font-medium text-on-ink transition-colors duration-200 hover:bg-ink/85"
+                  className="whitespace-nowrap rounded-full bg-ink px-4 py-2 text-sm font-medium text-on-ink transition-colors duration-200 hover:bg-ink/85"
                 >
                   Sign up
                 </button>

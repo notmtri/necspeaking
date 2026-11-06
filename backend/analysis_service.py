@@ -67,6 +67,89 @@ GRADING_RESPONSE_SCHEMA = {
 }
 
 
+# Practice modes beyond NEC questions (the Unscripted page). The rubric and its
+# three scores stay the same; only the grading instructions change.
+GRADING_MODES = {'research', 'takes'}
+REBUTTAL_STANCES = ('opposed', 'agreed', 'unclear')
+# Content for a take that is not argued against (agreed, or no clear stance).
+UNOPPOSED_TAKE_CONTENT_CAP = 0.3
+
+
+def grading_mode(mode):
+    """The mode as the grader understands it: 'research', 'takes' or None (NEC)."""
+    return mode if mode in GRADING_MODES else None
+
+
+def grading_response_schema(mode=None):
+    """The JSON schema Gemini must answer in; Takes adds a rebuttal verdict."""
+    if grading_mode(mode) != 'takes':
+        return GRADING_RESPONSE_SCHEMA
+    schema = json.loads(json.dumps(GRADING_RESPONSE_SCHEMA))
+    schema["properties"]["rebuttal"] = {
+        "type": "object",
+        "properties": {
+            "stance": {"type": "string", "enum": list(REBUTTAL_STANCES)},
+            "summary": {"type": "string"},
+        },
+        "required": ["stance", "summary"],
+    }
+    schema["required"] = [*schema["required"], "rebuttal"]
+    return schema
+
+
+MODE_GUIDANCE = {
+    'research': """**Practice mode: Deep research.** The student was given a niche concept, researched it for several minutes, and then explained it in a talk of up to 5 minutes. The "question" is the concept itself.
+For Content, judge whether the student:
+   - explains the concept correctly and precisely (penalise factual errors, or confusing it with a different idea)
+   - goes beyond a definition: how it works, why it matters, where it shows up in real life
+   - uses concrete, real examples and covers at least one implication, limitation or criticism
+""",
+    'takes': """**Practice mode: Takes (rebuttal).** The student was shown a deliberately unpopular opinion (the take) and had to argue AGAINST it, after 2 minutes of preparation, in a talk of up to 3 minutes.
+For Content, judge how convincingly the student refuted the take:
+   - states a clear position against the take early on
+   - identifies the take's strongest reasoning and answers it, rather than attacking a weaker version of it
+   - supports the rebuttal with reasons, evidence and concrete examples
+   - if the student agrees with the take, or never takes a clear position against it, Content must not exceed 0.30
+Judge completeness against a 3-minute talk: a full rebuttal of 2 to 3 minutes is not short, so do not penalise it for being shorter than 5 minutes.
+Also return "rebuttal": {"stance": "opposed", "agreed" or "unclear", "summary": one or two sentences on how well the take was refuted, written to the student as "you" like the rest of the feedback}.
+""",
+}
+
+
+def sample_response_instructions(mode=None):
+    """Instruction 4 of the grading prompt: what the model answer looks like."""
+    mode = grading_mode(mode)
+    quality = """   - Be detailed and well-structured with clear introduction, body paragraphs, and conclusion
+   - Include specific examples, explanations, and supporting details
+   - Demonstrate sophisticated vocabulary and varied sentence structures
+   - Show natural flow with appropriate transitions
+   - Be creative in the introduction to hook the listener's attention
+   - Grade at C2 level of the CEFR framework
+   - Be very strict"""
+    if mode == 'takes':
+        return f"""4. Generate a sample 2.0/2.0 rebuttal of the same take that would take approximately 3 minutes to speak (around 380-450 words). The sample should:
+   - Start with "The take is that ... I disagree, and here is why." and then argue against the take
+   - End with "That is why I disagree with this take. Thank you."
+{quality}"""
+    if mode == 'research':
+        return f"""4. Generate a sample 2.0/2.0 talk explaining the same concept that would take approximately 5 minutes to speak (around 600-700 words). The sample should:
+   - Start with "Today I am going to talk about ..." and then explain the concept fully
+   - End with "Thank you for listening."
+{quality}"""
+    # NEC: kept word for word as it was before the modes existed.
+    return """4. Generate a comprehensive sample 2.0/2.0 response to the same topic that would take approximately 5 minutes to speak (around 600-750 words). The sample should:
+   - Start with "My question is... (if question number is provided), and the prompt is... Here is my response." and then answer the question fully
+   - End with "This is the end of my speech. Thank you."
+   - Be detailed and well-structured with clear introduction, body paragraphs, and conclusion
+   - Include specific examples, explanations, and supporting details
+   - Demonstrate sophisticated vocabulary and varied sentence structures
+   - Show natural flow with appropriate transitions
+   - Be comprehensive enough to fill a 5-minute speaking time
+   - Be creative in the introduction to hook the listener's attention
+   - Grade at C2 level of the CEFR framework
+   - Be very strict"""
+
+
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
@@ -202,7 +285,7 @@ def transcribe_audio(groq_client, file_path):
     }
 
 
-def build_grading_prompt(topic, transcript_data, audio_attached=False):
+def build_grading_prompt(topic, transcript_data, audio_attached=False, mode=None):
     transcript_text = transcript_data["text"]
     total_words = len(transcript_text.split())
     duration = transcript_data["duration"]
@@ -211,6 +294,13 @@ def build_grading_prompt(topic, transcript_data, audio_attached=False):
         transcript_data.get("words"), duration,
     )
     delivery_evidence = describe_metrics_for_prompt(metrics)
+    mode = grading_mode(mode)
+    mode_guidance = f"\n{MODE_GUIDANCE[mode]}" if mode else ''
+    sample_instructions = sample_response_instructions(mode)
+    rebuttal_shape = (
+        ',\n    "rebuttal": {"stance": "opposed", "summary": "How well the take was refuted..."}'
+        if mode == 'takes' else ''
+    )
     audio_instruction = (
         "The original speech audio is attached. Use it to evaluate pronunciation, intonation, "
         "pauses, fluency, confidence, and delivery. Use the transcript for content, vocabulary, "
@@ -235,7 +325,7 @@ def build_grading_prompt(topic, transcript_data, audio_attached=False):
 3. Delivery (0.5/2.0 points)
    - Maintain fluency throughout
    - Demonstrate effective use of presentation skills
-
+{mode_guidance}
 **Topic/Question:** {topic}
 
 **Speech Transcript:** {transcript_text}
@@ -257,17 +347,7 @@ Ground the Delivery score in the measured evidence above. Cite specific numbers
 1. Provide scores for each criterion (rounded to 2 decimal places)
 2. Give detailed feedback for each criterion with specific examples from the transcript and audio when available
 3. Point out both strengths and areas for improvement
-4. Generate a comprehensive sample 2.0/2.0 response to the same topic that would take approximately 5 minutes to speak (around 600-750 words). The sample should:
-   - Start with "My question is... (if question number is provided), and the prompt is... Here is my response." and then answer the question fully
-   - End with "This is the end of my speech. Thank you."
-   - Be detailed and well-structured with clear introduction, body paragraphs, and conclusion
-   - Include specific examples, explanations, and supporting details
-   - Demonstrate sophisticated vocabulary and varied sentence structures
-   - Show natural flow with appropriate transitions
-   - Be comprehensive enough to fill a 5-minute speaking time
-   - Be creative in the introduction to hook the listener's attention
-   - Grade at C2 level of the CEFR framework
-   - Be very strict
+{sample_instructions}
 
 Return only valid JSON matching this shape:
 {{
@@ -282,7 +362,7 @@ Return only valid JSON matching this shape:
         "accuracy": "Detailed feedback with examples...",
         "delivery": "Detailed feedback with examples..."
     }},
-    "sample_response": "A complete 2.0/2.0 sample response to the topic..."
+    "sample_response": "A complete 2.0/2.0 sample response to the topic..."{rebuttal_shape}
 }}"""
 
 
@@ -350,7 +430,7 @@ def _score(value, upper):
     return round(min(max(number, 0.0), upper), 2)
 
 
-def normalise_grading_result(result):
+def normalise_grading_result(result, mode=None):
     """Validate a parsed grading reply and coerce it into the shape we store.
 
     A reply can be valid JSON and still be unusable: a score as a string, a
@@ -381,10 +461,30 @@ def normalise_grading_result(result):
     }
 
     normalised = dict(result)
+    normalised.pop("rebuttal", None)
+    if grading_mode(mode) == 'takes':
+        rebuttal = _normalise_rebuttal(result.get("rebuttal"))
+        if rebuttal:
+            normalised["rebuttal"] = rebuttal
+            # Enforced here, not left to the model: a take that was not argued
+            # against has not done the task, whatever else the talk did well.
+            if rebuttal["stance"] != 'opposed' and scores["content"] > UNOPPOSED_TAKE_CONTENT_CAP:
+                scores["content"] = UNOPPOSED_TAKE_CONTENT_CAP
+                scores["total"] = round(sum(scores[criterion] for criterion in SCORE_LIMITS), 2)
     normalised["scores"] = scores
     normalised["feedback"] = feedback
     normalised["sample_response"] = str(result.get("sample_response") or '').strip()
     return normalised
+
+
+def _normalise_rebuttal(raw):
+    """The Takes verdict, or None when the grader gave none (no cap then)."""
+    if not isinstance(raw, dict):
+        return None
+    stance = str(raw.get("stance") or '').strip().lower()
+    if stance not in REBUTTAL_STANCES:
+        stance = 'unclear'
+    return {"stance": stance, "summary": str(raw.get("summary") or '').strip()}
 
 
 def gemini_model_chain():
@@ -395,13 +495,13 @@ def gemini_model_chain():
     return chain
 
 
-def grade_speech_with_gemini(topic, transcript_data, audio_path, model=None):
+def grade_speech_with_gemini(topic, transcript_data, audio_path, model=None, mode=None):
     model = model or GEMINI_GRADING_MODEL
     gemini_api_key = os.getenv('GEMINI_API_KEY', '').strip()
     if not gemini_api_key:
         raise RuntimeError("GEMINI_API_KEY is not configured.")
 
-    parts = [{"text": build_grading_prompt(topic, transcript_data, audio_attached=bool(audio_path))}]
+    parts = [{"text": build_grading_prompt(topic, transcript_data, audio_attached=bool(audio_path), mode=mode)}]
     if audio_path:
         if audio_path.lower().endswith('.wav'):
             mime_type = 'audio/wav'
@@ -423,7 +523,7 @@ def grade_speech_with_gemini(topic, transcript_data, audio_path, model=None):
             # unknown generationConfig keys outright, so a wrong shape here means
             # every grading call fails and silently degrades to the Groq fallback.
             "responseMimeType": "application/json",
-            "responseSchema": GRADING_RESPONSE_SCHEMA,
+            "responseSchema": grading_response_schema(mode),
         },
     }
 
@@ -490,7 +590,7 @@ def grade_speech_with_gemini(topic, transcript_data, audio_path, model=None):
     if not result_text:
         raise RuntimeError("Gemini returned an empty grading response.")
 
-    return normalise_grading_result(parse_grading_json(result_text))
+    return normalise_grading_result(parse_grading_json(result_text), mode=mode)
 
 
 GROQ_GRADING_ATTEMPTS = 2
@@ -500,14 +600,14 @@ class GradingUnavailableError(RuntimeError):
     """Every grader failed. The job fails with a retry-later message."""
 
 
-def grade_speech_with_groq(groq_client, topic, transcript_data):
+def grade_speech_with_groq(groq_client, topic, transcript_data, mode=None):
     """Transcript-only grading, used when no Gemini model is reachable.
 
     JSON mode is requested so the reply is at least meant to be an object, and
     a reply that still will not parse is regenerated once: the fallback runs
     exactly when Gemini is already down, so failing here fails the student.
     """
-    prompt = build_grading_prompt(topic, transcript_data, audio_attached=False)
+    prompt = build_grading_prompt(topic, transcript_data, audio_attached=False, mode=mode)
     last_error = None
     for attempt in range(GROQ_GRADING_ATTEMPTS):
         response = groq_client.chat.completions.create(
@@ -517,7 +617,7 @@ def grade_speech_with_groq(groq_client, topic, transcript_data):
             response_format={"type": "json_object"},
         )
         try:
-            return normalise_grading_result(parse_grading_json(response.choices[0].message.content))
+            return normalise_grading_result(parse_grading_json(response.choices[0].message.content), mode=mode)
         except ValueError as error:  # JSONDecodeError is a ValueError
             last_error = error
             print(f"[ANALYSIS] Groq returned an unusable grading reply "
@@ -525,7 +625,7 @@ def grade_speech_with_groq(groq_client, topic, transcript_data):
     raise GradingUnavailableError(f"Groq fallback returned no usable grading: {last_error}")
 
 
-def grade_speech(groq_client, topic, transcript_data, audio_path=''):
+def grade_speech(groq_client, topic, transcript_data, audio_path='', mode=None):
     """Grade a response, preferring Gemini because it can hear the audio.
 
     Each Gemini model in the chain is tried in turn; only when none of them can
@@ -536,7 +636,7 @@ def grade_speech(groq_client, topic, transcript_data, audio_path=''):
     gemini_errors = []
     for model in gemini_model_chain():
         try:
-            result = grade_speech_with_gemini(topic, transcript_data, audio_path, model=model)
+            result = grade_speech_with_gemini(topic, transcript_data, audio_path, model=model, mode=mode)
             if gemini_errors:
                 print(f"[ANALYSIS] Graded with fallback Gemini model '{model}' after: "
                       f"{' | '.join(gemini_errors)}")
@@ -556,14 +656,17 @@ def grade_speech(groq_client, topic, transcript_data, audio_path=''):
     )
     if groq_client is None:
         raise GradingUnavailableError("No grader is available: Gemini failed and Groq is not configured.")
-    result = grade_speech_with_groq(groq_client, topic, transcript_data)
+    result = grade_speech_with_groq(groq_client, topic, transcript_data, mode=mode)
     result['grader'] = 'groq-fallback'
     result['grader_model'] = GROQ_GRADING_FALLBACK_MODEL
     result['audio_reviewed'] = False
     return result
 
 
-def generate_docx(topic, transcript, grading_result):
+MODE_LABELS = {'research': 'Unscripted - Deep research', 'takes': 'Unscripted - Takes'}
+
+
+def generate_docx(topic, transcript, grading_result, mode=None):
     from docx import Document
     from docx.enum.text import WD_ALIGN_PARAGRAPH
 
@@ -573,6 +676,8 @@ def generate_docx(topic, transcript, grading_result):
     title.alignment = WD_ALIGN_PARAGRAPH.CENTER
 
     doc.add_paragraph(f"Date: {datetime.now().strftime('%B %d, %Y')}")
+    if MODE_LABELS.get(mode):
+        doc.add_paragraph(f"Practice: {MODE_LABELS[mode]}")
     doc.add_paragraph(f"Topic: {topic}")
     doc.add_paragraph()
 
@@ -614,6 +719,13 @@ def generate_docx(topic, transcript, grading_result):
 
     doc.add_heading('3. Delivery', 2)
     doc.add_paragraph(feedback.get('delivery') or '')
+
+    rebuttal = grading_result.get('rebuttal') if isinstance(grading_result.get('rebuttal'), dict) else None
+    if rebuttal:
+        doc.add_heading('Rebuttal', 2)
+        stance = {'opposed': 'You argued against the take.', 'agreed': 'You agreed with the take.',
+                  'unclear': 'Your position on the take was unclear.'}.get(rebuttal.get('stance'), '')
+        doc.add_paragraph(f"{stance} {rebuttal.get('summary') or ''}".strip())
 
     doc.add_page_break()
 

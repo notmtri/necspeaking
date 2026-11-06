@@ -148,11 +148,11 @@ class AnalysisWorker:
 
                 job.progress_message = 'Grading speech.'
                 db.session.commit()
-                grading_result = grade_speech(client, job.topic, transcript_data, filepath)
+                grading_result = grade_speech(client, job.topic, transcript_data, filepath, mode=job.source)
 
                 job.progress_message = 'Generating report.'
                 db.session.commit()
-                doc_stream = generate_docx(job.topic, transcript_data["text"], grading_result)
+                doc_stream = generate_docx(job.topic, transcript_data["text"], grading_result, mode=job.source)
 
                 refreshed_user = None
                 practice_session_id = None
@@ -170,6 +170,7 @@ class AnalysisWorker:
                             sample_response=grading_result.get("sample_response"),
                             grader=grading_result.get("grader_model") or grading_result.get("grader"),
                             source=job.source,
+                            rebuttal=grading_result.get("rebuttal"),
                         )
                         db.session.commit()
                         practice_session_id = practice.id
@@ -202,6 +203,8 @@ class AnalysisWorker:
                     "scores": grading_result["scores"],
                     "feedback": grading_result["feedback"],
                     "sample_response": grading_result["sample_response"],
+                    # Takes only: did the student argue against the take?
+                    "rebuttal": grading_result.get("rebuttal"),
                     "document_filename": f"necs_feedback_{job.id}.docx",
                     "document_url": f"/api/analyze/jobs/{job.id}/document",
                     "document_external_url": document_external_url,

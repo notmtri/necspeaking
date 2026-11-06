@@ -28,7 +28,7 @@ from sqlalchemy.engine import make_url
 from sqlalchemy.orm import configure_mappers, defer, joinedload
 
 from analysis_service import allowed_file, build_job_storage_path, cleanup_old_files, generate_docx, get_audio_duration
-from database import MAX_AVATAR_CHARS, MAX_COVER_CHARS, MAX_POST_IMAGE_CHARS, POST_REACTIONS, AnalysisJob, AppAnnouncement, CommunityPost, CommunityPostReaction, CommunityPostReport, FeedbackMessage, Question, RateLimitEntry, Sample, User, UserPracticeSession, avatar_from_name, build_prompt_key, db, utcnow
+from database import MAX_AVATAR_CHARS, MAX_COVER_CHARS, MAX_POST_IMAGE_CHARS, POST_REACTIONS, PRACTICE_SOURCES, UNSCRIPTED_CATEGORIES, UNSCRIPTED_KINDS, AnalysisJob, PracticePrompt, AppAnnouncement, CommunityPost, CommunityPostReaction, CommunityPostReport, FeedbackMessage, Question, RateLimitEntry, Sample, User, UserPracticeSession, avatar_from_name, build_prompt_key, db, utcnow
 from job_worker import AnalysisWorker, should_start_embedded_worker
 from rate_limiter import client_ip, rate_limit, rate_limiter
 from user_progress import create_practice_session
@@ -228,6 +228,7 @@ def ensure_runtime_tables():
                 ('feedback_messages', FeedbackMessage.__table__),
                 ('community_post_reports', CommunityPostReport.__table__),
                 ('community_post_reactions', CommunityPostReaction.__table__),
+                ('practice_prompts', PracticePrompt.__table__),
             ]
             for table_name, table in managed_tables:
                 if table_name not in table_names:
@@ -595,6 +596,7 @@ def claim_guest_jobs(user):
                 sample_response=payload.get('sample_response'),
                 grader=payload.get('grader_model') or payload.get('grader'),
                 source=job.source,
+                rebuttal=payload.get('rebuttal'),
             )
             payload['practice_session_id'] = practice.id
             payload['user'] = user.to_dict()  # stats now include this attempt
@@ -1126,7 +1128,7 @@ def auth_practice_session_document(session_id):
     if not practice.has_feedback():
         return jsonify({"error": "Detailed feedback was not saved for this attempt."}), 404
 
-    stream = generate_docx(practice.topic, practice.transcript, practice.grading_result())
+    stream = generate_docx(practice.topic, practice.transcript, practice.grading_result(), mode=practice.source)
     stamp = practice.created_at.strftime('%Y%m%d') if practice.created_at else 'attempt'
     return send_file(
         stream,
@@ -1700,7 +1702,7 @@ def analyze_speech():
         job = AnalysisJob(
             user_id=current_user.id if current_user else None,
             topic=topic,
-            source=source if source in {'analyze', 'simulation'} else 'analyze',
+            source=source if source in PRACTICE_SOURCES else 'analyze',
             original_filename=secure_filename(audio_file.filename),
             stored_audio_path=filepath,
             status='pending',
@@ -1997,6 +1999,114 @@ def delete_question(question_id):
         db.session.rollback()
         print(f"[QUESTIONS] Delete error: {e}")
         return jsonify({"error": "Could not delete question."}), 500
+
+# ============= UNSCRIPTED: DEEP RESEARCH TOPICS AND TAKES =============
+
+MAX_PROMPT_TEXT = 300
+
+
+def read_practice_prompt_payload(partial=False):
+    """Validated topic/take fields from the JSON body, or (None, error)."""
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return None, "Request body must be a JSON object."
+
+    fields = {}
+    if 'kind' in data:
+        if data.get('kind') not in UNSCRIPTED_KINDS:
+            return None, "Kind must be 'topic' or 'take'."
+        fields['kind'] = data['kind']
+    if 'category' in data:
+        if data.get('category') not in UNSCRIPTED_CATEGORIES:
+            return None, "Unknown theme."
+        fields['category'] = data['category']
+    if 'text' in data:
+        value = data.get('text')
+        value = value.strip() if isinstance(value, str) else ''
+        if not value:
+            return None, "Text cannot be empty."
+        if len(value) > MAX_PROMPT_TEXT:
+            return None, f"Text is too long (at most {MAX_PROMPT_TEXT} characters)."
+        fields['text'] = value
+    if 'active' in data:
+        fields['active'] = bool(data.get('active'))
+
+    if not partial:
+        for key in ('kind', 'category', 'text'):
+            if key not in fields:
+                return None, f"{key.capitalize()} is required."
+    return fields, None
+
+
+@app.route('/api/unscripted/prompts', methods=['GET'])
+def list_practice_prompts():
+    """Active topics and takes; the page spins between them itself.
+
+    ?kind=topic|take narrows the list. Admins can ask for inactive ones too
+    (?all=1) to edit them.
+    """
+    query = PracticePrompt.query
+    kind = request.args.get('kind')
+    if kind in UNSCRIPTED_KINDS:
+        query = query.filter_by(kind=kind)
+    if not (request.args.get('all') and session.get('admin_authenticated')):
+        query = query.filter_by(active=True)
+    prompts = query.order_by(PracticePrompt.id).all()
+    return jsonify({"prompts": [prompt.to_dict() for prompt in prompts]})
+
+
+@app.route('/api/unscripted/prompts', methods=['POST'])
+@require_admin()
+def add_practice_prompt():
+    fields, error = read_practice_prompt_payload()
+    if error:
+        return jsonify({"error": error}), 400
+    try:
+        prompt = PracticePrompt(**fields)
+        db.session.add(prompt)
+        db.session.commit()
+        return jsonify({"success": True, "prompt": prompt.to_dict()})
+    except Exception as e:
+        db.session.rollback()
+        print(f"[UNSCRIPTED] Create error: {e}")
+        return jsonify({"error": "Could not add it."}), 500
+
+
+@app.route('/api/unscripted/prompts/<int:prompt_id>', methods=['PUT'])
+@require_admin()
+def update_practice_prompt(prompt_id):
+    prompt = db.session.get(PracticePrompt, prompt_id)
+    if not prompt:
+        return jsonify({"error": "Not found"}), 404
+    fields, error = read_practice_prompt_payload(partial=True)
+    if error:
+        return jsonify({"error": error}), 400
+    try:
+        for key, value in fields.items():
+            setattr(prompt, key, value)
+        db.session.commit()
+        return jsonify({"success": True, "prompt": prompt.to_dict()})
+    except Exception as e:
+        db.session.rollback()
+        print(f"[UNSCRIPTED] Update error: {e}")
+        return jsonify({"error": "Could not update it."}), 500
+
+
+@app.route('/api/unscripted/prompts/<int:prompt_id>', methods=['DELETE'])
+@require_admin()
+def delete_practice_prompt(prompt_id):
+    prompt = db.session.get(PracticePrompt, prompt_id)
+    if not prompt:
+        return jsonify({"error": "Not found"}), 404
+    try:
+        db.session.delete(prompt)
+        db.session.commit()
+        return jsonify({"success": True})
+    except Exception as e:
+        db.session.rollback()
+        print(f"[UNSCRIPTED] Delete error: {e}")
+        return jsonify({"error": "Could not delete it."}), 500
+
 
 @app.route('/api/questions/random', methods=['GET'])
 def get_random_question():

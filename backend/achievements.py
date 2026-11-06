@@ -12,6 +12,8 @@ hint such as "7 / 10 practices".
 """
 from datetime import timedelta
 
+from database import is_nec_practice
+
 TIERS = ('bronze', 'silver', 'gold')
 
 # Speaking time counts from the recording's start to the last word, so a
@@ -96,7 +98,14 @@ def biggest_comeback(practices):
 
 
 def measure(practices, posts_count=0, reactions_received=0):
-    """The value each badge is judged on."""
+    """The value each badge is judged on.
+
+    Practice count and streak take every practice. Everything judged on scores
+    or on a full NEC answer takes NEC practice only (Analyze, Simulation):
+    Unscripted talks are shorter and graded with other instructions.
+    """
+    all_practices = practices
+    practices = [practice for practice in practices if is_nec_practice(practice)]
     count = len(practices)
     averages = {
         key: (sum(_score(p, key) for p in practices) / count if count else 0.0)
@@ -115,8 +124,8 @@ def measure(practices, posts_count=0, reactions_received=0):
             clean += 1
 
     return {
-        'practices': count,
-        'streak': longest_streak(practices),
+        'practices': len(all_practices),
+        'streak': longest_streak(all_practices),
         'best_score': max([0.0, *(_score(p, 'total') for p in practices)]),
         'average': averages['total'] if count >= AVERAGE_MIN_PRACTICES else 0.0,
         'balanced': min(averages[key] / CRITERION_MAX[key] for key in CRITERION_MAX) if count else 0.0,

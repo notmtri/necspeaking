@@ -324,6 +324,42 @@ input[type="range"] {
   }
 }
 
+/*
+ * Unscripted spin: names flick up past the window, blurred like a fast reel,
+ * then the chosen one rises in and settles. Visible by default; the motion
+ * only adds the arrival. Reduced motion skips the flicks (in JS) and fades.
+ */
+@media (prefers-reduced-motion: no-preference) {
+  .spin-tick {
+    animation: spin-tick 90ms linear both;
+  }
+
+  .spin-settle {
+    animation: spin-settle 280ms var(--ease-out) both;
+  }
+
+  @keyframes spin-tick {
+    from {
+      opacity: 0.35;
+      filter: blur(3px);
+      transform: translateY(45%);
+    }
+    to {
+      opacity: 0.6;
+      filter: blur(1.5px);
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes spin-settle {
+    from {
+      opacity: 0;
+      filter: blur(2px);
+      transform: translateY(18%);
+    }
+  }
+}
+
 /* Result bars fill from the left once, 60 ms apart (--bar-index). */
 .bar-reveal {
   animation: bar-reveal 400ms var(--ease-out) both;

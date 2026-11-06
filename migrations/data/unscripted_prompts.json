@@ -1,0 +1,1002 @@
+[
+ {
+  "kind": "topic",
+  "category": "Ideas",
+  "text": "The prisoner's dilemma"
+ },
+ {
+  "kind": "topic",
+  "category": "Ideas",
+  "text": "Goodhart's law"
+ },
+ {
+  "kind": "topic",
+  "category": "Ideas",
+  "text": "The tragedy of the commons"
+ },
+ {
+  "kind": "topic",
+  "category": "Ideas",
+  "text": "Survivorship bias"
+ },
+ {
+  "kind": "topic",
+  "category": "Ideas",
+  "text": "The sunk cost fallacy"
+ },
+ {
+  "kind": "topic",
+  "category": "Ideas",
+  "text": "Anchoring"
+ },
+ {
+  "kind": "topic",
+  "category": "Ideas",
+  "text": "The Dunning-Kruger effect"
+ },
+ {
+  "kind": "topic",
+  "category": "Ideas",
+  "text": "Loss aversion"
+ },
+ {
+  "kind": "topic",
+  "category": "Ideas",
+  "text": "The bystander effect"
+ },
+ {
+  "kind": "topic",
+  "category": "Ideas",
+  "text": "Regression to the mean"
+ },
+ {
+  "kind": "topic",
+  "category": "Ideas",
+  "text": "The paradox of choice"
+ },
+ {
+  "kind": "topic",
+  "category": "Ideas",
+  "text": "The Matthew effect"
+ },
+ {
+  "kind": "topic",
+  "category": "Ideas",
+  "text": "Opportunity cost"
+ },
+ {
+  "kind": "topic",
+  "category": "Ideas",
+  "text": "The Peltzman effect"
+ },
+ {
+  "kind": "topic",
+  "category": "Ideas",
+  "text": "Confirmation bias"
+ },
+ {
+  "kind": "topic",
+  "category": "Ideas",
+  "text": "The hedonic treadmill"
+ },
+ {
+  "kind": "topic",
+  "category": "Ideas",
+  "text": "Moral hazard"
+ },
+ {
+  "kind": "topic",
+  "category": "Ideas",
+  "text": "The decoy effect"
+ },
+ {
+  "kind": "topic",
+  "category": "Ideas",
+  "text": "Base rate neglect"
+ },
+ {
+  "kind": "topic",
+  "category": "Ideas",
+  "text": "The IKEA effect"
+ },
+ {
+  "kind": "topic",
+  "category": "Ideas",
+  "text": "Parkinson's law"
+ },
+ {
+  "kind": "topic",
+  "category": "Ideas",
+  "text": "The spotlight effect"
+ },
+ {
+  "kind": "topic",
+  "category": "Ideas",
+  "text": "Nudge theory"
+ },
+ {
+  "kind": "topic",
+  "category": "Ideas",
+  "text": "The cobra effect"
+ },
+ {
+  "kind": "topic",
+  "category": "Ideas",
+  "text": "The planning fallacy"
+ },
+ {
+  "kind": "topic",
+  "category": "Society & education",
+  "text": "The flipped classroom"
+ },
+ {
+  "kind": "topic",
+  "category": "Society & education",
+  "text": "Grade inflation"
+ },
+ {
+  "kind": "topic",
+  "category": "Society & education",
+  "text": "The Pygmalion effect"
+ },
+ {
+  "kind": "topic",
+  "category": "Society & education",
+  "text": "Spaced repetition"
+ },
+ {
+  "kind": "topic",
+  "category": "Society & education",
+  "text": "The testing effect"
+ },
+ {
+  "kind": "topic",
+  "category": "Society & education",
+  "text": "Shadow education"
+ },
+ {
+  "kind": "topic",
+  "category": "Society & education",
+  "text": "The digital divide"
+ },
+ {
+  "kind": "topic",
+  "category": "Society & education",
+  "text": "Credentialism"
+ },
+ {
+  "kind": "topic",
+  "category": "Society & education",
+  "text": "Brain drain"
+ },
+ {
+  "kind": "topic",
+  "category": "Society & education",
+  "text": "The learning styles myth"
+ },
+ {
+  "kind": "topic",
+  "category": "Society & education",
+  "text": "Universal basic income"
+ },
+ {
+  "kind": "topic",
+  "category": "Society & education",
+  "text": "Gentrification"
+ },
+ {
+  "kind": "topic",
+  "category": "Society & education",
+  "text": "The broken windows theory"
+ },
+ {
+  "kind": "topic",
+  "category": "Society & education",
+  "text": "Meritocracy and its critics"
+ },
+ {
+  "kind": "topic",
+  "category": "Society & education",
+  "text": "The gig economy"
+ },
+ {
+  "kind": "topic",
+  "category": "Society & education",
+  "text": "Gap years"
+ },
+ {
+  "kind": "topic",
+  "category": "Society & education",
+  "text": "Microcredentials"
+ },
+ {
+  "kind": "topic",
+  "category": "Society & education",
+  "text": "The four-day work week"
+ },
+ {
+  "kind": "topic",
+  "category": "Society & education",
+  "text": "Third places"
+ },
+ {
+  "kind": "topic",
+  "category": "Society & education",
+  "text": "The 15-minute city"
+ },
+ {
+  "kind": "topic",
+  "category": "Society & education",
+  "text": "Social mobility"
+ },
+ {
+  "kind": "topic",
+  "category": "Society & education",
+  "text": "Peer tutoring"
+ },
+ {
+  "kind": "topic",
+  "category": "Society & education",
+  "text": "The origins of standardised testing"
+ },
+ {
+  "kind": "topic",
+  "category": "Society & education",
+  "text": "Restorative justice in schools"
+ },
+ {
+  "kind": "topic",
+  "category": "Society & education",
+  "text": "Lifelong learning"
+ },
+ {
+  "kind": "topic",
+  "category": "Science & tech",
+  "text": "The Fermi paradox"
+ },
+ {
+  "kind": "topic",
+  "category": "Science & tech",
+  "text": "CRISPR gene editing"
+ },
+ {
+  "kind": "topic",
+  "category": "Science & tech",
+  "text": "The placebo effect"
+ },
+ {
+  "kind": "topic",
+  "category": "Science & tech",
+  "text": "Antibiotic resistance"
+ },
+ {
+  "kind": "topic",
+  "category": "Science & tech",
+  "text": "Moore's law"
+ },
+ {
+  "kind": "topic",
+  "category": "Science & tech",
+  "text": "Kessler syndrome"
+ },
+ {
+  "kind": "topic",
+  "category": "Science & tech",
+  "text": "Deepfakes"
+ },
+ {
+  "kind": "topic",
+  "category": "Science & tech",
+  "text": "The uncanny valley"
+ },
+ {
+  "kind": "topic",
+  "category": "Science & tech",
+  "text": "Circadian rhythms"
+ },
+ {
+  "kind": "topic",
+  "category": "Science & tech",
+  "text": "Quantum computing"
+ },
+ {
+  "kind": "topic",
+  "category": "Science & tech",
+  "text": "The gut microbiome"
+ },
+ {
+  "kind": "topic",
+  "category": "Science & tech",
+  "text": "Vertical farming"
+ },
+ {
+  "kind": "topic",
+  "category": "Science & tech",
+  "text": "Carbon capture"
+ },
+ {
+  "kind": "topic",
+  "category": "Science & tech",
+  "text": "The Turing test"
+ },
+ {
+  "kind": "topic",
+  "category": "Science & tech",
+  "text": "Neuroplasticity"
+ },
+ {
+  "kind": "topic",
+  "category": "Science & tech",
+  "text": "Open-source software"
+ },
+ {
+  "kind": "topic",
+  "category": "Science & tech",
+  "text": "Planned obsolescence"
+ },
+ {
+  "kind": "topic",
+  "category": "Science & tech",
+  "text": "The butterfly effect"
+ },
+ {
+  "kind": "topic",
+  "category": "Science & tech",
+  "text": "Filter bubbles"
+ },
+ {
+  "kind": "topic",
+  "category": "Science & tech",
+  "text": "Desalination"
+ },
+ {
+  "kind": "topic",
+  "category": "Science & tech",
+  "text": "Lab-grown meat"
+ },
+ {
+  "kind": "topic",
+  "category": "Science & tech",
+  "text": "The Jevons paradox"
+ },
+ {
+  "kind": "topic",
+  "category": "Science & tech",
+  "text": "Biomimicry"
+ },
+ {
+  "kind": "topic",
+  "category": "Science & tech",
+  "text": "Herd immunity"
+ },
+ {
+  "kind": "topic",
+  "category": "Science & tech",
+  "text": "The right to repair"
+ },
+ {
+  "kind": "topic",
+  "category": "Culture & everyday life",
+  "text": "Linguistic relativity"
+ },
+ {
+  "kind": "topic",
+  "category": "Culture & everyday life",
+  "text": "Code-switching"
+ },
+ {
+  "kind": "topic",
+  "category": "Culture & everyday life",
+  "text": "Wabi-sabi"
+ },
+ {
+  "kind": "topic",
+  "category": "Culture & everyday life",
+  "text": "Fast fashion"
+ },
+ {
+  "kind": "topic",
+  "category": "Culture & everyday life",
+  "text": "Parasocial relationships"
+ },
+ {
+  "kind": "topic",
+  "category": "Culture & everyday life",
+  "text": "The Mandela effect"
+ },
+ {
+  "kind": "topic",
+  "category": "Culture & everyday life",
+  "text": "Slow travel"
+ },
+ {
+  "kind": "topic",
+  "category": "Culture & everyday life",
+  "text": "The Proust effect"
+ },
+ {
+  "kind": "topic",
+  "category": "Culture & everyday life",
+  "text": "Minimalism"
+ },
+ {
+  "kind": "topic",
+  "category": "Culture & everyday life",
+  "text": "FOMO"
+ },
+ {
+  "kind": "topic",
+  "category": "Culture & everyday life",
+  "text": "Earworms"
+ },
+ {
+  "kind": "topic",
+  "category": "Culture & everyday life",
+  "text": "Soft power"
+ },
+ {
+  "kind": "topic",
+  "category": "Culture & everyday life",
+  "text": "Intangible cultural heritage"
+ },
+ {
+  "kind": "topic",
+  "category": "Culture & everyday life",
+  "text": "Language death"
+ },
+ {
+  "kind": "topic",
+  "category": "Culture & everyday life",
+  "text": "Esports"
+ },
+ {
+  "kind": "topic",
+  "category": "Culture & everyday life",
+  "text": "Hygge"
+ },
+ {
+  "kind": "topic",
+  "category": "Culture & everyday life",
+  "text": "Gift economies"
+ },
+ {
+  "kind": "topic",
+  "category": "Culture & everyday life",
+  "text": "Nostalgia marketing"
+ },
+ {
+  "kind": "topic",
+  "category": "Culture & everyday life",
+  "text": "Ikigai"
+ },
+ {
+  "kind": "topic",
+  "category": "Culture & everyday life",
+  "text": "Collectivism and individualism"
+ },
+ {
+  "kind": "topic",
+  "category": "Culture & everyday life",
+  "text": "Loanwords"
+ },
+ {
+  "kind": "topic",
+  "category": "Culture & everyday life",
+  "text": "Retail therapy"
+ },
+ {
+  "kind": "topic",
+  "category": "Culture & everyday life",
+  "text": "Doomscrolling"
+ },
+ {
+  "kind": "topic",
+  "category": "Culture & everyday life",
+  "text": "Street food culture"
+ },
+ {
+  "kind": "topic",
+  "category": "Culture & everyday life",
+  "text": "The attention economy"
+ },
+ {
+  "kind": "take",
+  "category": "Ideas",
+  "text": "Being average is the most rational goal in life."
+ },
+ {
+  "kind": "take",
+  "category": "Ideas",
+  "text": "Most advice from successful people is useless."
+ },
+ {
+  "kind": "take",
+  "category": "Ideas",
+  "text": "Shops should sell fewer products, because more choice makes people less happy."
+ },
+ {
+  "kind": "take",
+  "category": "Ideas",
+  "text": "Quitting deserves more praise than persistence."
+ },
+ {
+  "kind": "take",
+  "category": "Ideas",
+  "text": "Pessimists make better decisions than optimists."
+ },
+ {
+  "kind": "take",
+  "category": "Ideas",
+  "text": "Luck matters more than hard work in most success stories."
+ },
+ {
+  "kind": "take",
+  "category": "Ideas",
+  "text": "Competition brings out the worst in people, not the best."
+ },
+ {
+  "kind": "take",
+  "category": "Ideas",
+  "text": "Rules that most people break should simply be abolished."
+ },
+ {
+  "kind": "take",
+  "category": "Ideas",
+  "text": "Saving money as a teenager is pointless."
+ },
+ {
+  "kind": "take",
+  "category": "Ideas",
+  "text": "Long-term goals do more harm than good."
+ },
+ {
+  "kind": "take",
+  "category": "Ideas",
+  "text": "It is perfectly fine to judge a book by its cover."
+ },
+ {
+  "kind": "take",
+  "category": "Ideas",
+  "text": "Most group discussions are a waste of time."
+ },
+ {
+  "kind": "take",
+  "category": "Ideas",
+  "text": "You should never lend money to a friend."
+ },
+ {
+  "kind": "take",
+  "category": "Ideas",
+  "text": "Lying is sometimes the most ethical choice."
+ },
+ {
+  "kind": "take",
+  "category": "Ideas",
+  "text": "Praising students for effort does more harm than praising them for talent."
+ },
+ {
+  "kind": "take",
+  "category": "Ideas",
+  "text": "People are more honest online than face to face."
+ },
+ {
+  "kind": "take",
+  "category": "Ideas",
+  "text": "Intuition beats evidence for most everyday decisions."
+ },
+ {
+  "kind": "take",
+  "category": "Ideas",
+  "text": "Free things are always worth more than things you pay for."
+ },
+ {
+  "kind": "take",
+  "category": "Ideas",
+  "text": "Boredom is good for you and should be scheduled."
+ },
+ {
+  "kind": "take",
+  "category": "Ideas",
+  "text": "Talent is a myth: anyone can master anything with enough practice."
+ },
+ {
+  "kind": "take",
+  "category": "Ideas",
+  "text": "Being the smartest person in the room is a disadvantage."
+ },
+ {
+  "kind": "take",
+  "category": "Ideas",
+  "text": "Coming second is better than coming first."
+ },
+ {
+  "kind": "take",
+  "category": "Ideas",
+  "text": "Multitasking is not a skill worth practising."
+ },
+ {
+  "kind": "take",
+  "category": "Ideas",
+  "text": "Procrastination makes work better."
+ },
+ {
+  "kind": "take",
+  "category": "Ideas",
+  "text": "Following your passion is bad career advice."
+ },
+ {
+  "kind": "take",
+  "category": "Society & education",
+  "text": "Homework should be banned in secondary school."
+ },
+ {
+  "kind": "take",
+  "category": "Society & education",
+  "text": "Handwriting should no longer be taught in schools."
+ },
+ {
+  "kind": "take",
+  "category": "Society & education",
+  "text": "School uniforms make students more creative."
+ },
+ {
+  "kind": "take",
+  "category": "Society & education",
+  "text": "Exams are the fairest way to judge students."
+ },
+ {
+  "kind": "take",
+  "category": "Society & education",
+  "text": "Students' ratings of their teachers should decide teachers' pay."
+ },
+ {
+  "kind": "take",
+  "category": "Society & education",
+  "text": "Group projects teach nothing useful."
+ },
+ {
+  "kind": "take",
+  "category": "Society & education",
+  "text": "Every student should learn two foreign languages, translation apps or not."
+ },
+ {
+  "kind": "take",
+  "category": "Society & education",
+  "text": "Gifted classes harm the students in them."
+ },
+ {
+  "kind": "take",
+  "category": "Society & education",
+  "text": "Private tutoring should be banned."
+ },
+ {
+  "kind": "take",
+  "category": "Society & education",
+  "text": "School should start at 10 a.m."
+ },
+ {
+  "kind": "take",
+  "category": "Society & education",
+  "text": "University is not worth it for most people."
+ },
+ {
+  "kind": "take",
+  "category": "Society & education",
+  "text": "Grandparents are better at raising children than parents."
+ },
+ {
+  "kind": "take",
+  "category": "Society & education",
+  "text": "Children should be paid for doing chores."
+ },
+ {
+  "kind": "take",
+  "category": "Society & education",
+  "text": "Libraries should stop lending physical books."
+ },
+ {
+  "kind": "take",
+  "category": "Society & education",
+  "text": "Schools should teach cooking instead of literature."
+ },
+ {
+  "kind": "take",
+  "category": "Society & education",
+  "text": "Students should be allowed to use AI in every exam."
+ },
+ {
+  "kind": "take",
+  "category": "Society & education",
+  "text": "Repeating a school year can be the best thing for a student."
+ },
+ {
+  "kind": "take",
+  "category": "Society & education",
+  "text": "Private cars should be banned from city centres."
+ },
+ {
+  "kind": "take",
+  "category": "Society & education",
+  "text": "Working from home makes people more productive."
+ },
+ {
+  "kind": "take",
+  "category": "Society & education",
+  "text": "Retirement should be abolished."
+ },
+ {
+  "kind": "take",
+  "category": "Society & education",
+  "text": "Living with your parents into your thirties is a smart choice."
+ },
+ {
+  "kind": "take",
+  "category": "Society & education",
+  "text": "Shops should close on Sundays."
+ },
+ {
+  "kind": "take",
+  "category": "Society & education",
+  "text": "Volunteering should be compulsory for teenagers."
+ },
+ {
+  "kind": "take",
+  "category": "Society & education",
+  "text": "Celebrities have no duty to be role models."
+ },
+ {
+  "kind": "take",
+  "category": "Society & education",
+  "text": "Small towns are better places to grow up than big cities."
+ },
+ {
+  "kind": "take",
+  "category": "Science & tech",
+  "text": "Social media has done more good than harm for teenagers."
+ },
+ {
+  "kind": "take",
+  "category": "Science & tech",
+  "text": "Smartphones should be banned for everyone under 16."
+ },
+ {
+  "kind": "take",
+  "category": "Science & tech",
+  "text": "Space exploration is a waste of money."
+ },
+ {
+  "kind": "take",
+  "category": "Science & tech",
+  "text": "Self-driving cars should be banned until they never make mistakes."
+ },
+ {
+  "kind": "take",
+  "category": "Science & tech",
+  "text": "AI-generated art is real art."
+ },
+ {
+  "kind": "take",
+  "category": "Science & tech",
+  "text": "Video games are better teachers than textbooks."
+ },
+ {
+  "kind": "take",
+  "category": "Science & tech",
+  "text": "Nuclear power is the greenest energy we have."
+ },
+ {
+  "kind": "take",
+  "category": "Science & tech",
+  "text": "Everyone should eat insects."
+ },
+ {
+  "kind": "take",
+  "category": "Science & tech",
+  "text": "Robots should look after the elderly."
+ },
+ {
+  "kind": "take",
+  "category": "Science & tech",
+  "text": "Wikipedia is more reliable than school textbooks."
+ },
+ {
+  "kind": "take",
+  "category": "Science & tech",
+  "text": "Passwords should be replaced by face and fingerprint scans everywhere."
+ },
+ {
+  "kind": "take",
+  "category": "Science & tech",
+  "text": "Electric cars are overrated."
+ },
+ {
+  "kind": "take",
+  "category": "Science & tech",
+  "text": "The internet was better ten years ago."
+ },
+ {
+  "kind": "take",
+  "category": "Science & tech",
+  "text": "People should never read online comments."
+ },
+ {
+  "kind": "take",
+  "category": "Science & tech",
+  "text": "Scientists should bring extinct animals back to life."
+ },
+ {
+  "kind": "take",
+  "category": "Science & tech",
+  "text": "Humans should not try to live on Mars."
+ },
+ {
+  "kind": "take",
+  "category": "Science & tech",
+  "text": "Online friends are as real as offline ones."
+ },
+ {
+  "kind": "take",
+  "category": "Science & tech",
+  "text": "Paper books are better for the planet than e-readers."
+ },
+ {
+  "kind": "take",
+  "category": "Science & tech",
+  "text": "Children should learn to use AI before they learn to search the web."
+ },
+ {
+  "kind": "take",
+  "category": "Science & tech",
+  "text": "Weather forecasts do more harm than good."
+ },
+ {
+  "kind": "take",
+  "category": "Science & tech",
+  "text": "Dark mode is bad for your eyes."
+ },
+ {
+  "kind": "take",
+  "category": "Science & tech",
+  "text": "Smart homes make people less capable."
+ },
+ {
+  "kind": "take",
+  "category": "Science & tech",
+  "text": "Apps should charge money instead of showing ads."
+ },
+ {
+  "kind": "take",
+  "category": "Science & tech",
+  "text": "Genetically modified food is safer than organic food."
+ },
+ {
+  "kind": "take",
+  "category": "Science & tech",
+  "text": "Calculators should be banned in maths classes."
+ },
+ {
+  "kind": "take",
+  "category": "Culture & everyday life",
+  "text": "Breakfast is the least important meal of the day."
+ },
+ {
+  "kind": "take",
+  "category": "Culture & everyday life",
+  "text": "Spoilers make films more enjoyable."
+ },
+ {
+  "kind": "take",
+  "category": "Culture & everyday life",
+  "text": "Street food is better than restaurant food."
+ },
+ {
+  "kind": "take",
+  "category": "Culture & everyday life",
+  "text": "Remakes are often better than the originals."
+ },
+ {
+  "kind": "take",
+  "category": "Culture & everyday life",
+  "text": "Pets should not be kept in apartments."
+ },
+ {
+  "kind": "take",
+  "category": "Culture & everyday life",
+  "text": "Birthdays are overrated."
+ },
+ {
+  "kind": "take",
+  "category": "Culture & everyday life",
+  "text": "Reading fiction is a waste of time."
+ },
+ {
+  "kind": "take",
+  "category": "Culture & everyday life",
+  "text": "The Tết holiday should be shortened to three days."
+ },
+ {
+  "kind": "take",
+  "category": "Culture & everyday life",
+  "text": "Learning to cook is more important than learning to drive."
+ },
+ {
+  "kind": "take",
+  "category": "Culture & everyday life",
+  "text": "K-pop has been good for Vietnamese culture."
+ },
+ {
+  "kind": "take",
+  "category": "Culture & everyday life",
+  "text": "Everyone should take a year off social media."
+ },
+ {
+  "kind": "take",
+  "category": "Culture & everyday life",
+  "text": "Silence is better than small talk."
+ },
+ {
+  "kind": "take",
+  "category": "Culture & everyday life",
+  "text": "Fashion is a more important art than painting."
+ },
+ {
+  "kind": "take",
+  "category": "Culture & everyday life",
+  "text": "Esports players are real athletes."
+ },
+ {
+  "kind": "take",
+  "category": "Culture & everyday life",
+  "text": "Collecting things is a waste of money."
+ },
+ {
+  "kind": "take",
+  "category": "Culture & everyday life",
+  "text": "Holidays at home are better than travelling abroad."
+ },
+ {
+  "kind": "take",
+  "category": "Culture & everyday life",
+  "text": "Being a superfan is a kind of addiction."
+ },
+ {
+  "kind": "take",
+  "category": "Culture & everyday life",
+  "text": "Gifts should always be money."
+ },
+ {
+  "kind": "take",
+  "category": "Culture & everyday life",
+  "text": "Poetry can never be truly translated."
+ },
+ {
+  "kind": "take",
+  "category": "Culture & everyday life",
+  "text": "People should stop taking photos of their food."
+ },
+ {
+  "kind": "take",
+  "category": "Culture & everyday life",
+  "text": "Instant noodles are a perfectly healthy meal."
+ },
+ {
+  "kind": "take",
+  "category": "Culture & everyday life",
+  "text": "Night owls are more successful than morning people."
+ },
+ {
+  "kind": "take",
+  "category": "Culture & everyday life",
+  "text": "Group chats ruin friendships."
+ },
+ {
+  "kind": "take",
+  "category": "Culture & everyday life",
+  "text": "Teenagers should choose their own bedtime."
+ },
+ {
+  "kind": "take",
+  "category": "Culture & everyday life",
+  "text": "Superstitions are harmless and worth keeping."
+ }
+]

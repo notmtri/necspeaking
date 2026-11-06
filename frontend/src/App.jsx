@@ -24,6 +24,7 @@ const CommunityPage = lazy(() => import('./pages/CommunityPage'));
 const ProfilePage = lazy(() => import('./pages/ProfilePage'));
 const SampleLibrary = lazy(() => import('./pages/SampleLibrary'));
 const SimulationMode = lazy(() => import('./pages/SimulationMode'));
+const UnscriptedPage = lazy(() => import('./pages/UnscriptedPage'));
 
 function PageFallback() {
   return (
@@ -628,6 +629,17 @@ export default function SpeakUpApp() {
       case 'simulation':
         return (
           <SimulationMode
+            onAnalysisUserUpdate={handleAnalysisUserUpdate}
+            onDownloadReport={downloadReport}
+            notify={pushToast}
+            isOffline={isOffline}
+            isLoggedIn={Boolean(currentUser)}
+            onOpenAuth={openAuth}
+          />
+        );
+      case 'unscripted':
+        return (
+          <UnscriptedPage
             onAnalysisUserUpdate={handleAnalysisUserUpdate}
             onDownloadReport={downloadReport}
             notify={pushToast}
