@@ -170,7 +170,7 @@ class AnalysisWorker:
                             sample_response=grading_result.get("sample_response"),
                             grader=grading_result.get("grader_model") or grading_result.get("grader"),
                             source=job.source,
-                            rebuttal=grading_result.get("rebuttal"),
+                            position=grading_result.get("position"),
                         )
                         db.session.commit()
                         practice_session_id = practice.id
@@ -204,7 +204,7 @@ class AnalysisWorker:
                     "feedback": grading_result["feedback"],
                     "sample_response": grading_result["sample_response"],
                     # Takes only: did the student argue against the take?
-                    "rebuttal": grading_result.get("rebuttal"),
+                    "position": grading_result.get("position"),
                     "document_filename": f"necs_feedback_{job.id}.docx",
                     "document_url": f"/api/analyze/jobs/{job.id}/document",
                     "document_external_url": document_external_url,

@@ -1,7 +1,7 @@
 import React, { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import UnscriptedPage, { pickPrompt } from './UnscriptedPage';
+import UnscriptedPage, { pickPrompt, playShuffleSound } from './UnscriptedPage';
 import ResultsPanel from '../components/ResultsPanel';
 import PracticeHistoryItem from '../components/PracticeHistoryItem';
 import { useCountdown } from '../useTimedRecording';
@@ -93,30 +93,40 @@ describe('UnscriptedPage', () => {
     await settle();
   };
 
-  it('spins topics in Deep research and takes, in quotes, in Takes', async () => {
+  it('shows nothing until the first spin, then topics, and takes in quotes', async () => {
     await render();
     const topics = PROMPTS.filter((p) => p.kind === 'topic').map((p) => p.text);
-    expect(topics).toContain(promptText());
+    expect(promptText()).toBe('Spin to reveal your topic.');
+    expect(button('Start researching').disabled).toBe(true);
 
+    act(() => button('Spin').click());
     const first = promptText();
+    expect(topics).toContain(first);
+    expect(button('Start researching').disabled).toBe(false);
     act(() => button('Spin').click());
     expect(promptText()).not.toBe(first);
     expect(topics).toContain(promptText());
 
+    // A new mode hides the old one rather than choosing for the student.
     act(() => button('Takes').click());
+    expect(promptText()).toBe('Spin to reveal your take.');
+    act(() => button('Spin').click());
     const shown = promptText();
     expect(shown.startsWith('“') && shown.endsWith('”')).toBe(true);
     expect(PROMPTS.filter((p) => p.kind === 'take').map((p) => `“${p.text}”`)).toContain(shown);
-    expect(container.textContent).toContain('caps Content at 0.30');
+    expect(container.textContent).toContain('argue for it');
+    expect(container.textContent).toContain('Arguing against it caps Content at 0.30');
   });
 
   it('keeps to the chosen theme and offers a way out of an empty one', async () => {
     await render();
+    act(() => button('Spin').click());
     const select = container.querySelector('select');
     act(() => {
       select.value = 'Science & tech';
       select.dispatchEvent(new Event('change', { bubbles: true }));
     });
+    act(() => button('Spin').click());
     expect(promptText()).toBe('Moravec’s paradox');
 
     act(() => {
@@ -125,13 +135,17 @@ describe('UnscriptedPage', () => {
     });
     expect(container.textContent).toContain('No topics in this theme yet.');
     act(() => button('Show all themes').click());
-    expect(promptText()).toBeTruthy();
+    expect(promptText()).toBe('Spin to reveal your topic.');
   });
 
   it('runs a take from preparation to recording to playback', async () => {
     await render();
     act(() => button('Takes').click());
+    act(() => button('Spin').click());
     await act(async () => { button('Start preparing').click(); });
+    await settle();
+    expect(container.textContent).toContain('Plan your argument for');
+
     await settle();
     expect(container.textContent).toContain('Preparation time');
     expect(container.textContent).toContain('2:00');
@@ -151,10 +165,47 @@ describe('UnscriptedPage', () => {
   it('stays on setup when the microphone is refused', async () => {
     navigator.mediaDevices.getUserMedia = vi.fn(async () => { throw new Error('denied'); });
     await render();
+    act(() => button('Spin').click());
     await act(async () => { button('Start researching').click(); });
     await settle();
     expect(container.textContent).toContain('Allow microphone access');
     expect(button('Spin')).toBeTruthy();
+  });
+});
+
+describe('playShuffleSound', () => {
+  const original = window.AudioContext;
+  afterEach(() => { window.AudioContext = original; });
+
+  it('rattles once per name flicked past, then lands', () => {
+    const started = [];
+    const node = () => ({ connect: vi.fn(), frequency: {}, Q: {}, gain: { setValueAtTime: vi.fn(), exponentialRampToValueAtTime: vi.fn() } });
+    window.AudioContext = class {
+      constructor() { this.currentTime = 0; this.sampleRate = 8000; this.destination = {}; }
+
+      createBuffer(channels, length) { return { getChannelData: () => new Float32Array(length) }; }
+
+      createBufferSource() { return { ...node(), start: (at) => started.push(at), stop: vi.fn() }; }
+
+      createBiquadFilter() { return node(); }
+
+      createGain() { return node(); }
+
+      close() {}
+    };
+    playShuffleSound([35, 45, 60]);
+    expect(started).toHaveLength(4);
+    // In step with the animation: 35 ms, then 45 ms later, then 60 ms later.
+    expect(started.map((at) => Math.round((at - started[0]) * 1000))).toEqual([0, 35, 80, 140]);
+
+    started.length = 0;
+    playShuffleSound([]);
+    expect(started).toHaveLength(1); // reduced motion: just the landing
+  });
+
+  it('stays silent where there is no Web Audio', () => {
+    window.AudioContext = undefined;
+    expect(() => playShuffleSound([35])).not.toThrow();
   });
 });
 
@@ -205,24 +256,24 @@ describe('Unscripted results and history', () => {
     container.remove();
   });
 
-  it('explains the cap when the take was not opposed', () => {
-    act(() => root.render(<ResultsPanel results={{ ...RESULTS, rebuttal: { stance: 'agreed', summary: 'You defended it.' } }} onDownloadReport={() => {}} onReset={() => {}} />));
-    expect(container.textContent).toContain('You ended up agreeing with the take');
-    expect(container.textContent).toContain('You defended it.');
-    expect(container.textContent).toContain('capped at 0.30');
+  it('explains the cap when the take was argued against', () => {
+    act(() => root.render(<ResultsPanel results={{ ...RESULTS, position: { stance: 'opposed', summary: 'You attacked it.' } }} onDownloadReport={() => {}} onReset={() => {}} />));
+    expect(container.textContent).toContain('You argued against the take');
+    expect(container.textContent).toContain('You attacked it.');
+    expect(container.textContent).toContain('capped at 0.30 until you argue for the take');
   });
 
-  it('credits a rebuttal without the cap note, and shows nothing for NEC results', () => {
-    act(() => root.render(<ResultsPanel results={{ ...RESULTS, rebuttal: { stance: 'opposed', summary: 'Strong.' } }} onDownloadReport={() => {}} onReset={() => {}} />));
-    expect(container.textContent).toContain('You argued against the take');
+  it('credits a defended take without the cap note, and shows nothing for NEC results', () => {
+    act(() => root.render(<ResultsPanel results={{ ...RESULTS, position: { stance: 'supported', summary: 'Strong.' } }} onDownloadReport={() => {}} onReset={() => {}} />));
+    expect(container.textContent).toContain('You argued for the take');
     expect(container.textContent).not.toContain('capped at 0.30');
 
     act(() => root.render(<ResultsPanel results={RESULTS} onDownloadReport={() => {}} onReset={() => {}} />));
-    expect(container.querySelector('[aria-label="Rebuttal"]')).toBeNull();
+    expect(container.querySelector('[aria-label="Your position"]')).toBeNull();
   });
 
   it('labels Unscripted attempts in history', () => {
-    const base = { id: 7, topic: 'Argue against this take: "X."', createdAt: '2026-11-05T10:00:00Z', duration: 150, scores: RESULTS.scores, hasFeedback: false };
+    const base = { id: 7, topic: 'Argue for this take: "X."', createdAt: '2026-11-05T10:00:00Z', duration: 150, scores: RESULTS.scores, hasFeedback: false };
     act(() => root.render(<PracticeHistoryItem session={{ ...base, source: 'takes' }} />));
     expect(container.textContent).toContain('Unscripted: Takes');
     act(() => root.render(<PracticeHistoryItem session={{ ...base, source: 'analyze' }} />));

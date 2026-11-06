@@ -5,26 +5,26 @@ import ResultsInsights from './ResultsInsights';
 import DeliveryMetrics from './DeliveryMetrics';
 import AttemptComparison from './AttemptComparison';
 
-// The Takes verdict. When the student did not argue against the take, the
-// grader caps Content at 0.3 (UNOPPOSED_TAKE_CONTENT_CAP in the backend).
-const REBUTTAL_VERDICTS = {
-  opposed: { title: 'You argued against the take', tone: 'bg-emerald-50 text-emerald-800 dark:bg-emerald-400/10 dark:text-emerald-200', icon: Swords },
-  agreed: { title: 'You ended up agreeing with the take', tone: 'bg-amber-50 text-amber-900 dark:bg-amber-400/10 dark:text-amber-100', icon: AlertCircle },
+// The Takes verdict. Students argue for the take; when they did not, the
+// grader caps Content at 0.3 (UNDEFENDED_TAKE_CONTENT_CAP in the backend).
+const POSITION_VERDICTS = {
+  supported: { title: 'You argued for the take', tone: 'bg-emerald-50 text-emerald-800 dark:bg-emerald-400/10 dark:text-emerald-200', icon: Swords },
+  opposed: { title: 'You argued against the take', tone: 'bg-amber-50 text-amber-900 dark:bg-amber-400/10 dark:text-amber-100', icon: AlertCircle },
   unclear: { title: 'Your stance on the take was not clear', tone: 'bg-amber-50 text-amber-900 dark:bg-amber-400/10 dark:text-amber-100', icon: AlertCircle },
 };
 
-export function RebuttalVerdict({ rebuttal }) {
-  const verdict = REBUTTAL_VERDICTS[rebuttal?.stance];
+export function PositionVerdict({ position }) {
+  const verdict = POSITION_VERDICTS[position?.stance];
   if (!verdict) return null;
   const Icon = verdict.icon;
   return (
-    <section className={`flex gap-3 rounded-panel p-5 sm:p-6 ${verdict.tone}`} aria-label="Rebuttal">
+    <section className={`flex gap-3 rounded-panel p-5 sm:p-6 ${verdict.tone}`} aria-label="Your position">
       <Icon size={20} className="mt-0.5 shrink-0" />
       <div className="min-w-0">
         <h3 className="font-semibold">{verdict.title}</h3>
-        {rebuttal.summary && <p className="mt-1 max-w-[70ch] text-sm leading-6 opacity-90">{rebuttal.summary}</p>}
-        {rebuttal.stance !== 'opposed' && (
-          <p className="mt-2 text-sm leading-6 opacity-90">Content is capped at 0.30 until you argue against the take.</p>
+        {position.summary && <p className="mt-1 max-w-[70ch] text-sm leading-6 opacity-90">{position.summary}</p>}
+        {position.stance !== 'supported' && (
+          <p className="mt-2 text-sm leading-6 opacity-90">Content is capped at 0.30 until you argue for the take.</p>
         )}
       </div>
     </section>
@@ -94,7 +94,7 @@ export default function ResultsPanel({
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_300px] lg:items-start">
         <div className="min-w-0 space-y-6">
-          <RebuttalVerdict rebuttal={results.rebuttal} />
+          <PositionVerdict position={results.position} />
 
           <section className="rounded-panel border border-line bg-surface-raised p-5 sm:p-7" aria-labelledby="feedback-heading">
             <h3 id="feedback-heading" className="font-display text-lg font-semibold tracking-[-0.02em] text-ink">Feedback</h3>

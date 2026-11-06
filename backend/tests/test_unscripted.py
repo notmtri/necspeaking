@@ -32,14 +32,14 @@ from user_progress import create_practice_session  # noqa: E402
 TRANSCRIPT = {'text': 'I disagree with this take because it ignores the evidence.', 'duration': 150.0, 'words': []}
 
 
-def reply(content=0.8, accuracy=0.5, delivery=0.4, rebuttal=None):
+def reply(content=0.8, accuracy=0.5, delivery=0.4, position=None):
     result = {
         'scores': {'content': content, 'accuracy': accuracy, 'delivery': delivery, 'total': 9},
         'feedback': {'content': 'c', 'accuracy': 'a', 'delivery': 'd'},
         'sample_response': 'sample',
     }
-    if rebuttal is not None:
-        result['rebuttal'] = rebuttal
+    if position is not None:
+        result['position'] = position
     return result
 
 
@@ -48,14 +48,14 @@ class GradingModeTests(unittest.TestCase):
         prompt = build_grading_prompt('Question 1. Discuss.', TRANSCRIPT)
         self.assertNotIn('Practice mode', prompt)
         self.assertIn('My question is', prompt)
-        self.assertNotIn('"rebuttal"', prompt)
+        self.assertNotIn('"position"', prompt)
 
     def test_takes_prompt_asks_for_a_rebuttal_of_three_minutes(self):
-        prompt = build_grading_prompt('Argue against this take: "Breakfast is overrated."', TRANSCRIPT, mode='takes')
-        self.assertIn('argue AGAINST it', prompt)
+        prompt = build_grading_prompt('Argue for this take: "Breakfast is overrated."', TRANSCRIPT, mode='takes')
+        self.assertIn('argue FOR it', prompt)
         self.assertIn('Content must not exceed 0.30', prompt)
         self.assertIn('380-450 words', prompt)
-        self.assertIn('"rebuttal": {"stance"', prompt)
+        self.assertIn('"position": {"stance"', prompt)
         self.assertNotIn('My question is', prompt)
 
     def test_research_prompt_judges_the_concept(self):
@@ -71,39 +71,39 @@ class GradingModeTests(unittest.TestCase):
         self.assertIs(grading_response_schema(None), GRADING_RESPONSE_SCHEMA)
         self.assertIs(grading_response_schema('research'), GRADING_RESPONSE_SCHEMA)
         takes = grading_response_schema('takes')
-        self.assertIn('rebuttal', takes['required'])
-        self.assertNotIn('rebuttal', GRADING_RESPONSE_SCHEMA['required'])  # the original is not mutated
+        self.assertIn('position', takes['required'])
+        self.assertNotIn('position', GRADING_RESPONSE_SCHEMA['required'])  # the original is not mutated
 
-    def test_a_take_that_was_not_opposed_is_capped(self):
-        for stance in ('agreed', 'unclear', 'nonsense'):
-            result = normalise_grading_result(reply(rebuttal={'stance': stance, 'summary': 'x'}), mode='takes')
+    def test_a_take_that_was_not_argued_for_is_capped(self):
+        for stance in ('opposed', 'unclear', 'nonsense'):
+            result = normalise_grading_result(reply(position={'stance': stance, 'summary': 'x'}), mode='takes')
             self.assertEqual(result['scores']['content'], 0.3, stance)
             self.assertEqual(result['scores']['total'], 1.2, stance)
-        self.assertEqual(result['rebuttal']['stance'], 'unclear')  # an unknown stance reads as unclear
+        self.assertEqual(result['position']['stance'], 'unclear')  # an unknown stance reads as unclear
 
-    def test_an_opposed_take_keeps_its_content_score(self):
-        result = normalise_grading_result(reply(rebuttal={'stance': 'opposed', 'summary': 'Strong.'}), mode='takes')
+    def test_a_supported_take_keeps_its_content_score(self):
+        result = normalise_grading_result(reply(position={'stance': 'supported', 'summary': 'Strong.'}), mode='takes')
         self.assertEqual(result['scores']['content'], 0.8)
-        self.assertEqual(result['rebuttal'], {'stance': 'opposed', 'summary': 'Strong.'})
+        self.assertEqual(result['position'], {'stance': 'supported', 'summary': 'Strong.'})
 
     def test_no_verdict_means_no_cap(self):
         result = normalise_grading_result(reply(), mode='takes')
         self.assertEqual(result['scores']['content'], 0.8)
-        self.assertNotIn('rebuttal', result)
+        self.assertNotIn('position', result)
 
     def test_other_modes_drop_a_stray_rebuttal(self):
         for mode in (None, 'research'):
-            result = normalise_grading_result(reply(rebuttal={'stance': 'agreed', 'summary': 'x'}), mode=mode)
-            self.assertNotIn('rebuttal', result)
+            result = normalise_grading_result(reply(position={'stance': 'opposed', 'summary': 'x'}), mode=mode)
+            self.assertNotIn('position', result)
             self.assertEqual(result['scores']['content'], 0.8)
 
     def test_the_report_names_the_mode_and_the_rebuttal(self):
         from docx import Document
-        stream = generate_docx('Argue against this take: "X."', 'transcript',
-                               {**reply(), 'rebuttal': {'stance': 'opposed', 'summary': 'Well argued.'}}, mode='takes')
+        stream = generate_docx('Argue for this take: "X."', 'transcript',
+                               {**reply(), 'position': {'stance': 'supported', 'summary': 'Well argued.'}}, mode='takes')
         text = '\n'.join(p.text for p in Document(stream).paragraphs)
         self.assertIn('Practice: Unscripted - Takes', text)
-        self.assertIn('You argued against the take. Well argued.', text)
+        self.assertIn('You argued for the take. Well argued.', text)
 
 
 class UnscriptedApiTests(unittest.TestCase):
@@ -161,7 +161,7 @@ class UnscriptedApiTests(unittest.TestCase):
     def test_the_analyze_route_accepts_the_new_modes(self):
         for source, stored in (('takes', 'takes'), ('research', 'research'), ('made-up', 'analyze')):
             response = self.client.post('/api/analyze', data={
-                'topic': 'Argue against this take: "X."', 'source': source,
+                'topic': 'Argue for this take: "X."', 'source': source,
                 'audio': (BytesIO(b'fake-audio'), 'answer.webm'),
             }, content_type='multipart/form-data')
             self.assertEqual(response.status_code, 202, source)
@@ -188,8 +188,8 @@ class StatsSplitTests(unittest.TestCase):
             db.session.commit()
             scores = lambda total: {'content': 0.5, 'accuracy': 0.4, 'delivery': 0.3, 'total': total}  # noqa: E731
             create_practice_session(user, 'Question 1. NEC', 't', 300, scores(1.2), source='analyze')
-            create_practice_session(user, 'Argue against this take: "X."', 't', 150, scores(1.9), source='takes',
-                                    rebuttal={'stance': 'opposed', 'summary': 'Good.'})
+            create_practice_session(user, 'Argue for this take: "X."', 't', 150, scores(1.9), source='takes',
+                                    position={'stance': 'supported', 'summary': 'Good.'})
             create_practice_session(user, 'Deep research topic: Y', 't', 280, scores(0.4), source='research')
             db.session.commit()
 
@@ -200,7 +200,7 @@ class StatsSplitTests(unittest.TestCase):
 
             take = UserPracticeSession.query.filter_by(source='takes').one()
             self.assertEqual(take.to_dict()['source'], 'takes')
-            self.assertEqual(take.grading_result()['rebuttal'], {'stance': 'opposed', 'summary': 'Good.'})
+            self.assertEqual(take.grading_result()['position'], {'stance': 'supported', 'summary': 'Good.'})
 
     def test_badges_judge_scores_on_nec_practice_only(self):
         def attempt(source, total):

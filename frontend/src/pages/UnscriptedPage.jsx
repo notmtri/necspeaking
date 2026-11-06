@@ -30,10 +30,10 @@ export const MODES = {
     noun: 'take',
     prepSeconds: 120,
     talkSeconds: 180,
-    summary: () => 'Take 2 min to prepare, then argue against it for up to 3 min. Agreeing with it caps Content at 0.30.',
-    gradingTopic: (text) => `Argue against this take: "${text}"`,
-    sampleTitle: 'Sample full-marks rebuttal',
-    sampleNote: 'The same take, argued against at full marks.',
+    summary: () => 'Take 2 min to prepare, then argue for it for up to 3 min, even if you disagree with it. Arguing against it caps Content at 0.30.',
+    gradingTopic: (text) => `Argue for this take: "${text}"`,
+    sampleTitle: 'Sample full-marks argument',
+    sampleNote: 'The same take, argued for at full marks.',
   },
 };
 
@@ -78,6 +78,51 @@ export function pickPrompt(pool, recentIds = []) {
   }
   if (!candidates.length) candidates = pool;
   return candidates[Math.floor(Math.random() * candidates.length)];
+}
+
+/**
+ * A card-shuffle rattle for a spin: one short burst of filtered noise per name
+ * flicked past (gapsMs apart, the same gaps as the animation, falling in pitch
+ * as it slows), then a low soft thud when it lands. Made in the browser, so
+ * nothing to download; best effort, as autoplay rules can block it.
+ */
+export function playShuffleSound(gapsMs = []) {
+  const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+  if (!AudioContextClass) return;
+  try {
+    const context = new AudioContextClass();
+    const noise = context.createBuffer(1, Math.floor(context.sampleRate * 0.1), context.sampleRate);
+    const samples = noise.getChannelData(0);
+    for (let i = 0; i < samples.length; i += 1) samples[i] = Math.random() * 2 - 1;
+
+    const burst = (at, { gain, frequency, length }) => {
+      const source = context.createBufferSource();
+      source.buffer = noise;
+      const filter = context.createBiquadFilter();
+      filter.type = 'bandpass';
+      filter.frequency.value = frequency;
+      filter.Q.value = 1.4;
+      const envelope = context.createGain();
+      envelope.gain.setValueAtTime(0.0001, at);
+      envelope.gain.exponentialRampToValueAtTime(gain, at + 0.004);
+      envelope.gain.exponentialRampToValueAtTime(0.0001, at + length);
+      source.connect(filter);
+      filter.connect(envelope);
+      envelope.connect(context.destination);
+      source.start(at);
+      source.stop(at + length + 0.02);
+    };
+
+    let at = context.currentTime + 0.01;
+    gapsMs.forEach((gap, index) => {
+      burst(at, { gain: 0.2, frequency: 3200 - index * 260, length: 0.03 });
+      at += gap / 1000;
+    });
+    burst(at, { gain: 0.28, frequency: 700, length: 0.09 });
+    window.setTimeout(() => context.close?.(), (at - context.currentTime) * 1000 + 400);
+  } catch {
+    // Sound is a nicety.
+  }
 }
 
 const prefersReducedMotion = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
@@ -232,9 +277,11 @@ export default function UnscriptedPage({ onAnalysisUserUpdate, onDownloadReport,
       return;
     }
     if (!animate || pool.length < 3 || prefersReducedMotion()) {
+      if (animate) playShuffleSound([]);
       land(next);
       return;
     }
+    playShuffleSound(SPIN_TICKS_MS);
     let step = 0;
     const flick = () => {
       if (step >= SPIN_TICKS_MS.length) {
@@ -251,12 +298,11 @@ export default function UnscriptedPage({ onAnalysisUserUpdate, onDownloadReport,
     flick();
   }, [land, pool, settings.kind, stopSpin]);
 
-  // A new mode or theme (or the list arriving) lands on a prompt from it, unless
-  // the current one already belongs. Mid-session nothing changes.
+  // Nothing is shown until the student spins. A new mode, or a theme the
+  // current one is not in, hides it again rather than choosing for them.
   useEffect(() => {
-    if (loadState !== 'ready' || stage !== 'setup') return;
-    if (prompt && pool.some((item) => item.id === prompt.id)) return;
-    spin({ animate: false });
+    if (loadState !== 'ready' || stage !== 'setup' || !prompt) return;
+    if (!pool.some((item) => item.id === prompt.id)) setPrompt(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loadState, pool]);
 
@@ -362,7 +408,7 @@ export default function UnscriptedPage({ onAnalysisUserUpdate, onDownloadReport,
       <PageHeader
         id="unscripted-page-title"
         title="Unscripted"
-        description="Spin a niche topic to research and explain, or an unpopular take to argue against."
+        description="Spin a niche topic to research and explain, or an unpopular take to argue for."
       />
 
       {error && (
@@ -426,8 +472,12 @@ export default function UnscriptedPage({ onAnalysisUserUpdate, onDownloadReport,
                       Show all themes
                     </button>
                   </div>
-                ) : (
+                ) : prompt || spinning ? (
                   <PromptText prompt={prompt} mode={mode} tick={tick} />
+                ) : (
+                  <p className="text-balance font-display text-[1.75rem] font-semibold leading-[1.2] tracking-[-0.03em] text-ink-subtle sm:text-[2.25rem]">
+                    Spin to reveal your {settings.noun}.
+                  </p>
                 )}
               </div>
             </div>
@@ -437,7 +487,10 @@ export default function UnscriptedPage({ onAnalysisUserUpdate, onDownloadReport,
                 type="button"
                 onClick={() => spin()}
                 disabled={!pool.length || spinning}
-                className="group inline-flex min-h-[48px] items-center justify-center gap-2 rounded-full border border-line bg-surface-raised px-5 font-medium text-ink transition-[background-color,transform] duration-150 hover:bg-overlay active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50"
+                // The main action until there is something to start on.
+                className={`group inline-flex min-h-[48px] items-center justify-center gap-2 rounded-full px-5 font-medium transition-[background-color,transform] duration-150 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50 ${
+                  prompt ? 'border border-line bg-surface-raised text-ink hover:bg-overlay' : 'bg-ink text-on-ink hover:bg-ink/85'
+                }`}
               >
                 <Dices size={18} className={`transition-transform duration-300 ease-out ${spinning ? 'rotate-180' : ''}`} />
                 Spin
@@ -481,7 +534,7 @@ export default function UnscriptedPage({ onAnalysisUserUpdate, onDownloadReport,
               </div>
             ) : (
               <div className="text-sm font-medium text-ink-muted">
-                {stage === 'ready' ? "Time's up" : mode === 'research' ? 'Research this topic' : 'Plan your argument against'}
+                {stage === 'ready' ? "Time's up" : mode === 'research' ? 'Research this topic' : 'Plan your argument for'}
               </div>
             )}
             <div className="mt-3">
@@ -508,7 +561,7 @@ export default function UnscriptedPage({ onAnalysisUserUpdate, onDownloadReport,
                   value={notes}
                   onChange={(event) => setNotes(event.target.value)}
                   rows={stage === 'recording' ? 4 : 6}
-                  placeholder={mode === 'research' ? 'What it is, an example, why it matters...' : 'The take assumes... but...'}
+                  placeholder={mode === 'research' ? 'What it is, an example, why it matters...' : 'It is true because... Critics say... but...'}
                   className={`${FIELD_CLASSNAME} resize-y text-base leading-7 sm:text-sm sm:leading-6`}
                 />
                 <span className="mt-1 block text-xs text-ink-subtle">Stay on screen while you talk. Not saved.</span>

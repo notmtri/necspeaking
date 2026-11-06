@@ -92,10 +92,10 @@ def refresh_user_stats(user):
 
 def create_practice_session(user, topic, transcript_text, duration, scores, metrics=None,
                             feedback=None, sample_response=None, grader=None, source=None,
-                            rebuttal=None):
-    if rebuttal:
+                            position=None):
+    if position:
         # Kept with the feedback, so history and rebuilt reports still show it.
-        feedback = {**(feedback or {}), 'rebuttal': rebuttal}
+        feedback = {**(feedback or {}), 'position': position}
     practice = UserPracticeSession(
         user_id=user.id,
         topic=topic,

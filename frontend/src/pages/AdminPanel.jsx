@@ -180,7 +180,7 @@ function UnscriptedAdmin({ notify, askToConfirm }) {
           </AdminField>
           <AdminField
             label={kind === 'topic' ? 'Topic name' : 'Take'}
-            hint={kind === 'topic' ? 'Only the name is shown. Working out what it is, is the research.' : 'One unpopular opinion as a full sentence. Students argue against it.'}
+            hint={kind === 'topic' ? 'Only the name is shown. Working out what it is, is the research.' : 'One unpopular opinion as a full sentence. Students argue for it.'}
           >
             <input
               value={draft.text}

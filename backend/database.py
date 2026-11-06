@@ -313,7 +313,7 @@ class UserPracticeSession(db.Model):
             'scores': self.scores or {},
             'feedback': feedback,
             'sample_response': self.sample_response or '',
-            'rebuttal': feedback.get('rebuttal') if isinstance(feedback, dict) else None,
+            'position': feedback.get('position') if isinstance(feedback, dict) else None,
         }
 
 

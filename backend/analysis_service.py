@@ -70,9 +70,10 @@ GRADING_RESPONSE_SCHEMA = {
 # Practice modes beyond NEC questions (the Unscripted page). The rubric and its
 # three scores stay the same; only the grading instructions change.
 GRADING_MODES = {'research', 'takes'}
-REBUTTAL_STANCES = ('opposed', 'agreed', 'unclear')
-# Content for a take that is not argued against (agreed, or no clear stance).
-UNOPPOSED_TAKE_CONTENT_CAP = 0.3
+# Takes: where the student stood on the take. They are asked to argue FOR it.
+POSITION_STANCES = ('supported', 'opposed', 'unclear')
+# Content for a take that was not argued for (argued against, or no clear stance).
+UNDEFENDED_TAKE_CONTENT_CAP = 0.3
 
 
 def grading_mode(mode):
@@ -81,19 +82,19 @@ def grading_mode(mode):
 
 
 def grading_response_schema(mode=None):
-    """The JSON schema Gemini must answer in; Takes adds a rebuttal verdict."""
+    """The JSON schema Gemini must answer in; Takes adds a position verdict."""
     if grading_mode(mode) != 'takes':
         return GRADING_RESPONSE_SCHEMA
     schema = json.loads(json.dumps(GRADING_RESPONSE_SCHEMA))
-    schema["properties"]["rebuttal"] = {
+    schema["properties"]["position"] = {
         "type": "object",
         "properties": {
-            "stance": {"type": "string", "enum": list(REBUTTAL_STANCES)},
+            "stance": {"type": "string", "enum": list(POSITION_STANCES)},
             "summary": {"type": "string"},
         },
         "required": ["stance", "summary"],
     }
-    schema["required"] = [*schema["required"], "rebuttal"]
+    schema["required"] = [*schema["required"], "position"]
     return schema
 
 
@@ -104,14 +105,14 @@ For Content, judge whether the student:
    - goes beyond a definition: how it works, why it matters, where it shows up in real life
    - uses concrete, real examples and covers at least one implication, limitation or criticism
 """,
-    'takes': """**Practice mode: Takes (rebuttal).** The student was shown a deliberately unpopular opinion (the take) and had to argue AGAINST it, after 2 minutes of preparation, in a talk of up to 3 minutes.
-For Content, judge how convincingly the student refuted the take:
-   - states a clear position against the take early on
-   - identifies the take's strongest reasoning and answers it, rather than attacking a weaker version of it
-   - supports the rebuttal with reasons, evidence and concrete examples
-   - if the student agrees with the take, or never takes a clear position against it, Content must not exceed 0.30
-Judge completeness against a 3-minute talk: a full rebuttal of 2 to 3 minutes is not short, so do not penalise it for being shorter than 5 minutes.
-Also return "rebuttal": {"stance": "opposed", "agreed" or "unclear", "summary": one or two sentences on how well the take was refuted, written to the student as "you" like the rest of the feedback}.
+    'takes': """**Practice mode: Takes.** The student was shown a deliberately unpopular opinion (the take) and had to argue FOR it, defending it whatever their own view, after 2 minutes of preparation, in a talk of up to 3 minutes.
+For Content, judge how convincingly the student made the case for the take:
+   - states a clear position in favour of the take early on
+   - builds the strongest case for it with reasons, evidence and concrete examples
+   - anticipates the obvious objections to the take and answers them
+   - if the student argues against the take, or never takes a clear position for it, Content must not exceed 0.30
+Judge completeness against a 3-minute talk: a full argument of 2 to 3 minutes is not short, so do not penalise it for being shorter than 5 minutes.
+Also return "position": {"stance": "supported", "opposed" or "unclear", "summary": one or two sentences on how convincingly the take was defended, written to the student as "you" like the rest of the feedback}.
 """,
 }
 
@@ -127,9 +128,9 @@ def sample_response_instructions(mode=None):
    - Grade at C2 level of the CEFR framework
    - Be very strict"""
     if mode == 'takes':
-        return f"""4. Generate a sample 2.0/2.0 rebuttal of the same take that would take approximately 3 minutes to speak (around 380-450 words). The sample should:
-   - Start with "The take is that ... I disagree, and here is why." and then argue against the take
-   - End with "That is why I disagree with this take. Thank you."
+        return f"""4. Generate a sample 2.0/2.0 argument for the same take that would take approximately 3 minutes to speak (around 380-450 words). The sample should:
+   - Start with "The take is that ... I agree, and here is why." and then argue for the take
+   - End with "That is why I stand by this take. Thank you."
 {quality}"""
     if mode == 'research':
         return f"""4. Generate a sample 2.0/2.0 talk explaining the same concept that would take approximately 5 minutes to speak (around 600-700 words). The sample should:
@@ -297,8 +298,8 @@ def build_grading_prompt(topic, transcript_data, audio_attached=False, mode=None
     mode = grading_mode(mode)
     mode_guidance = f"\n{MODE_GUIDANCE[mode]}" if mode else ''
     sample_instructions = sample_response_instructions(mode)
-    rebuttal_shape = (
-        ',\n    "rebuttal": {"stance": "opposed", "summary": "How well the take was refuted..."}'
+    position_shape = (
+        ',\n    "position": {"stance": "supported", "summary": "How convincingly the take was defended..."}'
         if mode == 'takes' else ''
     )
     audio_instruction = (
@@ -362,7 +363,7 @@ Return only valid JSON matching this shape:
         "accuracy": "Detailed feedback with examples...",
         "delivery": "Detailed feedback with examples..."
     }},
-    "sample_response": "A complete 2.0/2.0 sample response to the topic..."{rebuttal_shape}
+    "sample_response": "A complete 2.0/2.0 sample response to the topic..."{position_shape}
 }}"""
 
 
@@ -461,15 +462,15 @@ def normalise_grading_result(result, mode=None):
     }
 
     normalised = dict(result)
-    normalised.pop("rebuttal", None)
+    normalised.pop("position", None)
     if grading_mode(mode) == 'takes':
-        rebuttal = _normalise_rebuttal(result.get("rebuttal"))
-        if rebuttal:
-            normalised["rebuttal"] = rebuttal
+        position = _normalise_position(result.get("position"))
+        if position:
+            normalised["position"] = position
             # Enforced here, not left to the model: a take that was not argued
-            # against has not done the task, whatever else the talk did well.
-            if rebuttal["stance"] != 'opposed' and scores["content"] > UNOPPOSED_TAKE_CONTENT_CAP:
-                scores["content"] = UNOPPOSED_TAKE_CONTENT_CAP
+            # for has not done the task, whatever else the talk did well.
+            if position["stance"] != 'supported' and scores["content"] > UNDEFENDED_TAKE_CONTENT_CAP:
+                scores["content"] = UNDEFENDED_TAKE_CONTENT_CAP
                 scores["total"] = round(sum(scores[criterion] for criterion in SCORE_LIMITS), 2)
     normalised["scores"] = scores
     normalised["feedback"] = feedback
@@ -477,12 +478,12 @@ def normalise_grading_result(result, mode=None):
     return normalised
 
 
-def _normalise_rebuttal(raw):
+def _normalise_position(raw):
     """The Takes verdict, or None when the grader gave none (no cap then)."""
     if not isinstance(raw, dict):
         return None
     stance = str(raw.get("stance") or '').strip().lower()
-    if stance not in REBUTTAL_STANCES:
+    if stance not in POSITION_STANCES:
         stance = 'unclear'
     return {"stance": stance, "summary": str(raw.get("summary") or '').strip()}
 
@@ -720,12 +721,12 @@ def generate_docx(topic, transcript, grading_result, mode=None):
     doc.add_heading('3. Delivery', 2)
     doc.add_paragraph(feedback.get('delivery') or '')
 
-    rebuttal = grading_result.get('rebuttal') if isinstance(grading_result.get('rebuttal'), dict) else None
-    if rebuttal:
-        doc.add_heading('Rebuttal', 2)
-        stance = {'opposed': 'You argued against the take.', 'agreed': 'You agreed with the take.',
-                  'unclear': 'Your position on the take was unclear.'}.get(rebuttal.get('stance'), '')
-        doc.add_paragraph(f"{stance} {rebuttal.get('summary') or ''}".strip())
+    position = grading_result.get('position') if isinstance(grading_result.get('position'), dict) else None
+    if position:
+        doc.add_heading('Your position', 2)
+        stance = {'supported': 'You argued for the take.', 'opposed': 'You argued against the take.',
+                  'unclear': 'Your position on the take was unclear.'}.get(position.get('stance'), '')
+        doc.add_paragraph(f"{stance} {position.get('summary') or ''}".strip())
 
     doc.add_page_break()
 

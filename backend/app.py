@@ -596,7 +596,7 @@ def claim_guest_jobs(user):
                 sample_response=payload.get('sample_response'),
                 grader=payload.get('grader_model') or payload.get('grader'),
                 source=job.source,
-                rebuttal=payload.get('rebuttal'),
+                position=payload.get('position'),
             )
             payload['practice_session_id'] = practice.id
             payload['user'] = user.to_dict()  # stats now include this attempt
