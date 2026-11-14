@@ -80,6 +80,9 @@ class User(db.Model):
     password_hash = db.Column(db.String(255), nullable=False)
     # Set when the owner types a code we emailed them (verification or reset).
     email_verified_at = db.Column(db.DateTime, nullable=True)
+    # Accounts made since Nov 2026 must confirm their email before they count
+    # as logged in (see get_current_user in app.py). Older accounts: False.
+    verification_required = db.Column(db.Boolean, nullable=False, default=False, server_default=db.false())
     # The one live emailed code, as an HMAC; see consume_email_code in app.py.
     email_code_hash = db.Column(db.String(64), nullable=True)
     email_code_purpose = db.Column(db.String(20), nullable=True)
@@ -195,6 +198,11 @@ class User(db.Model):
             'commitWeeks': self.commit_weeks or [],
             'createdAt': self.created_at.isoformat() if self.created_at else None
         }
+
+    @property
+    def awaiting_verification(self):
+        """A new account whose owner has not typed the emailed code yet."""
+        return bool(self.verification_required) and self.email_verified_at is None
 
     def to_dict(self):
         data = self._base_profile()

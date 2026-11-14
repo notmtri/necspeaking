@@ -3,6 +3,7 @@ import { Analytics } from '@vercel/analytics/react';
 import { Loader, MessageSquare } from 'lucide-react';
 import { AppHeader, AppStatusStack, Footer } from './components/AppChrome';
 import ErrorBoundary from './components/ErrorBoundary';
+import VerifyEmailGate from './components/VerifyEmailGate';
 import { API_BASE_URL, DEFAULT_ANNOUNCEMENT, PAGE_TITLES, downloadDocumentFromBase64, pageFromLocation, pathForPage, readGuestModePreference, writeGuestModePreference } from './appShared';
 import { apiFetch, isAbortError } from './apiClient';
 import HomePage from './pages/HomePage';
@@ -57,6 +58,9 @@ export default function SpeakUpApp() {
   const [guestMode, setGuestMode] = useState(readGuestModePreference);
   const [guestModeBannerVisible, setGuestModeBannerVisible] = useState(true);
   const [currentUser, setCurrentUser] = useState(null);
+  // A new account that has not typed its emailed code yet ({ email, name }).
+  // Until it does, the verify screen stands in for every page.
+  const [pendingUser, setPendingUser] = useState(null);
   const [publicProfiles, setPublicProfiles] = useState([]);
   const [selectedProfileId, setSelectedProfileId] = useState(null);
   const [announcement, setAnnouncement] = useState(DEFAULT_ANNOUNCEMENT);
@@ -241,6 +245,7 @@ export default function SpeakUpApp() {
       try {
         const data = await apiFetch('/api/auth/me', { signal: controller.signal });
         setEmailEnabled(Boolean(data.emailEnabled));
+        setPendingUser(data.pendingUser || null);
         if (data.authenticated && data.user) {
           setCurrentUser(data.user);
           setSelectedProfileId(data.user.id);
@@ -430,6 +435,12 @@ export default function SpeakUpApp() {
         body: { email, password, profile },
       });
 
+      if (data.pendingVerification) {
+        setGuestMode(false);
+        setPendingUser(data.pendingUser);
+        return true;
+      }
+
       if (!data.user) {
         setAuthError(data.error || 'Authentication failed.');
         return false;
@@ -513,6 +524,43 @@ export default function SpeakUpApp() {
     if (!data.user) throw new Error(data.error || 'Could not save that image.');
     setCurrentUser(data.user);
   }, []);
+
+  const announceClaimed = useCallback((claimed) => {
+    if (!claimed) return;
+    pushToast(claimed === 1
+      ? 'Your guest result was saved to your profile.'
+      : `${claimed} guest results were saved to your profile.`, 'success');
+  }, [pushToast]);
+
+  // The new account typed its code: from here on it is logged in.
+  const handleGateVerified = useCallback(async (data) => {
+    if (!data?.user) return;
+    setPendingUser(null);
+    setCurrentUser(data.user);
+    setGuestMode(false);
+    setSelectedProfileId(data.user.id);
+    navTo('profile');
+    pushToast('Email confirmed. Welcome to necs.!', 'success');
+    announceClaimed(data.claimedResults);
+    await loadPracticeHistory();
+    refreshCommunityProfiles().catch(() => {});
+  }, [announceClaimed, loadPracticeHistory, navTo, pushToast, refreshCommunityProfiles]);
+
+  const handleGateStartOver = useCallback(() => {
+    setPendingUser(null);
+    openAuth('signup');
+    pushToast('That account was discarded. Sign up again with the right email.', 'success');
+  }, [openAuth, pushToast]);
+
+  const handleGateLogout = useCallback(async () => {
+    try {
+      await apiFetch('/api/auth/logout', { method: 'POST' });
+    } catch {
+      // Clear local state even if the request fails.
+    }
+    setPendingUser(null);
+    navTo('home');
+  }, [navTo]);
 
   const handleEmailVerified = useCallback((user) => {
     if (!user) return;
@@ -691,7 +739,14 @@ export default function SpeakUpApp() {
         />
         <ErrorBoundary resetKey={currentPage}>
           <Suspense fallback={<PageFallback />}>
-            {renderPage()}
+            {pendingUser && !currentUser ? (
+              <VerifyEmailGate
+                pendingUser={pendingUser}
+                onVerified={handleGateVerified}
+                onStartOver={handleGateStartOver}
+                onLogout={handleGateLogout}
+              />
+            ) : renderPage()}
           </Suspense>
         </ErrorBoundary>
       </main>

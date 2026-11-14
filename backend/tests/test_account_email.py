@@ -87,18 +87,81 @@ class AccountEmailTests(unittest.TestCase):
 
     # --- verification ---
 
-    def test_signup_emails_a_code_that_confirms_the_address(self):
+    def confirm(self, browser=None, message=0):
+        return (browser or self.browser).post('/api/auth/verify-email', json={'code': self.code_from(self.sent[message])})
+
+    def make_legacy(self, email='student@example.com'):
+        """An account from before new accounts had to confirm their email."""
+        with app_module.app.app_context():
+            user = User.query.filter_by(email=email).first()
+            user.verification_required = False
+            db.session.commit()
+
+    def test_signup_emails_a_code_and_logs_in_only_once_it_is_typed(self):
         response = self.signup()
-        self.assertTrue(response.get_json()['verificationSent'])
-        self.assertFalse(response.get_json()['user']['emailVerified'])
+        body = response.get_json()
+        self.assertEqual(response.status_code, 201)
+        self.assertTrue(body['verificationSent'])
+        self.assertTrue(body['pendingVerification'])
+        self.assertIsNone(body['user'])
+        self.assertEqual(body['pendingUser']['email'], 'student@example.com')
         self.assertEqual(self.sent[0]['to'], 'student@example.com')
         code = self.code_from(self.sent[0])
         self.assertIn(code, self.sent[0]['subject'])
 
+        me = self.browser.get('/api/auth/me').get_json()
+        self.assertFalse(me['authenticated'])
+        self.assertEqual(me['pendingUser']['email'], 'student@example.com')
+
         confirmed = self.browser.post('/api/auth/verify-email', json={'code': code})
         self.assertEqual(confirmed.status_code, 200)
         self.assertTrue(confirmed.get_json()['user']['emailVerified'])
-        self.assertTrue(self.browser.get('/api/auth/me').get_json()['user']['emailVerified'])
+        me = self.browser.get('/api/auth/me').get_json()
+        self.assertTrue(me['authenticated'])
+        self.assertTrue(me['user']['emailVerified'])
+        self.assertIsNone(me['pendingUser'])
+
+    def test_a_new_account_is_a_guest_until_it_confirms(self):
+        self.signup()
+        self.assertEqual(self.browser.put('/api/auth/profile', json={'name': 'Changed'}).status_code, 401)
+        self.assertEqual(self.browser.get('/api/auth/practice-history').status_code, 401)
+        listed = [p['username'] for p in app_module.app.test_client().get('/api/auth/community').get_json()['profiles']]
+        self.assertNotIn('student', listed)
+
+        self.confirm()
+        self.assertEqual(self.browser.put('/api/auth/profile', json={'name': 'Changed'}).status_code, 200)
+        listed = [p['username'] for p in app_module.app.test_client().get('/api/auth/community').get_json()['profiles']]
+        self.assertIn('student', listed)
+
+    def test_logging_in_before_confirming_goes_back_to_the_code(self):
+        self.signup()
+        again = self.login('oldpassword1')
+        self.assertEqual(again.status_code, 200)
+        self.assertTrue(again.get_json()['pendingVerification'])
+        self.assertEqual(len(self.sent), 1)  # the first code is still good, so no second email
+
+        with app_module.app.app_context():
+            user = User.query.filter_by(email='student@example.com').first()
+            user.email_code_expires_at = app_module.utcnow() - app_module.timedelta(seconds=1)
+            db.session.commit()
+        browser = app_module.app.test_client()
+        browser.post('/api/auth/login', json={'email': 'student@example.com', 'password': 'oldpassword1'})
+        self.assertEqual(len(self.sent), 2)  # expired: a fresh one
+        self.assertEqual(self.confirm(browser=browser, message=1).status_code, 200)
+        self.assertTrue(browser.get('/api/auth/me').get_json()['authenticated'])
+
+    def test_a_wrong_email_can_be_thrown_away_and_used_again(self):
+        self.signup(email='typo@exmaple.com')
+        self.assertEqual(self.browser.delete('/api/auth/account').status_code, 200)
+        self.assertEqual(self.signup(email='student@example.com').status_code, 201)  # same username, free again
+
+    def test_accounts_from_before_keep_logging_in_without_a_code(self):
+        self.signup()
+        self.make_legacy()
+        browser = app_module.app.test_client()
+        response = browser.post('/api/auth/login', json={'email': 'student@example.com', 'password': 'oldpassword1'})
+        self.assertFalse(response.get_json()['user']['emailVerified'])
+        self.assertTrue(browser.get('/api/auth/me').get_json()['authenticated'])
 
     def test_a_code_typed_with_spaces_still_works(self):
         self.signup()
@@ -110,7 +173,7 @@ class AccountEmailTests(unittest.TestCase):
         self.signup()
         refused = self.browser.post('/api/auth/verify-email', json={'code': self.wrong(self.code_from(self.sent[0]))})
         self.assertEqual(refused.status_code, 400)
-        self.assertFalse(self.browser.get('/api/auth/me').get_json()['user']['emailVerified'])
+        self.assertFalse(self.browser.get('/api/auth/me').get_json()['authenticated'])
 
     def test_a_new_code_replaces_the_old_one(self):
         self.signup()
@@ -206,7 +269,9 @@ class AccountEmailTests(unittest.TestCase):
     # --- community posting ---
 
     def test_posting_in_the_community_needs_a_confirmed_email(self):
+        # An older account, logged in without ever confirming.
         self.signup()
+        self.make_legacy()
         post = {'title': 'Hello', 'body': 'First post'}
         blocked = self.browser.post('/api/community/posts', json=post)
         self.assertEqual(blocked.status_code, 403)
@@ -218,7 +283,8 @@ class AccountEmailTests(unittest.TestCase):
     # --- roles ---
 
     def test_nobody_can_give_themselves_the_teacher_badge(self):
-        self.assertEqual(self.signup().get_json()['user']['role'], 'Student')
+        self.signup()
+        self.assertEqual(self.confirm().get_json()['user']['role'], 'Student')
         updated = self.browser.put('/api/auth/profile', json={'name': 'Student One', 'role': 'Teacher'})
         self.assertEqual(updated.get_json()['user']['role'], 'Student')
 

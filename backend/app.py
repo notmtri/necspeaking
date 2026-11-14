@@ -510,6 +510,16 @@ MAX_NAME_CHARS = 60
 
 
 def get_current_user():
+    """The logged-in user. A new account still waiting for its email code is
+    not logged in yet: everywhere but the verify screen it is a guest."""
+    user = get_session_user()
+    if user and email_enabled() and user.awaiting_verification:
+        return None
+    return user
+
+
+def get_session_user():
+    """Whoever this browser's session belongs to, verified or not."""
     user_id = session.get('user_id')
     if not user_id:
         return None
@@ -627,6 +637,25 @@ def require_login():
     return decorator
 
 
+def require_session():
+    """Like require_login, but also lets in a new account that has not
+    confirmed its email yet: for the verify screen's own requests."""
+    def decorator(f):
+        @wraps(f)
+        def wrapped(*args, **kwargs):
+            if not get_session_user():
+                return jsonify({"error": "Authentication required."}), 401
+            return f(*args, **kwargs)
+        return wrapped
+    return decorator
+
+
+def pending_verification_payload(user, **extra):
+    """What the client needs to show the verify screen for a new account."""
+    return {"success": True, "pendingVerification": True, "user": None,
+            "pendingUser": {"email": user.email, "name": user.name}, **extra}
+
+
 # The community listing is a public, unauthenticated endpoint returning whole
 # profiles. Without a ceiling its payload grows with the user base.
 #
@@ -682,6 +711,8 @@ def signup():
             role='Student',
             bio=payload["bio"] or 'Practicing consistently and tracking progress on necs.',
             avatar=avatar_from_name(payload["name"]),
+            # Only when a code can actually be sent; otherwise nobody could confirm.
+            verification_required=email_enabled(),
             stats=dict(DEFAULT_USER_STATS),
             progress=list(DEFAULT_USER_PROGRESS),
             commit_weeks=[list(week) for week in DEFAULT_USER_COMMIT_WEEKS]
@@ -691,14 +722,16 @@ def signup():
         db.session.commit()
 
         start_session(user)
+        if user.awaiting_verification:
+            # Logged in only once the emailed code is typed (confirm_email_verification).
+            return jsonify(pending_verification_payload(user, verificationSent=send_verification_code(user))), 201
         claimed = claim_guest_jobs(user)
-        verification_sent = send_verification_code(user) if email_enabled() else False
 
         return jsonify({
             "success": True,
             "user": user.to_dict(),
             "claimedResults": claimed,
-            "verificationSent": verification_sent,
+            "verificationSent": False,
         }), 201
     except Exception as e:
         db.session.rollback()
@@ -720,6 +753,11 @@ def login():
             return jsonify({"error": "Invalid email or password."}), 401
 
         start_session(user)
+        if email_enabled() and user.awaiting_verification:
+            # A fresh code unless the last one is still good.
+            fresh = user.email_code_purpose == 'verify' and user.email_code_expires_at and user.email_code_expires_at > utcnow()
+            sent = True if fresh else send_verification_code(user)
+            return jsonify(pending_verification_payload(user, verificationSent=sent))
         claimed = claim_guest_jobs(user)
 
         return jsonify({"success": True, "user": user.to_dict(), "claimedResults": claimed})
@@ -734,10 +772,15 @@ def auth_me():
     if user:
         # Picks up a guest analysis that was still running at login.
         claim_guest_jobs(user)
+    pending = get_session_user() if not user else None
+    if pending and not (email_enabled() and pending.awaiting_verification):
+        pending = None
     return jsonify({
         "authenticated": bool(user),
         "user": user.to_dict() if user else None,
         "emailEnabled": email_enabled(),
+        # A new account that still has to type its emailed code.
+        "pendingUser": {"email": pending.email, "name": pending.name} if pending else None,
     })
 
 
@@ -755,9 +798,11 @@ def auth_community():
     limit = max(1, min(limit, COMMUNITY_MAX_PAGE_SIZE))
     offset = max(0, offset)
 
-    query = User.query.order_by(User.updated_at.desc(), User.created_at.desc())
+    # A new account appears once it has confirmed its email.
+    listed = db.or_(User.verification_required.is_(False), User.email_verified_at.isnot(None))
+    query = User.query.filter(listed).order_by(User.updated_at.desc(), User.created_at.desc())
     # A plain count; Query.count() wraps a SELECT of every column, avatar included.
-    total = db.session.query(db.func.count(User.id)).scalar()
+    total = db.session.query(db.func.count(User.id)).filter(listed).scalar()
     # No picture leaves the database: only whether each person has a photo,
     # which the list then links to (User.has_photo_column).
     rows = (
@@ -1280,10 +1325,10 @@ def send_verification_code(user):
 
 
 @app.route('/api/auth/verify-email/request', methods=['POST'])
-@require_login()
+@require_session()
 @rate_limit('verify-email-request', max_requests=5, window_seconds=3600)
 def request_email_verification():
-    user = get_current_user()
+    user = get_session_user()
     if user.email_verified_at:
         return jsonify({"success": True, "alreadyVerified": True})
     if not email_enabled():
@@ -1294,12 +1339,12 @@ def request_email_verification():
 
 
 @app.route('/api/auth/verify-email', methods=['POST'])
-@require_login()
+@require_session()
 @rate_limit('verify-email-confirm', max_requests=20, window_seconds=3600)
 def confirm_email_verification():
-    user = get_current_user()
+    user = get_session_user()
     if user.email_verified_at:
-        return jsonify({"success": True, "user": user.to_dict()})
+        return jsonify({"success": True, "user": user.to_dict(), "claimedResults": 0})
     if not consume_email_code(user, 'verify', (request.get_json(silent=True) or {}).get('code')):
         return jsonify({"error": WRONG_CODE_MESSAGE}), 400
 
@@ -1310,7 +1355,9 @@ def confirm_email_verification():
         db.session.rollback()
         print(f"[AUTH] Email verification error: {error}")
         return jsonify({"error": "Could not confirm your email. Try again."}), 500
-    return jsonify({"success": True, "user": user.to_dict()})
+    # Now logged in for real: results from before sign-up move in.
+    claimed = claim_guest_jobs(user)
+    return jsonify({"success": True, "user": user.to_dict(), "claimedResults": claimed})
 
 
 @app.route('/api/auth/password/forgot', methods=['POST'])
@@ -1387,10 +1434,12 @@ def update_password():
 
 
 @app.route('/api/auth/account', methods=['DELETE'])
-@require_login()
+@require_session()
 def delete_account():
     try:
-        user = get_current_user()
+        # A new account still on the verify screen may delete itself too
+        # ("Use a different email"), freeing its email and username.
+        user = get_session_user()
         session.pop('user_id', None)
         db.session.delete(user)
         db.session.commit()

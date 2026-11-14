@@ -34,6 +34,7 @@ const createFetchMock = (overrides = {}) => vi.fn(async (url, init) => {
       authenticated: Boolean(overrides.user),
       user: overrides.user || null,
       emailEnabled: Boolean(overrides.emailEnabled),
+      pendingUser: overrides.pendingUser || null,
     });
   }
   if (target.includes('/api/auth/practice-history')) return createFetchResponse({ sessions: [] });
@@ -123,6 +124,35 @@ describe('App', () => {
     Object.defineProperty(window.navigator, 'onLine', { configurable: true, value: originalOnline });
     window.history.pushState({}, '', '/');
     delete global.IS_REACT_ACT_ENVIRONMENT;
+  });
+
+  it('keeps a new account on the verify screen until its code is confirmed', async () => {
+    const verifiedUser = { id: 9, name: 'New Student', username: 'newbie', email: 'new@example.com', emailVerified: true, stats: {}, progress: [], commitWeeks: [] };
+    await renderApp('/simulation', { emailEnabled: true, pendingUser: { email: 'new@example.com', name: 'New Student' }, verifiedUser });
+
+    expect(container.textContent).toContain('Check your email');
+    expect(container.textContent).toContain('new@example.com');
+    expect(container.textContent).not.toContain('Before you start'); // the page itself stays hidden
+
+    const input = container.querySelector('#verify-gate-code');
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set;
+    await act(async () => {
+      setter.call(input, '12 34 56');
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    expect(input.value).toBe('123456');
+    await act(async () => {
+      container.querySelector('form').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    });
+    const deadline = Date.now() + 5000;
+    while (Date.now() < deadline && container.textContent.includes('Check your email')) {
+      // eslint-disable-next-line no-await-in-loop
+      await act(async () => { await new Promise((resolve) => setTimeout(resolve, 10)); });
+    }
+    expect(container.textContent).not.toContain('Check your email');
+    expect(window.location.pathname).toBe('/profile');
+    const verifyCall = global.fetch.mock.calls.find(([url, init]) => String(url).includes('/api/auth/verify-email') && init?.method === 'POST');
+    expect(JSON.parse(verifyCall[1].body)).toEqual({ code: '123456' });
   });
 
   it('renders the home shell and live announcement', async () => {
