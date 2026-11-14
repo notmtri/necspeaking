@@ -127,6 +127,7 @@ const isPartner = () => S.role === 'erik';
 const isPre = () => REV && S.role === 'sofia' && person('sofia').preArrival;
 const email = id => { const p = person(id); return p.email || `${p.first}.${p.last}`.toLowerCase().normalize('NFD').replace(/[̀-ͯ'\s]/g, '') + '@vinuni.edu.vn'; };
 const collegeName = c => COLLEGES[c] || c;
+const unitName = c => c === 'Library' ? 'the Library' : c; // "Also in CECS", "Also in the Library"
 
 /* ---------- Dates ---------- */
 const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -203,7 +204,7 @@ const defaultPrefs = p => ({ imp: { college: 2, culture: 1, family: 2, hobbies: 
 const prefsFor = id => S.prefs[id] || defaultPrefs(person(id));
 function factorScore(key, sk, c, pr) {
   switch (key) {
-    case 'college': return sk.college === c.college ? [1, `Also in ${c.college}`] : [0, `Different college (${c.college})`];
+    case 'college': return sk.college === c.college ? [1, `Also in ${unitName(c.college)}`] : [0, `Works in ${unitName(c.college)}`];
     case 'culture': {
       if (sk.country && c.country === sk.country) return [1, `Also from ${c.country}`];
       const reg = c.regions.filter(r => sk.regions.includes(r)); if (reg.length) return [1, `Also familiar with ${reg[0]}`];
@@ -220,7 +221,7 @@ function factorScore(key, sk, c, pr) {
     }
     case 'hobbies': { const h = c.interests.filter(x => pr.hobbies.includes(x)); return [Math.min(1, h.length / 2), h.length ? `Shares ${h.join(', ').toLowerCase()}` : 'No shared hobbies']; }
     case 'help': { if (!pr.help.length) return [0, 'No help topics chosen']; const h = c.helpTopics.filter(x => pr.help.includes(x)); return [h.length / pr.help.length, h.length ? `Can help with ${h.join(', ').toLowerCase()}` : 'Different help topics']; }
-    case 'area': if (!pr.area || pr.area === 'Undecided') return [0.5, 'Area not decided yet']; return c.area === pr.area ? [1, `Also in ${c.area}`] : [0, `Lives in ${c.area}`];
+    case 'area': if (!pr.area || pr.area === 'Undecided') return [0.5, '']; // neutral, and not worth showing as a reason return c.area === pr.area ? [1, `Also in ${c.area}`] : [0, `Lives in ${c.area}`];
   }
   return [0, ''];
 }
@@ -712,7 +713,7 @@ PAGES.profile = () => {
       ${REV ? `<label class="row mb12" style="align-items:flex-start"><input type="checkbox" name="consentFamily" ${consentOn ? 'checked' : ''} data-change="consent" style="margin-top:4px"><span class="small"><b>I consent</b> to VinUniversity processing my partner and children’s age information for buddy matching, under Vietnam’s Personal Data Protection Law and Decree 13/2023. ${p.consent && p.consent.family ? `<span class="muted">Given ${fmt(p.consent.family)}.</span>` : ''}</span></label>` : ''}
       <fieldset id="famfields" ${consentOn ? '' : 'disabled'} style="border:0;padding:0;margin:0;${consentOn ? '' : 'opacity:.45'}">
         <div class="field"><label>Partner / family information ${opt} ${visSelect('famVis', fam.vis)}</label><label class="row small"><input type="checkbox" name="partner" ${fam.partner ? 'checked' : ''}> I have a partner or spouse living with me in Hanoi</label></div>
-        <div class="field"><span class="lbl">Children’s age ranges ${opt}</span>${chipSet('kids', KID_RANGES, fam.kids)}<span class="hint">Age ranges only. Never names or birth dates. Uses the same visibility as family information.</span></div>
+        <div class="field"><span class="lbl">Children’s age ranges ${opt}</span>${chipSet('kids', [NO_KIDS, ...KID_RANGES], fam.noKids ? [NO_KIDS] : fam.kids)}<span class="hint">Age ranges only. Never names or birth dates. Uses the same visibility as family information.</span></div>
       </fieldset>
       <div class="grid g2"><div class="field"><label>Preferred contact method ${opt}</label><select class="input" name="contact">${['Email', 'Teams', 'Zalo', 'WhatsApp', 'Phone'].map(c => `<option ${c === p.contact ? 'selected' : ''}>${c}</option>`).join('')}</select><span class="hint">Subject to university policy</span></div>
       <div class="field"><label>Broad area ${opt}</label><select class="input" name="area">${AREAS.map(a => `<option ${a === p.area ? 'selected' : ''}>${a}</option>`).join('')}</select><span class="hint">For matching only. We never ask for your address. ${ref(6)}</span></div></div>
@@ -777,7 +778,7 @@ PAGES.directory = () => {
   return pageHead(REV ? 'People' : 'Find Faculty', 'Search by college, expertise, hobbies, languages or what people can help with.', `${ref(3)} ${ref(4)} ${tech(REV ? 'Lists view' : 'Power Apps')}`)
     + `<section class="card card-pad mb16"><div class="search" style="max-width:none;margin-bottom:12px">${ic('search')}<input class="input" style="padding-left:38px" data-input="dir" name="q" value="${esc(f.q)}" placeholder="Name, expertise or interest…" aria-label="Search the directory"></div>
     <div class="filters">
-      <select class="input" data-change="dir" name="college"><option value="">All colleges</option>${Object.keys(COLLEGES).map(c => `<option value="${c}" ${f.college === c ? 'selected' : ''}>${c}</option>`).join('')}</select>
+      <select class="input" data-change="dir" name="college"><option value="">All colleges and units</option>${Object.keys(COLLEGES).map(c => `<option value="${c}" ${f.college === c ? 'selected' : ''}>${c}</option>`).join('')}</select>
       <select class="input" data-change="dir" name="topic"><option value="">Can help with…</option>${HELP_TOPICS.map(t => `<option ${f.topic === t ? 'selected' : ''}>${t}</option>`).join('')}</select>
       <select class="input" data-change="dir" name="interest"><option value="">Any interest</option>${S.tags.map(t => `<option ${f.interest === t ? 'selected' : ''}>${t}</option>`).join('')}</select>
       <select class="input" data-change="dir" name="lang"><option value="">Any language</option>${langs.map(t => `<option ${f.lang === t ? 'selected' : ''}>${t}</option>`).join('')}</select>
@@ -809,7 +810,7 @@ function flowSteps(status) {
   return `<div class="flow mb16">${steps.map((s, i) => `<div class="flow-step ${i < idx ? 'done' : i === idx ? 'cur' : ''}">${s[0]}<small>${s[1]}</small></div>`).join('')}</div>`;
 }
 function matchCard(s, seekerId, opts = {}) {
-  const p = person(s.id), why = s.parts.filter(x => x.wt && x.v >= .5).sort((a, b) => b.wt * b.v - a.wt * a.v).slice(0, 3);
+  const p = person(s.id), why = s.parts.filter(x => x.wt && x.v >= .5 && x.why).sort((a, b) => b.wt * b.v - a.wt * a.v).slice(0, 3);
   return `<article class="card match-card">
     <div class="row" style="align-items:flex-start">${av(s.id, 'lg')}<div style="flex:1;min-width:0"><div class="p-name strong">${esc(name(s.id))}</div><div class="small muted">${esc(p.title)} · ${p.college} · ${p.years} yrs in Hanoi</div></div><div class="score-ring" style="--p:${s.pct}"><b>${s.pct}%</b></div></div>
     <ul class="small" style="margin:0">${why.map(w => `<li>${esc(w.why)}</li>`).join('') || '<li class="muted">Few overlaps. Mostly a general guide.</li>'}</ul>
@@ -1232,7 +1233,7 @@ const ACT = {
   decline: el => { const m = S.matches.find(x => x.id === el.dataset.id); m.status = 'declined'; audit(`Declined buddy request: ${name(m.seeker)} → ${name(m.buddy)}`); notify(m.seeker, 'Your buddy request needs a different match. Please pick again.', 'match'); render(); },
   altmatch: el => {
     const m = S.matches.find(x => x.id === el.dataset.id);
-    openModal(modalShell(`Choose a buddy for ${esc(first(m.seeker))}`, `<div class="small muted mb12">Top suggestions for ${esc(name(m.seeker))}, who wants help with ${esc(person(m.seeker).wantsHelp.join(', ').toLowerCase())}.</div>${suggestions(m.seeker).slice(0, 6).map(s => `<div class="list-item">${av(s.id)}<div class="li-main"><span class="li-title">${esc(name(s.id))}</span><span class="li-sub">${esc(s.parts.filter(x => x.wt && x.v >= .5).map(x => x.why).slice(0, 2).join(' · '))} · ${s.load}/${s.max} places</span></div><span class="badge navy">${s.pct}%</span><button class="btn sm ${s.full ? '' : 'primary'}" data-act="pickalt" data-m="${m.id}" data-id="${s.id}" ${s.full ? 'disabled' : ''}>${s.full ? 'Full' : 'Pick'}</button></div>`).join('')}`));
+    openModal(modalShell(`Choose a buddy for ${esc(first(m.seeker))}`, `<div class="small muted mb12">Top suggestions for ${esc(name(m.seeker))}, who wants help with ${esc(person(m.seeker).wantsHelp.join(', ').toLowerCase())}.</div>${suggestions(m.seeker).slice(0, 6).map(s => `<div class="list-item">${av(s.id)}<div class="li-main"><span class="li-title">${esc(name(s.id))}</span><span class="li-sub">${esc(s.parts.filter(x => x.wt && x.v >= .5 && x.why).map(x => x.why).slice(0, 2).join(' · '))} · ${s.load}/${s.max} places</span></div><span class="badge navy">${s.pct}%</span><button class="btn sm ${s.full ? '' : 'primary'}" data-act="pickalt" data-m="${m.id}" data-id="${s.id}" ${s.full ? 'disabled' : ''}>${s.full ? 'Full' : 'Pick'}</button></div>`).join('')}`));
   },
   pickalt: el => { const m = S.matches.find(x => x.id === el.dataset.m); m.buddy = el.dataset.id; closeOverlays(); approveMatch(m.id); },
   // admin
@@ -1326,6 +1327,7 @@ const INP = {
   },
 };
 const listOf = (fd, k) => fd.getAll(k).map(String);
+const kidsOf = fd => listOf(fd, 'kids').filter(k => k !== NO_KIDS);
 const csv = s => String(s || '').split(',').map(x => x.trim()).filter(Boolean);
 const FORM = {
   gate: f => {
@@ -1337,7 +1339,7 @@ const FORM = {
     const p = me();
     Object.assign(p, { first: fd.get('first'), last: fd.get('last'), college: fd.get('college'), expertise: csv(fd.get('expertise')), interests: listOf(fd, 'interests'), languages: csv(fd.get('languages')), regions: csv(fd.get('regions')), helpTopics: listOf(fd, 'helpTopics'), wantsHelp: listOf(fd, 'wantsHelp'), phone: fd.get('phone'), phoneVis: fd.get('phoneVis'), contact: fd.get('contact'), area: fd.get('area'), updated: TODAY_ISO });
     p.buddy = { ...p.buddy, available: !!fd.get('buddy'), max: +fd.get('buddyMax') };
-    if (!f.querySelector('#famfields').disabled) p.family = { partner: !!fd.get('partner'), kids: listOf(fd, 'kids'), vis: fd.get('famVis') };
+    if (!f.querySelector('#famfields').disabled) p.family = { partner: !!fd.get('partner'), kids: kidsOf(fd), noKids: listOf(fd, 'kids').includes(NO_KIDS), vis: fd.get('famVis') };
     p.complete = completeness(p); toast('Profile saved'); render();
   },
   reply: (f, fd) => {
@@ -1465,9 +1467,9 @@ function obShell(title, sub, body, step, total) {
 }
 function tObStep() {
   const { step, d } = S.ob, total = 4, v = k => esc(d[k] || '');
-  if (step === 1) return obShell('Welcome! Let’s start with you', 'Your name and your college.',
+  if (step === 1) return obShell('Welcome! Let’s start with you', 'Your name and where you work.',
     `<div class="grid g2">${field('First name', `<input class="input" name="first" value="${v('first')}" autocomplete="given-name">`)}${field('Last name', `<input class="input" name="last" value="${v('last')}" autocomplete="family-name">`)}</div>
-     <div class="field"><span class="lbl">College</span>${radioCards('college', Object.entries(COLLEGES).map(([k, n]) => [k, k, n]), d.college, 'ob-radio ob-college')}</div>`, 1, total);
+     <div class="field"><span class="lbl">Where you work</span>${radioCards('college', Object.entries(COLLEGES).map(([k, n]) => k.length <= 4 ? [k, k, n] : [k, n, '']), d.college, 'ob-radio ob-college')}</div>`, 1, total);
   if (step === 2) return obShell('A bit about your work', 'This helps colleagues with shared interests find you.',
     `<div class="grid g2">${field('Title', `<select class="input" name="title">${TITLES.map(t => `<option ${t === d.title ? 'selected' : ''}>${t}</option>`).join('')}</select>`)}
      ${field('Home country', `<input class="input" name="country" value="${v('country')}" placeholder="e.g. Germany">`)}</div>
@@ -1477,7 +1479,7 @@ function tObStep() {
     `<div class="field"><span class="lbl">When do you arrive in Hanoi?</span>${radioCards('when', [['here', 'I’m already here'], ['arriving', 'I’m arriving soon']], d.when || 'arriving')}</div>
      ${field('Arrival date', `<input class="input" type="date" name="arrival" value="${v('arrival')}" min="${TODAY_ISO}">`, 'Only if you haven’t arrived yet.')}
      <div class="field"><span class="lbl">Who’s moving with you?</span><label class="row small"><input type="checkbox" name="partner" ${d.partner ? 'checked' : ''}> A partner or spouse</label></div>
-     <div class="field"><span class="lbl">Children’s ages, if any</span>${chipSet('kids', KID_RANGES, d.kids || [])}</div>
+     <div class="field"><span class="lbl">Children’s ages</span>${chipSet('kids', [NO_KIDS, ...KID_RANGES], d.noKids ? [NO_KIDS] : d.kids || [])}</div>
      ${field('Where will you live?', `<select class="input" name="area">${AREAS.map(a => `<option ${a === (d.area || 'Undecided') ? 'selected' : ''}>${a}</option>`).join('')}</select>`)}
      <p class="ob-note">${ic('lock', 'sm')} Family details stay private. They’re only used to suggest a buddy in a similar situation.</p>`, 3, total);
   return obShell('What would help most?', 'Pick the topics you’d like help with. We’ll suggest guides and a buddy.',
@@ -1492,7 +1494,7 @@ function finishOnboarding() {
     expertise: csv(d.expertise).length ? csv(d.expertise) : ['Not added yet'], interests: d.interests || [], languages: csv(d.languages || 'English'),
     regions: d.country ? [d.country] : [], country: d.country || '', helpTopics: [], wantsHelp: d.wantsHelp || [],
     buddy: { available: false, max: 0, base: 0 }, contact: 'Teams', phoneVis: 'me',
-    family: { partner: !!d.partner, kids: d.kids || [], vis: 'match' }, area: d.area || 'Undecided', years: 0,
+    family: { partner: !!d.partner, kids: d.kids || [], noKids: !!d.noKids, vis: 'match' }, area: d.area || 'Undecided', years: 0,
     joined: arriving ? d.arrival : addDays(TODAY_ISO, -14), isNew: true, preArrival: !!arriving, photo: false, updated: TODAY_ISO,
   };
   if (p.family.partner || p.family.kids.length) p.consent = { family: TODAY_ISO };
@@ -1555,7 +1557,7 @@ function tBuddy() {
   if (!m) {
     const sug = suggestions('me').filter(s => !s.full).slice(0, 3);
     return head + `<p class="mb16">Based on what you told us, these colleagues could be a good fit. Ask one, and they and the coordinator will confirm.</p>
-      <div class="grid g3">${sug.map(s => { const c = person(s.id), why = s.parts.filter(x => x.wt && x.v >= .5).sort((a, b) => b.wt * b.v - a.wt * a.v).slice(0, 3);
+      <div class="grid g3">${sug.map(s => { const c = person(s.id), why = s.parts.filter(x => x.wt && x.v >= .5 && x.why).sort((a, b) => b.wt * b.v - a.wt * a.v).slice(0, 3);
         return `<article class="card match-card"><div class="row" style="align-items:flex-start">${av(s.id, 'lg')}<div style="min-width:0"><div class="strong">${esc(name(s.id))}</div><div class="small muted">${esc(c.title)} · ${c.college} · ${c.years} yrs in Hanoi</div></div></div>
           <ul class="small" style="margin:0">${why.map(w => `<li>${esc(w.why)}</li>`).join('') || '<li>Knows Hanoi well</li>'}</ul>
           <div class="row between"><button class="btn ghost sm" data-act="person" data-id="${s.id}">Profile</button><button class="btn primary sm" data-act="requestmatch" data-id="${s.id}">Ask ${esc(c.first)}</button></div></article>`; }).join('')}</div>
@@ -1616,7 +1618,7 @@ Object.assign(FORM, {
     const err = msg => { const e = $('#ob-err'); e.textContent = msg; e.hidden = false; };
     if (o.step === 1) {
       if (!val('first') || !val('last')) return err('Please enter your first and last name.');
-      if (!val('college')) return err('Please choose your college.');
+      if (!val('college')) return err('Please choose where you work.');
       Object.assign(d, { first: val('first'), last: val('last'), college: val('college') });
     } else if (o.step === 2) {
       Object.assign(d, { title: val('title'), expertise: val('expertise'), country: val('country'), languages: val('languages') || 'English' });
@@ -1624,7 +1626,7 @@ Object.assign(FORM, {
       const when = val('when') || 'arriving';
       if (when === 'arriving' && !val('arrival')) return err('Please pick your arrival date, or choose “I’m already here”.');
       if (when === 'arriving' && val('arrival') <= TODAY_ISO) return err('That date has passed. Choose “I’m already here” instead.');
-      Object.assign(d, { when, arrival: when === 'arriving' ? val('arrival') : '', partner: !!fd.get('partner'), kids: listOf(fd, 'kids'), area: val('area') || 'Undecided' });
+      Object.assign(d, { when, arrival: when === 'arriving' ? val('arrival') : '', partner: !!fd.get('partner'), kids: kidsOf(fd), noKids: listOf(fd, 'kids').includes(NO_KIDS), area: val('area') || 'Undecided' });
     } else {
       Object.assign(d, { wantsHelp: listOf(fd, 'wantsHelp'), interests: listOf(fd, 'interests') });
       return finishOnboarding();
@@ -1633,6 +1635,12 @@ Object.assign(FORM, {
   },
 });
 document.addEventListener('change', e => {
+  if (e.target.name === 'kids' && e.target.checked) {
+    const none = e.target.value === NO_KIDS;
+    e.target.form.querySelectorAll('input[name=kids]').forEach(i => {
+      if (i !== e.target && (none || i.value === NO_KIDS)) { i.checked = false; i.closest('.chip').classList.remove('on'); }
+    });
+  }
   const card = e.target.type === 'radio' && e.target.closest('.ob-radio');
   if (card) card.parentElement.querySelectorAll('.ob-radio').forEach(l => l.classList.toggle('on', l.querySelector('input').checked));
 });

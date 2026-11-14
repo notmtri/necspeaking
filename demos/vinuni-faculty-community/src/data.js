@@ -14,7 +14,10 @@ const COLLEGES = {
   CBM: 'College of Business & Management',
   CHS: 'College of Health Sciences',
   CAS: 'College of Arts & Sciences',
+  Library: 'University Library',
+  'Research labs': 'Research labs and institutes',
 };
+const NO_KIDS = 'No children';
 
 const HELP_TOPICS = ['Schools', 'Housing', 'Banking', 'Health insurance', 'Medical care', 'Food markets', 'Transportation', 'Sports', 'Settling in Hanoi'];
 const AREAS = ['Ocean Park', 'Ecopark', 'Long Biên', 'Tây Hồ', 'Hoàn Kiếm', 'Undecided'];
