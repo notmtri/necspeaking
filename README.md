@@ -88,18 +88,21 @@ From the repo root, `npm run start` forwards to the frontend dev server.
   browsers that block third-party cookies (Safari/iOS, Brave, incognito Chrome)
   never return the session cookie that holds the token, so requiring it
   rejected every guest upload from those browsers.
-- The API is served as **`https://api.necspeaking.com`** (Render custom domain
+- The API is served as **`https://api.necspeaking.me`** (Render custom domain
   on `necspeaking-api-sg`, region **Singapore**, `CNAME api ->
-  necspeaking-api-sg.onrender.com` in Vercel DNS). It moved from Oregon on
+  necspeaking-api-sg.onrender.com` in Namecheap DNS). The site moved from
+  necspeaking.com to **necspeaking.me** on 2026-11-23, when the .com
+  registration (Squarespace Domains) lapsed; www.necspeaking.me is the main
+  address and necspeaking.me redirects to it. It moved from Oregon on
   2026-11-05: the database is Supabase in Mumbai, and from Oregon every
   database round trip cost about 250 ms (1.2-3 s per signed-in request);
   from Singapore the same requests take 0.1-0.7 s. The old Oregon service
   `necspeaking-backend` is suspended, not deleted. The new service has no
-  Root Directory set; its commands `cd backend` instead. That makes it the same site as `www.necspeaking.com`, so the
+  Root Directory set; its commands `cd backend` instead. That makes it the same site as `www.necspeaking.me`, so the
   session cookie is first-party and logins persist in browsers that block
   third-party cookies (Safari/iOS, Brave, incognito Chrome); on the old
   `onrender.com` host they silently did not. Production sets
-  `VITE_API_URL=https://api.necspeaking.com` (Vercel) and
+  `VITE_API_URL=https://api.necspeaking.me` (Vercel) and
   `SESSION_COOKIE_SAMESITE=Lax` (Render). Do not point the frontend back at
   `onrender.com`.
 - Rate limits key on the client address read `TRUSTED_PROXY_HOPS` entries from

@@ -2,4 +2,4 @@
 User-agent: *
 Disallow:
 
-Sitemap: https://www.necspeaking.com/sitemap.xml
+Sitemap: https://www.necspeaking.me/sitemap.xml
