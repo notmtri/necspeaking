@@ -3,12 +3,13 @@
 Resend is called over its HTTP API with the httpx client the app already
 installs. Plain SMTP (e.g. sending through Gmail) is not an option: Render's
 free plan blocks outbound SMTP ports 25, 465 and 587. So mail is sent from the
-necspeaking.com domain and replies go to the site's Gmail inbox.
+necspeaking.me domain (necspeaking.com until it lapsed on 2026-11-23) and
+replies go to the site's Gmail inbox.
 
 Configuration, all on the Render service:
 
     RESEND_API_KEY   from resend.com -> API Keys. Unset = email is off.
-    EMAIL_FROM       default "necs. <no-reply@necspeaking.com>"; the domain
+    EMAIL_FROM       default "necs. <no-reply@necspeaking.me>"; the domain
                      must be verified in Resend.
     EMAIL_REPLY_TO   where replies go, default necspeaking@gmail.com.
 
@@ -24,7 +25,7 @@ import httpx
 
 RESEND_URL = 'https://api.resend.com/emails'
 SEND_TIMEOUT_SECONDS = 10
-DEFAULT_FROM = 'necs. <no-reply@necspeaking.com>'
+DEFAULT_FROM = 'necs. <no-reply@necspeaking.me>'
 DEFAULT_REPLY_TO = 'necspeaking@gmail.com'
 
 

@@ -326,14 +326,14 @@ class EmailTurnedOffTests(unittest.TestCase):
 class ResendRequestTests(unittest.TestCase):
     def test_send_email_posts_to_resend_with_the_key_and_sender(self):
         response = mock.Mock(status_code=200, text='{"id":"1"}')
-        env = {'RESEND_API_KEY': 're_test_key', 'EMAIL_FROM': 'necs. <no-reply@necspeaking.com>'}
+        env = {'RESEND_API_KEY': 're_test_key', 'EMAIL_FROM': 'necs. <no-reply@necspeaking.me>'}
         with mock.patch.dict(os.environ, env), mock.patch.object(email_service.httpx, 'post', return_value=response) as post:
             self.assertTrue(email_service.send_email('a@example.com', 'Subject', 'Body'))
         url = post.call_args.args[0]
         self.assertEqual(url, 'https://api.resend.com/emails')
         self.assertEqual(post.call_args.kwargs['headers']['Authorization'], 'Bearer re_test_key')
         self.assertEqual(post.call_args.kwargs['json']['to'], ['a@example.com'])
-        self.assertEqual(post.call_args.kwargs['json']['from'], 'necs. <no-reply@necspeaking.com>')
+        self.assertEqual(post.call_args.kwargs['json']['from'], 'necs. <no-reply@necspeaking.me>')
         self.assertEqual(post.call_args.kwargs['json']['reply_to'], 'necspeaking@gmail.com')
 
     def test_a_rejected_send_reports_failure(self):
