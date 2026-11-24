@@ -78,17 +78,6 @@
         color: #f4f6f8;
         overflow: hidden;
       }
-      /* A soft light behind the logo, breathing slowly. */
-      #splash::before {
-        content: '';
-        position: absolute;
-        width: min(70vw, 520px);
-        aspect-ratio: 1;
-        border-radius: 50%;
-        background: radial-gradient(closest-side, rgba(14, 165, 233, 0.22), rgba(14, 165, 233, 0));
-        animation: splash-glow 3.2s ease-in-out infinite alternate;
-        pointer-events: none;
-      }
       .splash-logo {
         position: relative;
         margin: 0;
@@ -165,10 +154,6 @@
         from { opacity: 0; transform: translateY(10px) scale(0.96); filter: blur(10px); }
       }
       @keyframes splash-fade-in { from { opacity: 0; } }
-      @keyframes splash-glow {
-        from { opacity: 0.55; transform: scale(0.92); }
-        to { opacity: 1; transform: scale(1.05); }
-      }
       @keyframes splash-dot {
         0%, 60%, 100% { transform: translateY(0) scale(1); }
         30% { transform: translateY(-0.12em) scale(1.25); }
@@ -185,7 +170,7 @@
       }
       /* Reduced motion: the bar still shows progress; nothing else moves. */
       @media (prefers-reduced-motion: reduce) {
-        #splash::before, .splash-dot, .splash-bar::after { animation: none; }
+        .splash-dot, .splash-bar::after { animation: none; }
         .splash-logo { animation: splash-fade-in 300ms ease both; }
         #splash.is-done .splash-logo { transform: none; filter: none; }
       }
