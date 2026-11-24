@@ -4,6 +4,7 @@ import { Loader, MessageSquare } from 'lucide-react';
 import { AppHeader, AppStatusStack, Footer } from './components/AppChrome';
 import ErrorBoundary from './components/ErrorBoundary';
 import VerifyEmailGate from './components/VerifyEmailGate';
+import { hideSplash } from './splash';
 import { API_BASE_URL, DEFAULT_ANNOUNCEMENT, PAGE_TITLES, downloadDocumentFromBase64, pageFromLocation, pathForPage, readGuestModePreference, writeGuestModePreference } from './appShared';
 import { apiFetch, isAbortError } from './apiClient';
 import HomePage from './pages/HomePage';
@@ -36,15 +37,16 @@ function PageFallback() {
   );
 }
 
-// Longer than a warm health check (~0.2-1.7 s observed) and far shorter than
-// a cold start (20-45 s).
-const BACKEND_SLOW_MS = 2000;
+// A sleeping free-tier server wakes in 20-45 s. If it still hasn't answered
+// by now, lift the loading screen anyway; actions report their own errors.
+const SPLASH_MAX_MS = 60000;
 
 export default function SpeakUpApp() {
   const [currentPage, setCurrentPage] = useState(() => pageFromLocation(window.location));
   const [showAdminPanel, setShowAdminPanel] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [isWarmingBackend, setIsWarmingBackend] = useState(false);
+  // The analysis service has answered its health check (or failed to).
+  const [backendChecked, setBackendChecked] = useState(false);
   const [authMode, setAuthMode] = useState('login');
   const [authError, setAuthError] = useState('');
   const [authSubmitting, setAuthSubmitting] = useState(false);
@@ -211,25 +213,28 @@ export default function SpeakUpApp() {
 
   useEffect(() => {
     const controller = new AbortController();
-    // The banner means what it says: only the analysis service's own health
-    // check counts, and only a slow answer -- the free-tier server waking up,
-    // which takes 20-45 s -- shows it. A warm server answers in well under the
-    // threshold and the banner never appears.
-    const slowTimer = window.setTimeout(() => setIsWarmingBackend(true), BACKEND_SLOW_MS);
+    // The loading screen (index.html) waits on this: a warm server answers in
+    // well under a second, a sleeping one takes 20-45 s to wake.
     apiFetch('/api/health', { method: 'GET', signal: controller.signal })
       .catch(() => {
         // Reachability problems surface on the action that needs the server.
       })
       .finally(() => {
-        window.clearTimeout(slowTimer);
-        if (!controller.signal.aborted) setIsWarmingBackend(false);
+        if (!controller.signal.aborted) setBackendChecked(true);
       });
     loadAnnouncement({ signal: controller.signal });
+    const giveUp = window.setTimeout(hideSplash, SPLASH_MAX_MS);
     return () => {
       controller.abort();
-      window.clearTimeout(slowTimer);
+      window.clearTimeout(giveUp);
     };
   }, [loadAnnouncement]);
+
+  // Lift the loading screen once the server is up and we know who is signed
+  // in, so the page never flashes the signed-out header first.
+  useEffect(() => {
+    if (backendChecked && !authChecking) hideSplash();
+  }, [authChecking, backendChecked]);
 
   useEffect(() => {
     writeGuestModePreference(guestMode);
@@ -734,7 +739,6 @@ export default function SpeakUpApp() {
           openAuth={openAuth}
           authError={authError}
           currentPage={currentPage}
-          isWarmingBackend={isWarmingBackend}
           isOffline={isOffline}
         />
         <ErrorBoundary resetKey={currentPage}>

@@ -53,10 +53,169 @@
     <meta property="og:image:height" content="630" />
     <meta property="og:image:alt" content="necs. - Free NEC speaking practice" />
     <meta name="twitter:card" content="summary_large_image" />
+    <!-- Splash: painted from this file alone, before any JavaScript arrives.
+         src/splash.js lifts it once the server has answered. -->
+    <link rel="preload" href="/fonts/be-vietnam-pro-latin-700-normal.woff2" as="font" type="font/woff2" crossorigin />
+    <style>
+      @font-face {
+        font-family: 'necs splash';
+        src: url('/fonts/be-vietnam-pro-latin-700-normal.woff2') format('woff2');
+        font-weight: 700;
+        /* Invisible for a moment rather than swapping fonts in front of you. */
+        font-display: block;
+      }
+      #splash {
+        position: fixed;
+        inset: 0;
+        z-index: 2147483000;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 28px;
+        padding: 24px;
+        background: #0b0d11;
+        color: #f4f6f8;
+        overflow: hidden;
+      }
+      /* A soft light behind the logo, breathing slowly. */
+      #splash::before {
+        content: '';
+        position: absolute;
+        width: min(70vw, 520px);
+        aspect-ratio: 1;
+        border-radius: 50%;
+        background: radial-gradient(closest-side, rgba(14, 165, 233, 0.22), rgba(14, 165, 233, 0));
+        animation: splash-glow 3.2s ease-in-out infinite alternate;
+        pointer-events: none;
+      }
+      .splash-logo {
+        position: relative;
+        margin: 0;
+        font-family: 'necs splash', ui-sans-serif, system-ui, sans-serif;
+        font-weight: 700;
+        font-size: clamp(52px, 13vw, 84px);
+        line-height: 1;
+        letter-spacing: -0.045em;
+        animation: splash-logo-in 700ms cubic-bezier(0.23, 1, 0.32, 1) both;
+      }
+      /* The full stop is the heartbeat. */
+      .splash-dot {
+        display: inline-block;
+        color: #38bdf8;
+        transform-origin: 50% 85%;
+        animation: splash-dot 1.4s cubic-bezier(0.45, 0, 0.55, 1) 700ms infinite;
+      }
+      .splash-track {
+        position: relative;
+        width: min(220px, 56vw);
+        height: 4px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.08);
+        overflow: hidden;
+        animation: splash-fade-in 500ms ease 250ms both;
+      }
+      /* Real progress is unknown (a sleeping server takes 20-45 s to wake), so
+         the bar runs fast at first and then creeps, never quite arriving;
+         splash.js finishes it when the server answers. */
+      .splash-bar {
+        position: absolute;
+        inset: 0;
+        border-radius: inherit;
+        background: linear-gradient(90deg, #0ea5e9, #7dd3fc);
+        transform-origin: left;
+        transform: scaleX(0.04);
+        animation: splash-crawl 50s cubic-bezier(0.1, 0.7, 0.2, 1) 250ms both;
+      }
+      .splash-bar::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.55), transparent);
+        transform: translateX(-100%);
+        animation: splash-shimmer 1.3s ease-in-out 600ms infinite;
+      }
+      .splash-bar.is-done {
+        transform: scaleX(1);
+        transition: transform 360ms cubic-bezier(0.23, 1, 0.32, 1);
+      }
+      .splash-note {
+        position: relative;
+        margin: 0;
+        max-width: 30ch;
+        min-height: 3em;
+        font: 400 14px/1.5 ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+        text-align: center;
+        color: rgba(244, 246, 248, 0.6);
+        opacity: 0;
+        transition: opacity 500ms ease;
+      }
+      #splash.is-slow .splash-note { opacity: 1; }
+      #splash.is-done {
+        opacity: 0;
+        transition: opacity 420ms ease 300ms;
+        pointer-events: none;
+      }
+      #splash.is-done .splash-logo {
+        transform: scale(1.06);
+        filter: blur(6px);
+        transition: transform 600ms cubic-bezier(0.23, 1, 0.32, 1) 260ms, filter 500ms ease 260ms;
+      }
+      @keyframes splash-logo-in {
+        from { opacity: 0; transform: translateY(10px) scale(0.96); filter: blur(10px); }
+      }
+      @keyframes splash-fade-in { from { opacity: 0; } }
+      @keyframes splash-glow {
+        from { opacity: 0.55; transform: scale(0.92); }
+        to { opacity: 1; transform: scale(1.05); }
+      }
+      @keyframes splash-dot {
+        0%, 60%, 100% { transform: translateY(0) scale(1); }
+        30% { transform: translateY(-0.12em) scale(1.25); }
+      }
+      @keyframes splash-crawl {
+        0% { transform: scaleX(0.04); }
+        2% { transform: scaleX(0.38); }
+        8% { transform: scaleX(0.62); }
+        30% { transform: scaleX(0.82); }
+        100% { transform: scaleX(0.96); }
+      }
+      @keyframes splash-shimmer {
+        to { transform: translateX(100%); }
+      }
+      /* Reduced motion: the bar still shows progress; nothing else moves. */
+      @media (prefers-reduced-motion: reduce) {
+        #splash::before, .splash-dot, .splash-bar::after { animation: none; }
+        .splash-logo { animation: splash-fade-in 300ms ease both; }
+        #splash.is-done .splash-logo { transform: none; filter: none; }
+      }
+    </style>
   </head>
   <body>
     <noscript>You need to enable JavaScript to run this app.</noscript>
+    <div id="splash" role="status" aria-live="polite">
+      <p class="splash-logo" aria-label="necs.">necs<span class="splash-dot">.</span></p>
+      <div class="splash-track" aria-hidden="true"><div class="splash-bar"></div></div>
+      <p class="splash-note">Waking up the server. The first visit in a while can take up to a minute.</p>
+    </div>
     <div id="root"></div>
+    <script>
+      (function () {
+        var splash = document.getElementById('splash');
+        // Nothing behind the splash can take focus while it is up.
+        var root = document.getElementById('root');
+        if (root) root.inert = true;
+        // The status bar matches the dark splash; splash.js puts the theme's colour back.
+        document.querySelectorAll('meta[name="theme-color"]').forEach(function (tag) {
+          tag.setAttribute('data-app-content', tag.getAttribute('content'));
+          tag.setAttribute('content', '#0b0d11');
+        });
+        // A quick answer never shows the note; a sleeping server does.
+        window.setTimeout(function () {
+          if (splash && !splash.classList.contains('is-done')) splash.classList.add('is-slow');
+        }, 4000);
+      })();
+    </script>
     <script type="module" src="/src/index.jsx"></script>
   </body>
 </html>

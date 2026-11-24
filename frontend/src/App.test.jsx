@@ -262,19 +262,36 @@ describe('App', () => {
     expect(container.textContent).toContain('Ada Learner');
   });
 
-  it('shows no connecting banner when the analysis service answers promptly', async () => {
+  // The loading screen is static HTML in index.html; here a stand-in for it.
+  const addSplash = () => {
+    const splash = document.createElement('div');
+    splash.id = 'splash';
+    splash.innerHTML = '<div class="splash-track"><div class="splash-bar"></div></div>';
+    document.body.appendChild(splash);
+    return splash;
+  };
+
+  it('lifts the loading screen once the server and the sign-in check have answered', async () => {
+    const splash = addSplash();
     await renderApp('/analyze');
 
+    expect(splash.dataset.state).toBe('leaving');
+    await act(async () => { await new Promise((resolve) => setTimeout(resolve, 50)); });
+    expect(splash.classList.contains('is-done')).toBe(true);
+    expect(splash.querySelector('.splash-bar').classList.contains('is-done')).toBe(true);
+    await act(async () => { await new Promise((resolve) => setTimeout(resolve, 900)); });
+    expect(document.getElementById('splash')).toBeNull();
     expect(container.textContent).not.toContain('Connecting analysis service');
   });
 
-  it('shows the connecting banner only while a slow server wakes up', async () => {
+  it('keeps the loading screen up while a sleeping server wakes', async () => {
+    const splash = addSplash();
     await renderApp('/analyze', { healthPending: true });
-    expect(container.textContent).toContain('Record or upload a response');
-    expect(container.textContent).not.toContain('Connecting analysis service');
+    await act(async () => { await new Promise((resolve) => setTimeout(resolve, 300)); });
 
-    await act(async () => { await new Promise((resolve) => setTimeout(resolve, 2100)); });
-    expect(container.textContent).toContain('Connecting analysis service');
+    expect(splash.dataset.state).toBeUndefined();
+    expect(document.getElementById('splash')).toBe(splash);
+    splash.remove();
   });
 
   const waitUntil = async (check) => {

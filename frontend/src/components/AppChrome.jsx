@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { AlertCircle, ArrowUpRight, Download, Loader, Menu, Settings, UserPlus, X } from 'lucide-react';
+import { AlertCircle, ArrowUpRight, Download, Menu, Settings, UserPlus, X } from 'lucide-react';
 import { isAdminProfile, profileAvatar } from '../appShared';
 import ThemeToggle from './ThemeToggle';
 
@@ -268,7 +268,6 @@ export function AppStatusStack({
   openAuth,
   authError,
   currentPage,
-  isWarmingBackend,
   isOffline,
 }) {
   return (
@@ -312,12 +311,6 @@ export function AppStatusStack({
         </div>
       )}
 
-      {isWarmingBackend && currentPage !== 'home' && (
-        <div className="mb-4 flex items-center gap-3 rounded-card border border-amber-200 dark:border-amber-400/25 bg-amber-50 dark:bg-amber-400/10 px-4 py-3 text-sm text-amber-900 dark:text-amber-100" role="status" aria-live="polite">
-          <Loader size={16} className="shrink-0 animate-spin" />
-          <span className="min-w-0 break-words">Connecting analysis service...</span>
-        </div>
-      )}
     </>
   );
 }
