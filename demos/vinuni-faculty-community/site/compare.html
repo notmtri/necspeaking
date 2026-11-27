@@ -579,6 +579,21 @@ a.fab { display: inline-flex; align-items: center; gap: 7px; color: #fff; text-d
   .demo-bar .note-t { display: none; }
 }
 
+/* ---------- Tester build: who to contact, essentials ---------- */
+.office h3 { font-size: 16px; color: var(--navy-900); }
+.office-meta { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 12px; color: var(--ink-3); }
+.office-meta span { display: inline-flex; align-items: center; gap: 5px; }
+.tag.hit { background: var(--gold-50); border-color: #EBD9AE; color: #5E4511; font-weight: 600; }
+.ess { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 640px) { .ess { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.ess-tile { padding: 14px; display: flex; flex-direction: column; gap: 4px; color: var(--ink); }
+.ess-tile:hover { border-color: var(--navy-500); text-decoration: none; }
+.ess-tile b { font-size: 14.5px; color: var(--navy-900); margin-top: 6px; }
+.ess-tile span:last-child { font-size: 12.5px; color: var(--ink-3); }
+.notice select.input { max-width: 100%; min-width: 0; }
+.notice .row.wrap { min-width: 0; }
+.notice > div { min-width: 0; }
+
 html, body { height: 100%; }
 body { display: grid; grid-template-rows: auto auto minmax(0, 1fr); overflow: hidden; }
 .cmp-bar { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding: 10px 18px; background: var(--navy-950); color: #C9D3E8; font-size: 13px; }

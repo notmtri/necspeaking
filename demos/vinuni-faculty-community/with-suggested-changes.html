@@ -579,6 +579,21 @@ a.fab { display: inline-flex; align-items: center; gap: 7px; color: #fff; text-d
   .demo-bar .note-t { display: none; }
 }
 
+/* ---------- Tester build: who to contact, essentials ---------- */
+.office h3 { font-size: 16px; color: var(--navy-900); }
+.office-meta { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 12px; color: var(--ink-3); }
+.office-meta span { display: inline-flex; align-items: center; gap: 5px; }
+.tag.hit { background: var(--gold-50); border-color: #EBD9AE; color: #5E4511; font-weight: 600; }
+.ess { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 640px) { .ess { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.ess-tile { padding: 14px; display: flex; flex-direction: column; gap: 4px; color: var(--ink); }
+.ess-tile:hover { border-color: var(--navy-500); text-decoration: none; }
+.ess-tile b { font-size: 14.5px; color: var(--navy-900); margin-top: 6px; }
+.ess-tile span:last-child { font-size: 12.5px; color: var(--ink-3); }
+.notice select.input { max-width: 100%; min-width: 0; }
+.notice .row.wrap { min-width: 0; }
+.notice > div { min-width: 0; }
+
 </style>
 </head>
 <body>
@@ -613,7 +628,7 @@ const COLLEGES = {
 };
 const NO_KIDS = 'No children';
 
-const HELP_TOPICS = ['Schools', 'Housing', 'Banking', 'Health insurance', 'Medical care', 'Food markets', 'Transportation', 'Sports', 'Settling in Hanoi'];
+const HELP_TOPICS = ['Visas & work permits', 'Taxes', 'Schools', 'Housing', 'Banking', 'Health insurance', 'Medical care', 'Food markets', 'Transportation', 'Sports', 'Settling in Hanoi'];
 const AREAS = ['Ocean Park', 'Ecopark', 'Long Biên', 'Tây Hồ', 'Hoàn Kiếm', 'Undecided'];
 const KID_RANGES = ['0–2', '3–6', '7–10', '11–14', '15–18'];
 
@@ -659,7 +674,40 @@ const OTHERS = [
   { id: 'linh', first: 'Linh', last: 'Trần', title: 'Faculty Affairs Officer', staff: true, email: 'linh.tran@vinuni.example' },
   { id: 'hr', first: 'HR', last: 'Benefits Team', title: 'Human Resources', staff: true, official: true },
   { id: 'io', first: 'International', last: 'Office', title: 'International Office', staff: true, official: true },
+  { id: 'fin', first: 'Finance', last: 'Office', title: 'Finance Office', staff: true, official: true },
+  { id: 'it', first: 'IT', last: 'Service Desk', title: 'IT Service Desk', staff: true, official: true },
+  { id: 'fa', first: 'Faculty', last: 'Affairs', title: 'Faculty Affairs', staff: true, official: true },
+  { id: 'campus', first: 'Campus', last: 'Services', title: 'Campus Services', staff: true, official: true },
+  { id: 'research', first: 'Research', last: 'Office', title: 'Research Office', staff: true, official: true },
+  { id: 'lib', first: 'University', last: 'Library', title: 'University Library', staff: true, official: true },
 ];
+
+/* ---------- Who to contact (added after the November 2026 faculty survey) ----------
+   Office names follow common university roles; contact details are placeholders. */
+const OFFICES = [
+  { id: 'io', desc: 'Visas, work permits and residence cards, for you and your family.', handles: ['Visa', 'Work permit', 'Residence card (TRC)', 'Dependants’ visas', 'Passport renewal', 'Immigration letters'], where: 'Building A, 1st floor', hours: 'Mon–Fri 8:30–17:00', reply: '2 working days', guides: ['g9'] },
+  { id: 'fin', desc: 'Payroll, personal income tax and reimbursements.', handles: ['Personal income tax', 'Tax finalisation', 'Tax certificate', 'Payslips', 'Salary transfers', 'Reimbursements'], where: 'Building A, 3rd floor', hours: 'Mon–Fri 8:30–17:00', reply: '2 working days', guides: ['g10', 'g4'] },
+  { id: 'hr', desc: 'Your contract, leave, benefits and health insurance.', handles: ['Contract', 'Leave', 'Health insurance', 'Adding dependants to insurance', 'Benefits', 'Employment letter'], where: 'Building A, 2nd floor', hours: 'Mon–Fri 8:30–17:00', reply: '2 working days', guides: ['g5', 'g1'] },
+  { id: 'fa', desc: 'Onboarding, academic appointments and this community platform.', handles: ['Onboarding', 'Buddy programme', 'Promotion and review', 'Faculty events', 'Who handles what'], where: 'Building A, 2nd floor', hours: 'Mon–Fri 8:30–17:00', reply: '1 working day', guides: ['g1'] },
+  { id: 'it', desc: 'Accounts, email, Wi-Fi, laptops and teaching technology.', handles: ['Email and accounts', 'Password reset', 'Wi-Fi', 'Laptop', 'Classroom technology', 'Software licences'], where: 'Library building, ground floor', hours: 'Mon–Sat 8:00–20:00', reply: 'Same day', guides: [] },
+  { id: 'campus', desc: 'Offices, parking, maintenance and on-campus accommodation.', handles: ['Office space', 'Parking', 'Maintenance', 'Campus accommodation', 'Room bookings', 'Security'], where: 'Building C, ground floor', hours: 'Mon–Fri 8:00–17:30', reply: '1 working day', guides: ['g7'] },
+  { id: 'research', desc: 'Grants, research funding, ethics and research contracts.', handles: ['Grants', 'Research funding', 'Ethics approval', 'Research contracts', 'Conference travel'], where: 'Building B, 4th floor', hours: 'Mon–Fri 8:30–17:00', reply: '3 working days', guides: [] },
+  { id: 'lib', desc: 'Books, journals, databases and research support.', handles: ['Journals and databases', 'Interlibrary loans', 'Course reserves', 'Research support', 'Study spaces'], where: 'Library building', hours: 'Mon–Sun 7:30–22:00', reply: '1 working day', guides: [] },
+];
+const OFFICE_KEYWORDS = {
+  io: ['visa', 'work permit', 'permit', 'residence', 'trc', 'passport', 'immigration', 'dependant', 'dependent', 'stamp'],
+  fin: ['tax', 'payroll', 'payslip', 'salary', 'reimburse', 'finalisation', 'finalization', 'invoice'],
+  hr: ['contract', 'leave', 'insurance', 'benefit', 'employment letter', 'holiday'],
+  it: ['email', 'password', 'wifi', 'wi-fi', 'laptop', 'login', 'software', 'projector'],
+  campus: ['parking', 'office space', 'maintenance', 'accommodation', 'room booking', 'key'],
+  research: ['grant', 'funding', 'ethics', 'research contract', 'conference'],
+  lib: ['library', 'journal', 'database', 'interlibrary', 'borrow'],
+};
+const OFFICE_ANSWERS = {
+  io: 'Thank you for your question. Please email us a copy of your passport and contract, and we will send the checklist for your case. A work permit and residence card usually take four to six weeks in total. The guide “Visas, work permits and residence cards” explains the general steps.',
+  fin: 'Thank you for your question. Tax is withheld from your salary each month. If the university was your only employer this year, we can do the yearly finalisation for you: reply to confirm, and we will send the authorisation form before the deadline.',
+  hr: 'Thank you for your question. We have sent the details for your case by email. The general rules are in our guide “Health insurance and dependants”.',
+};
 
 const PERSONAS = [
   { id: 'sofia', role: 'faculty', label: 'New faculty', blurb: { proposal: 'Joined CECS on 1 October with her partner and two children. Still looking for a home and a school.', revised: 'Signed her contract; arrives 9 November with her partner and two children. Has an invitation link before her VinUni account exists.' } },
@@ -679,6 +727,7 @@ const FORUMS = [
   { id: 'banking', name: 'Banking and Personal Finance Logistics', short: 'Banking', desc: 'Opening accounts, international transfers, cards, ATMs and payment apps.', mod: 'olivia', icon: 'tag', disclaimer: 'Peer comments are not financial advice. Check fees and terms with the provider.' },
   { id: 'weekend', name: 'Weekend Activities', short: 'Weekend', desc: 'Day trips, cultural events, family outings, restaurants, museums and travel ideas.', mod: 'mateo', icon: 'map', disclaimer: null },
   { id: 'newto', name: 'New to Hanoi', short: 'New to Hanoi', desc: 'General onboarding questions that do not fit another category.', mod: 'michael', icon: 'globe', disclaimer: null },
+  { id: 'paperwork', rev: true, name: 'Visas, permits and paperwork', short: 'Visas & paperwork', desc: 'Visas, work permits, residence cards, tax and other university processes.', mod: null, icon: 'file', disclaimer: 'Colleagues can share experience, but for your own case the responsible office gives the official answer.' },
   { id: 'buysell', name: 'Buy / Sell / Give Away', short: 'Buy / sell', desc: 'Furniture and household items. Optional future forum, subject to university policy.', mod: null, icon: 'swap', disclaimer: null, future: true },
 ];
 const PARTNER_TAG = { id: 'partners', short: 'Partners & families', name: 'Partners & families', desc: 'For partners and family members: language classes, jobs, friendships, life while your partner teaches.' };
@@ -746,6 +795,12 @@ const THREADS = [
     { author: 'emily', date: '2026-10-07', body: 'My husband would love this. I’ll pass it on!' }] },
 ];
 
+THREADS.push(
+  { id: 't24', forum: 'paperwork', revOnly: true, office: 'fin', title: 'Do I need to do the yearly tax finalisation myself?', author: 'noah', date: '2026-10-09', body: 'I joined in August. Is the tax finalisation something I file myself, or does the university do it for me?', replies: [
+    { author: 'fin', date: '2026-10-10', body: 'Thank you for your question. If the university is your only employer this year, we can do the finalisation for you. We will email everyone the authorisation form in January, with the deadline.' }] },
+  { id: 't25', forum: 'paperwork', revOnly: true, office: 'io', title: 'How long does the residence card take after the work permit?', author: 'marcus', date: '2026-10-14', body: 'My work permit was approved last week. Roughly how long until the residence card, and can I travel in the meantime?', replies: [] },
+);
+
 const REPORTS = [
   { id: 'r1', thread: 't5', replyIdx: null, reason: 'Phone number of a private individual posted in a reply', by: 'grace', date: '2026-10-12', status: 'open', excerpt: '“…call Mr. Tuấn directly on 09xx xxx xxx, he can also…”' },
   { id: 'r2', thread: 't16', replyIdx: null, reason: 'Possible paid promotion of a money-transfer service', by: 'samuel', date: '2026-10-13', status: 'open', excerpt: '“Use my referral code for 0 fees on your first transfer…”' },
@@ -780,6 +835,16 @@ const GUIDES = [
   { id: 'g7', title: 'Getting around', cat: 'Transportation', source: 'faculty', owner: 'kenji', reviewed: '2026-09-01', next: '2027-03-01', mins: 4, summary: 'Ride-hailing, motorbikes, cycling and getting to Nội Bài airport.', sections: [
     { h: 'Ride-hailing', body: '<p>Grab and Xanh SM both work well. At peak times (07:30–08:30, 17:00–18:30) book 10 minutes early.</p>' },
     { h: 'Airport', body: '<p>Nội Bài is 45–60 minutes from campus. Pre-book a car for early flights.</p>' }] },
+  { id: 'g9', title: 'Visas, work permits and residence cards', cat: 'Visas & work permits', source: 'official', owner: 'io', reviewed: '2026-10-01', next: '2027-04-01', mins: 7, summary: 'The three documents you need, what to prepare before you arrive, and how partners and children are covered.', sections: [
+    { h: 'The three documents', body: '<ul><li><b>A work visa</b> to enter Vietnam.</li><li><b>A work permit</b>, or confirmation that you are exempt, so you can be employed.</li><li><b>A temporary residence card (TRC)</b>, so you can stay long term without renewing a visa.</li></ul>' },
+    { h: 'Prepare before you arrive', body: '<p>The International Office will send you a checklist when you sign your contract. It usually includes degree certificates, a criminal record check, a health certificate and passport photos. Some documents must be legalised or translated, which can take several weeks, so start early.</p>' },
+    { h: 'Partners and children', body: '<p>Family members can usually get visas and residence cards through your employment. Bring legalised marriage and birth certificates, and tell the International Office who is moving with you as early as possible.</p>' },
+    { h: 'Who to ask', body: '<p>Your own case is always handled by the <b>International Office</b>. Use <a href="#/contacts">Who to contact</a> or ask them directly from Ask &amp; Discuss.</p>' }] },
+  { id: 'g10', title: 'Personal income tax', cat: 'Taxes', source: 'official', owner: 'fin', reviewed: '2026-09-15', next: '2027-03-15', mins: 5, summary: 'How tax is taken from your salary, the yearly finalisation, and the documents to keep for your home country.', sections: [
+    { h: 'Tax on your salary', body: '<p>The university withholds personal income tax from your salary each month. If you are a tax resident (generally, in Vietnam for 183 days or more in a year), progressive rates apply and income from abroad may also need to be declared.</p>' },
+    { h: 'The yearly finalisation', body: '<p>After the tax year ends, your tax is finalised. Many employees can authorise the university to do this for them. The Finance Office will tell you whether you qualify and when the deadline is.</p>' },
+    { h: 'Family deductions', body: '<p>You can usually register dependants for a tax deduction. Ask the Finance Office for the form.</p>' },
+    { h: 'Documents to keep', body: '<ul><li>Your payslips</li><li>A tax certificate from the Finance Office, for your home country’s tax return or when you leave</li><li>Records of any income outside Vietnam</li></ul>' }] },
   { id: 'g8', title: 'International food and groceries', cat: 'Food markets', source: 'faculty', owner: 'laura', reviewed: '2026-04-10', next: '2026-10-10', mins: 5, summary: 'Where faculty find ingredients from home, from supermarkets to Zalo-order delivery.', sections: [
     { h: 'Supermarkets', body: '<p>Large supermarkets in Ocean Park and Long Biên carry imported basics. Specialty items are cheaper at import stores in Tây Hồ.</p>' },
     { h: 'Ordering by Zalo', body: '<p>Many small importers take orders through Zalo and deliver on fixed days. See the Recommendations page for current ones.</p>' }] },
@@ -893,6 +958,7 @@ const CONSENTS = [
 ];
 
 const ARRIVAL_PLAN = [
+  { id: 'a0', when: '10 weeks before', title: 'Send your visa and work-permit documents to the International Office', link: 'guide/g9', done: false },
   { id: 'a1', when: '8 weeks before', title: 'Choose a neighbourhood', link: 'guide/g2', done: true },
   { id: 'a2', when: '7 weeks before', title: 'Shortlist schools and book online assessments', link: 'guide/g3', done: true },
   { id: 'a3', when: '6 weeks before', title: 'Meet your buddy on a video call', link: 'match', done: false, auto: 'match' },
@@ -1031,7 +1097,7 @@ function fresh() {
     // the tester build has no coordinator, so requests waiting for one are left out
     matches: shiftDates(clone(MATCHES)).filter(m => !(TESTER && m.status === 'requested')),
     notifs: TESTER ? [] : clone(NOTIFS).filter(n => REV || n.to !== 'erik'),
-    forums: clone(FORUMS), reports: clone(REPORTS), audit: clone(AUDIT),
+    forums: clone(FORUMS).filter(f => REV || !f.rev), reports: clone(REPORTS), audit: clone(AUDIT),
     flows: clone(FLOWS).filter(f => REV || !f.rev), tags: clone(INTEREST_TAGS),
     weights: Object.fromEntries(FACTORS.map(f => [f.key, f.w])),
     prefs: {}, read: {}, readGuides: [], feedback: [], plan: Object.fromEntries(ARRIVAL_PLAN.map(a => [a.id, TESTER ? false : a.done])),
@@ -1106,7 +1172,7 @@ const chg = (n, short = true) => REV ? `<span class="ann chg" title="${esc(CHANG
 /* ---------- Forums / topics ---------- */
 const forum = id => id === 'partners' ? PARTNER_TAG : S.forums.find(f => f.id === id) || { id, name: id, short: id };
 const activeForums = () => S.forums.filter(f => !f.future && !f.archived);
-const TOPIC_FORUM = { Schools: 'schools', Housing: 'housing', Banking: 'banking', 'Health insurance': 'health', 'Medical care': 'health', 'Food markets': 'food', Sports: 'sports', Transportation: 'newto', 'Settling in Hanoi': 'newto' };
+const TOPIC_FORUM = { 'Visas & work permits': 'paperwork', Taxes: 'paperwork', Schools: 'schools', Housing: 'housing', Banking: 'banking', 'Health insurance': 'health', 'Medical care': 'health', 'Food markets': 'food', Sports: 'sports', Transportation: 'newto', 'Settling in Hanoi': 'newto' };
 const FORUM_TOPICS = f => Object.keys(TOPIC_FORUM).filter(t => TOPIC_FORUM[t] === f);
 const KEYWORDS = {
   schools: ['school', 'kid', 'child', 'children', 'daughter', 'son', 'kindergarten', 'curriculum', 'ib', 'admission', 'teacher', 'class'],
@@ -1118,6 +1184,7 @@ const KEYWORDS = {
   banking: ['bank', 'account', 'transfer', 'money', 'card', 'atm', 'tax', 'salary', 'payment'],
   weekend: ['weekend', 'trip', 'travel', 'hike', 'museum', 'beach', 'holiday', 'visit', 'tour'],
   partners: ['partner', 'spouse', 'husband', 'wife', 'language class', 'job'],
+  paperwork: ['visa', 'permit', 'residence', 'trc', 'passport', 'immigration', 'tax', 'finalisation', 'paperwork', 'document'],
 };
 function routeQuestion(text) {
   const t = ' ' + text.toLowerCase() + ' ';
@@ -1134,6 +1201,14 @@ const threadCount = f => S.threads.filter(t => t.forum === f).length;
 const lastActivity = t => t.replies.length ? t.replies[t.replies.length - 1].date : t.date;
 
 /* ---------- Matching (§6) ---------- */
+/* Offices (who to contact) */
+const office = id => OFFICES.find(o => o.id === id);
+function suggestOffice(text) {
+  const t = ' ' + text.toLowerCase() + ' ';
+  let best = null, n = 0;
+  for (const [id, words] of Object.entries(OFFICE_KEYWORDS)) { const k = words.filter(w => t.includes(w)).length; if (k > n) { best = id; n = k; } }
+  return best;
+}
 const ACTIVE_M = ['introduced', 'checkin_due', 'active'];
 const load_ = id => person(id).buddy.base + S.matches.filter(m => m.buddy === id && ACTIVE_M.includes(m.status)).length;
 const defaultPrefs = p => ({ imp: { college: 2, culture: 1, family: 2, hobbies: 1, help: 2, area: 1 }, hobbies: p.interests.slice(), help: p.wantsHelp.slice(), area: p.area });
@@ -1335,7 +1410,7 @@ function demoBar() {
 
 function navItems() {
   const r = S.role;
-  if (TESTER) return [['home', 'Home', 'home'], ['buddy', me().isNew ? 'My buddy' : 'Buddy programme', 'link'], ['people', 'People', 'users'], ['qa', 'Ask & Discuss', 'message'], ['living', 'Living in Hanoi', 'map'], ['events', 'Events', 'calendar'], ['profile', 'My profile', 'user']];
+  if (TESTER) return [['home', 'Home', 'home'], ['contacts', 'Who to contact', 'phone'], ['living', 'Guides', 'book'], ['providers', 'Recommended providers', 'star'], ['qa', 'Ask & Discuss', 'message'], ['people', 'Colleagues', 'users'], ['buddy', me().isNew ? 'My buddy' : 'Buddy programme', 'link'], ['events', 'Events', 'calendar'], ['profile', 'My profile', 'user']];
   if (!REV) return [
     ['home', 'Home', 'home'], ['profile', 'My Profile', 'user'], ['directory', 'Find Faculty', 'users'], ['match', 'New Faculty Match', 'link'],
     ['living', 'Living in Hanoi', 'map'], ['forums', 'Forums & Communities', 'message'], ['events', 'Events & Activities', 'calendar'],
@@ -1867,7 +1942,7 @@ PAGES.forum = id => {
 };
 function threadRow(t) {
   return `<a class="thread-row" href="#/thread/${t.id}">${av(t.author)}<div style="min-width:0;flex:1"><div class="tr-title">${t.pinned ? `<span class="badge navy" style="margin-right:6px">${ic('pin', 'sm')}Pinned</span>` : ''}${esc(t.title)}</div>
-    <div class="tr-meta"><span>${esc(name(t.author))}</span>${person(t.author).guest ? '<span class="badge">Guest</span>' : ''}<span>· ${ago(t.date)}</span>${REV ? `<span class="tag">${esc(tagLabel(t.forum))}</span>` : ''}${t.source ? `<span class="badge gold">${ic('chat', 'sm')}Saved from Zalo group</span>` : ''}${!t.replies.length ? '<span class="badge red">Unanswered</span>' : ''}</div></div>
+    <div class="tr-meta"><span>${esc(name(t.author))}</span>${person(t.author).guest ? '<span class="badge">Guest</span>' : ''}<span>· ${ago(t.date)}</span>${REV ? `<span class="tag">${esc(tagLabel(t.forum))}</span>` : ''}${t.source ? `<span class="badge gold">${ic('chat', 'sm')}Saved from Zalo group</span>` : ''}${t.office ? (t.replies.some(r => r.author === t.office) ? `<span class="badge green">${ic('shield', 'sm')}Answered by ${esc(name(t.office))}</span>` : `<span class="badge amber">${ic('clock', 'sm')}Sent to ${esc(name(t.office))}</span>`) : !t.replies.length ? '<span class="badge red">Unanswered</span>' : ''}</div></div>
     <div class="tr-replies"><b>${t.replies.length}</b><span>replies</span></div></a>`;
 }
 PAGES.thread = id => {
@@ -1875,16 +1950,20 @@ PAGES.thread = id => {
   const f = forum(t.forum);
   const canMod = isAdmin() || (person(S.role).moderator || []).includes(t.forum);
   const crumbs = REV ? `<a href="#/qa">Ask & Discuss</a>${ic('chev', 'sm')}<a href="javascript:void 0" data-act="qatag" data-v="${t.forum}">${esc(tagLabel(t.forum))}</a>` : `<a href="#/forums">Forums</a>${ic('chev', 'sm')}<a href="#/forum/${f.id}">${esc(f.short)}</a>`;
-  const post = (x, i, op) => `<div class="post ${op ? 'op' : ''}">${av(x.author)}<div class="post-body"><div class="post-meta"><b>${esc(name(x.author))}</b><span class="muted">${esc(person(x.author).title || '')}</span>${person(x.author).guest ? '<span class="badge">Guest</span>' : ''}${(person(x.author).moderator || []).includes(t.forum) ? '<span class="badge navy">Moderator</span>' : ''}<span class="muted">· ${fmt(x.date)}</span></div><div style="white-space:pre-wrap">${esc(x.body)}</div>
+  const post = (x, i, op) => `<div class="post ${op ? 'op' : ''}">${av(x.author)}<div class="post-body"><div class="post-meta"><b>${esc(name(x.author))}</b><span class="muted">${esc(person(x.author).title || '')}</span>${person(x.author).guest ? '<span class="badge">Guest</span>' : ''}${(person(x.author).moderator || []).includes(t.forum) ? '<span class="badge navy">Moderator</span>' : ''}${person(x.author).official ? '<span class="badge official">Official answer</span>' : ''}<span class="muted">· ${fmt(x.date)}</span></div><div style="white-space:pre-wrap">${esc(x.body)}</div>
     <div class="post-actions"><button class="btn ghost sm" data-act="helpful">${ic('check', 'sm')}Helpful</button><button class="btn ghost sm" data-act="report" data-id="${t.id}" data-i="${i}">${ic('flag', 'sm')}Report</button></div></div></div>`;
   const healthLink = t.forum === 'health' ? `<div class="notice mb16">${ic('shield')}<div>Official benefits information: <a href="#/guide/g5">Health insurance and dependants (HR)</a>. Peer replies below are personal experience.</div></div>` : '';
   return pageHead(esc(t.title), '', canMod ? `<button class="btn sm" data-act="pin" data-id="${t.id}">${ic('pin', 'sm')}${t.pinned ? 'Unpin' : 'Pin'}</button>` : '', crumbs)
     + (f.disclaimer ? `<div class="notice warn mb16">${ic('info')}<div>${esc(f.disclaimer)}</div></div>` : '') + healthLink
+    + (t.office ? (t.replies.some(r => r.author === t.office)
+        ? `<div class="notice green mb16">${ic('shield')}<div>Answered officially by the <b>${esc(name(t.office))}</b>.</div></div>`
+        : `<div class="notice mb16">${ic('clock')}<div style="flex:1">Sent to the <b>${esc(name(t.office))}</b>. They usually answer within ${esc(office(t.office).reply)}.</div><button class="btn sm" data-act="officeanswer" data-id="${t.id}">${ic('sparkle', 'sm')}Demo: see their answer</button></div>`) : '')
     + (t.source ? `<div class="notice gold mb16">${ic('chat')}<div>Saved from the Faculty Zalo group by a moderator, with the author’s permission, so it can be found later. ${chg(4)}</div></div>` : '')
     + `<div class="split"><div><section class="card">${post(t, -1, true)}${t.replies.map((r, i) => post(r, i)).join('')}</section>
     <form class="card card-pad mt16" data-form="reply" data-id="${t.id}"><div class="field" style="margin:0"><label for="replybox">Your reply</label><textarea class="input" id="replybox" name="body" placeholder="Share what worked for you…" required></textarea></div><div class="row between mt12"><span class="small muted">${isPartner() ? 'Posting as a guest' : 'Visible to all community members'}</span><button class="btn primary" type="submit">${ic('send', 'sm')}Reply</button></div></form></div>
     <aside class="stack"><section class="card card-pad"><b>${REV ? 'Topic' : 'Forum'}</b><div class="mt8 small">${esc(f.name)}</div>${f.mod ? `<div class="row small mt12">${av(f.mod, 'sm')}Moderator: ${esc(name(f.mod))}</div>` : ''}</section>
-    ${!isPartner() ? `<section class="card card-pad"><b>People who can help</b><div class="mt8">${helpersFor(t.forum).slice(0, 4).map(h => `<a class="list-item" href="javascript:void 0" data-act="person" data-id="${h.id}">${av(h.id, 'sm')}<div class="li-main"><span class="li-title">${esc(name(h.id))}</span><span class="li-sub">${esc(h.helpTopics.filter(x => TOPIC_FORUM[x] === t.forum).join(', '))}</span></div></a>`).join('') || '<div class="small muted">No one yet.</div>'}</div></section>` : ''}</aside></div>`;
+    ${t.office ? `<section class="card card-pad"><b>Responsible office</b><div class="row mt8">${av(t.office, 'sm')}<div><div class="strong small">${esc(name(t.office))}</div><div class="tiny muted">${esc(office(t.office).desc)}</div></div></div><a class="btn ghost sm mt8" href="#/contacts">All contacts ${ic('chev', 'sm')}</a></section>` : ''}
+    ${!isPartner() && !(t.office && !helpersFor(t.forum).length) ? `<section class="card card-pad"><b>People who can help</b><div class="mt8">${helpersFor(t.forum).slice(0, 4).map(h => `<a class="list-item" href="javascript:void 0" data-act="person" data-id="${h.id}">${av(h.id, 'sm')}<div class="li-main"><span class="li-title">${esc(name(h.id))}</span><span class="li-sub">${esc(h.helpTopics.filter(x => TOPIC_FORUM[x] === t.forum).join(', '))}</span></div></a>`).join('') || '<div class="small muted">No one yet.</div>'}</div></section>` : ''}</aside></div>`;
 };
 
 /* ---------- Ask the Community (proposal §3) ---------- */
@@ -1896,10 +1975,21 @@ PAGES.ask = () => pageHead('Ask the Community', 'Post a question and we’ll sen
     <button class="btn primary mt12" type="submit">${ic('send', 'sm')}Post question</button></form>
     <aside class="card card-pad"><b>How routing works</b><ol class="small mt8" style="padding-left:1.2em"><li>We read your question and suggest the best forum.</li><li>The faculty who list that topic under “I can help with” get a notification.</li><li>If no one answers in 48 hours, the forum moderator is alerted. ${phase(2)}</li></ol><div class="hr"></div><b class="small">Recently asked</b>${[...S.threads].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 4).map(threadItem).join('')}</aside></div>`;
 function askRoute(text, chosen) {
+  if (TESTER) return askRouteTester(text);
   const r = routeQuestion(text), f = chosen || r.forum, helpers = helpersFor(f);
   const opts = REV && !TESTER ? [...activeForums(), PARTNER_TAG] : activeForums();
   return `<div class="notice ${r.confident || chosen ? 'green' : ''}">${ic(r.confident ? 'sparkle' : 'info')}<div style="flex:1"><div class="row wrap"><b>${REV ? 'Topic:' : 'Best place:'}</b><select class="input" name="forum" data-change="askforum" style="width:auto;padding:4px 8px">${opts.map(o => `<option value="${o.id}" ${o.id === f ? 'selected' : ''}>${esc(REV ? o.short : o.name)}</option>`).join('')}</select></div>
     <div class="small mt8">${helpers.length ? `<span class="av-stack" style="display:inline-flex;vertical-align:middle;margin-right:6px">${helpers.slice(0, 5).map(h => av(h.id, 'sm')).join('')}</span>${helpers.length} ${helpers.length === 1 ? 'colleague lists' : 'colleagues list'} this as a help topic and will be notified.` : 'The moderator will be notified.'}</div></div></div>`;
+}
+
+function askRouteTester(text) {
+  const r = routeQuestion(text), sug = suggestOffice(text);
+  const to = S.askTo || sug || 'community', o = office(to);
+  const helpers = helpersFor(r.forum).filter(h => h.id !== S.role);
+  return `<div class="notice ${o || r.confident ? 'green' : ''}">${ic(o ? 'shield' : 'users')}<div style="flex:1">
+    <div class="row wrap"><b>Who should answer?</b><select class="input" name="to" data-change="askto" style="width:auto;padding:4px 8px"><option value="community" ${to === 'community' ? 'selected' : ''}>Colleagues</option>${OFFICES.map(x => `<option value="${x.id}" ${x.id === to ? 'selected' : ''}>${esc(name(x.id))} (official answer)</option>`).join('')}</select></div>
+    <div class="small mt8">${o ? `${sug === to && !S.askTo ? 'This looks like a question for the ' + esc(name(o.id)) + '. ' : ''}They give an official answer, usually within <b>${esc(o.reply)}</b>, and colleagues can still add their experience.` : helpers.length ? `<span class="av-stack" style="display:inline-flex;vertical-align:middle;margin-right:6px">${helpers.slice(0, 5).map(h => av(h.id, 'sm')).join('')}</span>${helpers.length} colleagues who know about ${esc(tagLabel(r.forum).toLowerCase())} will be notified.` : 'Colleagues will see it in Ask & Discuss.'}</div></div></div>
+    <input type="hidden" name="forum" value="${r.forum}">`;
 }
 
 /* ---------- Ask & Discuss (revised) ---------- */
@@ -1908,7 +1998,7 @@ PAGES.qa = () => {
   let list = S.threads.filter(t => !S.qaTag || t.forum === S.qaTag);
   if (S.qaSort === 'unanswered') list = list.filter(t => !t.replies.length);
   list.sort((a, b) => S.qaSort === 'top' ? b.replies.length - a.replies.length : lastActivity(b).localeCompare(lastActivity(a)));
-  return pageHead('Ask & Discuss', 'One place for every question and conversation. Tags keep it organised, so a small community stays busy instead of spread across empty forums.', `${chg(3)} ${chg(4)}`)
+  return pageHead('Ask & Discuss', TESTER ? 'Ask colleagues for their experience, or ask an office for an official answer.' : 'One place for every question and conversation. Tags keep it organised, so a small community stays busy instead of spread across empty forums.', `${chg(3)} ${chg(4)}`)
     + `<form class="card card-pad mb16 chg-box" data-form="ask"><div class="row" style="align-items:flex-start;gap:14px">${av(S.role)}<div style="flex:1;min-width:0">
       <input class="input" name="title" data-input="askroute" placeholder="Ask a question or start a conversation…" required aria-label="Question">
       <textarea class="input mt8" name="body" data-input="askroute" placeholder="Details (optional)" style="min-height:64px"></textarea>
@@ -2126,6 +2216,9 @@ function changesModal() {
 ================================================================== */
 const ACT = {
   close: closeOverlays,
+  officeanswer: el => { const t = S.threads.find(x => x.id === el.dataset.id); t.replies.push({ author: t.office, date: TODAY_ISO, body: OFFICE_ANSWERS[t.office] || 'Thank you for your question. We have replied to you by email with the details for your case.' }); notify(S.role, `The ${name(t.office)} answered “${t.title}”.`, 'thread/' + t.id, false); render(); },
+  contactq: el => { S.contactQ = el.dataset.v; render(); },
+  askoffice: el => { S.askTo = el.dataset.id; go('qa'); setTimeout(() => { const i = $('form[data-form=ask] input[name=title]'); if (i) i.focus(); }, 80); },
   copytext: () => { const t = $('#dl-text'); const done = () => toast('Copied'); try { navigator.clipboard.writeText(t.value).then(done, () => { t.select(); toast('Press Ctrl+C to copy'); }); } catch (e) { t.select(); toast('Press Ctrl+C to copy'); } },
   tourstart: () => applyStep(0),
   tourend: () => { S.tour = null; highlight(null); render(); },
@@ -2143,7 +2236,7 @@ const ACT = {
   readall: (el, e) => { e.stopPropagation(); S.notifs.filter(n => n.to === S.role).forEach(n => S.read[n.id] = 1); render(); },
   person: el => openDrawer(personDrawer(el.dataset.id)),
   preview: () => openDrawer(personDrawer(S.role, true)),
-  contact: el => toast(el.dataset.how === 'email' ? `Opens a new email to ${email(el.dataset.id)} (demo)` : `Opens ${person(el.dataset.id).contact || 'Teams'} chat with ${name(el.dataset.id)} (demo)`),
+  contact: el => person(el.dataset.id).official ? toast(`Opens an email to the ${name(el.dataset.id)} (demo)`) : toast(el.dataset.how === 'email' ? `Opens a new email to ${email(el.dataset.id)} (demo)` : `Opens ${person(el.dataset.id).contact || 'Teams'} chat with ${name(el.dataset.id)} (demo)`),
   photo: () => { me().photo = true; toast('Photo uploaded (demo)'); render(); },
   scrollto: el => { const t = document.getElementById(el.dataset.id); if (t) t.scrollIntoView({ behavior: 'smooth', block: 'start' }); },
   helpful: el => { el.classList.add('on'); el.innerHTML = ic('check', 'sm') + 'Thanks!'; },
@@ -2220,6 +2313,7 @@ function approveMatch(id, force = false) {
 }
 
 const CHG = {
+  askto: el => { S.askTo = el.value; const f = el.closest('form'); $('#ask-route').innerHTML = askRoute(f.elements.title.value + ' ' + f.elements.body.value); },
   persona: el => { S.role = el.value; save(); go(parseHash().page === 'admin' ? 'home' : parseHash().page + (parseHash().arg ? '/' + parseHash().arg : '')); },
   annotate: el => { S.annotate = el.checked; render(); },
   dir: el => { S.dir[el.name] = el.type === 'checkbox' ? el.checked : el.value; $('#dir-results').innerHTML = dirResults(); save(); },
@@ -2246,6 +2340,7 @@ const CHG = {
 };
 const INP = {
   dir: el => { S.dir.q = el.value; $('#dir-results').innerHTML = dirResults(); },
+  contacts: el => { S.contactQ = el.value; $('#contacts-results').innerHTML = contactsResults(); },
   askroute: el => { const f = el.closest('form'); const txt = f.elements.title.value + ' ' + f.elements.body.value; $('#ask-route').innerHTML = askRoute(txt); },
   search: el => {
     const q = el.value.trim().toLowerCase(), box = $('#search-res');
@@ -2288,6 +2383,8 @@ const FORM = {
     const forumId = fd.get('forum') || routeQuestion(fd.get('title')).forum;
     const t = { id: uid('t'), forum: forumId, title: fd.get('title'), author: S.role, date: TODAY_ISO, body: fd.get('body') || '', replies: [] };
     S.threads.unshift(t); S.asked = true;
+    const to = fd.get('to'); S.askTo = null;
+    if (to && to !== 'community') { t.office = to; toast(`Sent to the ${name(to)}. They usually answer within ${office(to).reply}.`, true); go('thread/' + t.id); return; }
     const helpers = helpersFor(forumId).filter(h => h.id !== S.role);
     helpers.forEach(h => notify(h.id, `New question in ${forum(forumId).short}: “${t.title}”`, 'thread/' + t.id));
     toast(`Posted. ${helpers.length} colleagues who can help were notified.`, true); go('thread/' + t.id);
@@ -2346,6 +2443,7 @@ window.addEventListener('resize', () => { const bar = $('#demobar'); if (bar) do
 const FEEDBACK = typeof FEEDBACK_URL === 'string' ? FEEDBACK_URL : '';
 const TITLES = ['Lecturer', 'Senior Lecturer', 'Assistant Professor', 'Associate Professor', 'Professor', 'Research Fellow', 'Other'];
 const FIRST_WEEKS = [
+  { id: 'w0', when: 'This week', title: 'Start your work permit and residence card with the International Office', link: 'guide/g9' },
   { id: 'w1', when: 'This week', title: 'Read “Your first week in Hanoi”', link: 'guide/g1' },
   { id: 'w2', when: 'This week', title: 'Find a buddy', link: 'buddy', auto: 'match' },
   { id: 'w3', when: 'This week', title: 'Open a bank account (bring the HR letter)', link: 'guide/g4' },
@@ -2372,7 +2470,7 @@ function tLanding() {
   return `<div class="ob"><div class="ob-card wide">
     <div class="ob-brand"><div class="brand-mark lg" role="img" aria-label="${esc(UNI.name)}"></div><div class="brand-txt"><b>${esc(UNI.name)}</b><span>International Faculty Community</span></div></div>
     <h1>Help us shape a home for international faculty</h1>
-    <p class="ob-lede">This is a working demo of a community platform for international faculty and their families. Try it for ten minutes, then tell us what you would want added. The colleagues inside are fictional, and what you enter stays in this browser.</p>
+    <p class="ob-lede">This is a working demo of one trusted place for international faculty: who to contact at the university, verified guides to visas, tax and life in Hanoi, and colleagues who can help. Try it for ten minutes, then tell us what you would want added. The colleagues inside are fictional, and what you enter stays in this browser.</p>
     <div class="ob-choices">
       <button class="ob-choice" type="button" data-act="obstart" data-v="new">${ic('plane', 'lg')}<b>I’m new to ${esc(UNI.short)}</b><span>Joining soon, or arrived in the last few months</span></button>
       <button class="ob-choice" type="button" data-act="obstart" data-v="est">${ic('users', 'lg')}<b>I’ve been here a while</b><span>Sign in to a ready-made faculty account and see how you’d help newcomers</span></button>
@@ -2458,7 +2556,8 @@ function tHomeNew(p) {
     : m.status === 'requested' ? `<div class="row">${av(m.buddy)}<div><b>${esc(name(m.buddy))}</b><div class="small muted">Request sent, waiting to confirm</div></div></div>`
     : `<div class="row">${av(m.buddy)}<div><b>${esc(name(m.buddy))}</b><div class="small muted">Your buddy · ${person(m.buddy).college}</div></div></div><button class="btn sm mt12" data-act="contact" data-id="${m.buddy}">${ic('chat', 'sm')}Message</button>`;
   return `<section class="hero ph ph-facade"><h1>Welcome, ${esc(p.first)}.</h1><p>${p.preArrival ? `You arrive in Hanoi in <b>${daysUntil(p.joined)}</b> days. Here’s what to sort out first.` : 'Here’s what to sort out in your first weeks.'}</p>
-      <div class="row wrap mt16"><a class="btn red" href="#/buddy">${ic('link', 'sm')}${m ? 'My buddy' : 'Find a buddy'}</a><a class="btn" href="#/qa">${ic('help', 'sm')}Ask a question</a></div></section>
+      <div class="row wrap mt16"><a class="btn red" href="#/contacts">${ic('phone', 'sm')}Who to contact</a><a class="btn" href="#/qa">${ic('help', 'sm')}Ask a question</a></div></section>
+    ${essentials()}
     <div class="split mt24"><section class="card"><div class="card-h"><h2>${ic('list')}Your next steps</h2><span class="small muted">${done} of ${steps.length} done</span></div><div class="card-b"><div class="steps">${steps.map(a => a.id.startsWith('a') ? planStep(a) : tStep(a)).join('')}</div></div></section>
       <div class="stack"><section class="card card-pad"><h3 class="mb12">Your buddy</h3>${buddyBox}</section>
       <section class="card card-pad"><h3 class="mb8">Coming up</h3>${upcomingEvents(3).map(eventItem).join('')}<a class="btn ghost sm mt8" href="#/events">All events ${ic('chev', 'sm')}</a></section></div></div>
@@ -2477,7 +2576,8 @@ function tHomeEst(p) {
       + mine.map(m => `<div class="list-item">${av(m.seeker)}<div class="li-main"><span class="li-title">${esc(name(m.seeker))}</span><span class="li-sub">Your buddy since ${fmt(m.intro)}</span></div><button class="btn sm" data-act="contact" data-id="${m.seeker}">${ic('chat', 'sm')}Message</button></div>`).join('')) || '<p class="small muted">No requests right now. We’ll let you know.</p>';
   return `<div class="notice gold mb16">${ic('info')}<div>You’re signed in to a sample account, <b>${esc(name(p.id))}</b>, a faculty member who has been here a while and already set up a profile. Look around as if it were yours.</div></div>
     <section class="hero ph ph-lawn"><h1>Welcome back, ${esc(p.first)}.</h1><p>${p.title} · ${collegeName(p.college)} · ${p.years} years in Hanoi. ${newbies.length} newcomers joined recently, and here’s where your experience helps most.</p>
-      <div class="row wrap mt16"><a class="btn red" href="#/buddy">${ic('link', 'sm')}Buddy programme</a><a class="btn" href="#/qa">${ic('help', 'sm')}Answer questions</a></div></section>
+      <div class="row wrap mt16"><a class="btn red" href="#/contacts">${ic('phone', 'sm')}Who to contact</a><a class="btn" href="#/qa">${ic('help', 'sm')}Answer questions</a></div></section>
+    ${essentials()}
     <div class="grid g2 mt24">
       <section class="card"><div class="card-h"><h2>${ic('link')}Buddy requests</h2></div><div class="card-b">${buddyCard}</div></section>
       <section class="card"><div class="card-h"><h2>${ic('help')}Questions you could answer</h2></div><div class="card-b">${qs.map(t => `<a class="list-item" href="#/thread/${t.id}">${av(t.author, 'sm')}<div class="li-main"><span class="li-title">${esc(t.title)}</span><span class="li-sub">${esc(tagLabel(t.forum))} · ${t.replies.length ? t.replies.length + ' replies' : '<b style="color:var(--red)">no replies yet</b>'}</span></div></a>`).join('')}</div></section>
@@ -2503,7 +2603,33 @@ function tBuddy() {
     <div class="row wrap mt16"><button class="btn primary" data-act="tbaccept" data-id="${m.id}">${ic('sparkle', 'sm')}Demo: see what happens when ${esc(first(m.buddy))} says yes</button><button class="btn ghost" data-act="cancelmatch" data-id="${m.id}">Cancel request</button></div></section>`;
   return head + matchStatus(m);
 }
-const TPAGES = { home: tHome, buddy: tBuddy, people: (...a) => PAGES.directory(...a), qa: (...a) => PAGES.qa(...a), thread: (...a) => PAGES.thread(...a), living: (...a) => PAGES.living(...a), guide: (...a) => PAGES.guide(...a), events: (...a) => PAGES.events(...a), profile: (...a) => PAGES.profile(...a) };
+/* ---------- Who to contact, providers, essentials ---------- */
+const CONTACT_CHIPS = ['Visa', 'Work permit', 'Residence card', 'Tax', 'Payslips', 'Health insurance', 'Contract', 'Email', 'Parking', 'Grants'];
+function contactsResults() {
+  const q = (S.contactQ || '').trim().toLowerCase();
+  const hit = o => !q || (name(o.id) + ' ' + o.desc + ' ' + o.handles.join(' ')).toLowerCase().includes(q);
+  const list = OFFICES.filter(hit);
+  return `<div class="small muted mb12">${list.length} of ${OFFICES.length} offices</div><div class="grid g2">${list.map(o => `<article class="card card-pad office">
+      <div class="row" style="align-items:flex-start">${av(o.id)}<div style="min-width:0"><h3>${esc(name(o.id))}</h3><p class="small muted" style="margin:2px 0 0">${esc(o.desc)}</p></div></div>
+      <div class="tags mt12">${o.handles.map(h => `<span class="tag ${q && h.toLowerCase().includes(q) ? 'hit' : ''}">${esc(h)}</span>`).join('')}</div>
+      <div class="office-meta small"><span>${ic('pin', 'sm')}${esc(o.where)}</span><span>${ic('clock', 'sm')}${esc(o.hours)}</span><span>${ic('send', 'sm')}Replies in ${esc(o.reply)}</span></div>
+      <div class="row wrap mt12"><button class="btn primary sm" data-act="askoffice" data-id="${o.id}">${ic('help', 'sm')}Ask this office</button><button class="btn sm" data-act="contact" data-id="${o.id}">${ic('mail', 'sm')}Email</button>${o.guides.map(g => `<a class="btn ghost sm" href="#/guide/${g}">${ic('book', 'sm')}${esc(S.guides.find(x => x.id === g).title)}</a>`).join('')}</div>
+    </article>`).join('') || '<div class="empty card">No office matches that. Try another word, or ask in Ask & Discuss.</div>'}</div>`;
+}
+function tContacts() {
+  return pageHead('Who to contact', 'Find the right university office for your question. Each office owns its answers and keeps its guides up to date.')
+    + `<section class="card card-pad mb16"><div class="search" style="max-width:none">${ic('search')}<input class="input" style="padding-left:38px" data-input="contacts" value="${esc(S.contactQ || '')}" placeholder="What do you need help with? e.g. work permit, tax, payslip" aria-label="Search offices"></div>
+      <div class="chips mt12">${CONTACT_CHIPS.map(c => `<span class="chip ${(S.contactQ || '').toLowerCase() === c.toLowerCase() ? 'on' : ''}" data-act="contactq" data-v="${esc(c)}">${esc(c)}</span>`).join('')}${S.contactQ ? '<span class="chip" data-act="contactq" data-v="">Clear</span>' : ''}</div></section>
+    <div id="contacts-results">${contactsResults()}</div>
+    <p class="small muted mt16">Sample directory for this demo: office locations, hours and contact details would be confirmed by each office.</p>`;
+}
+function essentials() {
+  const tiles = [['guide/g9', 'plane', 'Visas & work permits', 'International Office'], ['guide/g10', 'tag', 'Taxes', 'Finance Office'], ['guide/g4', 'tag', 'Banking & transfers', 'HR guide'],
+    ['guide/g2', 'home', 'Housing', 'Faculty guide'], ['guide/g5', 'shield', 'Healthcare & insurance', 'HR guide'], ['contacts', 'phone', 'Who to contact', '8 university offices']];
+  return `<section class="mt24"><div class="row between mb12"><h2 class="t-h2">Essentials</h2><a class="btn ghost sm" href="#/contacts">Who to contact ${ic('chev', 'sm')}</a></div>
+    <div class="ess">${tiles.map(([href, i, t, sub]) => `<a class="card ess-tile" href="#/${href}"><span class="forum-ico">${ic(i)}</span><b>${t}</b><span>${sub}</span></a>`).join('')}</div></section>`;
+}
+const TPAGES = { contacts: tContacts, providers: () => pageHead('Recommended providers', 'Clinics, realtors, shops and services colleagues have used, with the date each was last confirmed.') + recsBody(), home: tHome, buddy: tBuddy, people: (...a) => PAGES.directory(...a), qa: (...a) => PAGES.qa(...a), thread: (...a) => PAGES.thread(...a), living: (...a) => PAGES.living(...a), guide: (...a) => PAGES.guide(...a), events: (...a) => PAGES.events(...a), profile: (...a) => PAGES.profile(...a) };
 const T_ALIASES = { match: 'buddy', directory: 'people', arrival: 'home', forums: 'qa', ask: 'qa', recs: 'living/recs' };
 
 function renderTester() {

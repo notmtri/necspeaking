@@ -19,7 +19,7 @@ const COLLEGES = {
 };
 const NO_KIDS = 'No children';
 
-const HELP_TOPICS = ['Schools', 'Housing', 'Banking', 'Health insurance', 'Medical care', 'Food markets', 'Transportation', 'Sports', 'Settling in Hanoi'];
+const HELP_TOPICS = ['Visas & work permits', 'Taxes', 'Schools', 'Housing', 'Banking', 'Health insurance', 'Medical care', 'Food markets', 'Transportation', 'Sports', 'Settling in Hanoi'];
 const AREAS = ['Ocean Park', 'Ecopark', 'Long Biên', 'Tây Hồ', 'Hoàn Kiếm', 'Undecided'];
 const KID_RANGES = ['0–2', '3–6', '7–10', '11–14', '15–18'];
 
@@ -65,7 +65,40 @@ const OTHERS = [
   { id: 'linh', first: 'Linh', last: 'Trần', title: 'Faculty Affairs Officer', staff: true, email: 'linh.tran@vinuni.example' },
   { id: 'hr', first: 'HR', last: 'Benefits Team', title: 'Human Resources', staff: true, official: true },
   { id: 'io', first: 'International', last: 'Office', title: 'International Office', staff: true, official: true },
+  { id: 'fin', first: 'Finance', last: 'Office', title: 'Finance Office', staff: true, official: true },
+  { id: 'it', first: 'IT', last: 'Service Desk', title: 'IT Service Desk', staff: true, official: true },
+  { id: 'fa', first: 'Faculty', last: 'Affairs', title: 'Faculty Affairs', staff: true, official: true },
+  { id: 'campus', first: 'Campus', last: 'Services', title: 'Campus Services', staff: true, official: true },
+  { id: 'research', first: 'Research', last: 'Office', title: 'Research Office', staff: true, official: true },
+  { id: 'lib', first: 'University', last: 'Library', title: 'University Library', staff: true, official: true },
 ];
+
+/* ---------- Who to contact (added after the November 2026 faculty survey) ----------
+   Office names follow common university roles; contact details are placeholders. */
+const OFFICES = [
+  { id: 'io', desc: 'Visas, work permits and residence cards, for you and your family.', handles: ['Visa', 'Work permit', 'Residence card (TRC)', 'Dependants’ visas', 'Passport renewal', 'Immigration letters'], where: 'Building A, 1st floor', hours: 'Mon–Fri 8:30–17:00', reply: '2 working days', guides: ['g9'] },
+  { id: 'fin', desc: 'Payroll, personal income tax and reimbursements.', handles: ['Personal income tax', 'Tax finalisation', 'Tax certificate', 'Payslips', 'Salary transfers', 'Reimbursements'], where: 'Building A, 3rd floor', hours: 'Mon–Fri 8:30–17:00', reply: '2 working days', guides: ['g10', 'g4'] },
+  { id: 'hr', desc: 'Your contract, leave, benefits and health insurance.', handles: ['Contract', 'Leave', 'Health insurance', 'Adding dependants to insurance', 'Benefits', 'Employment letter'], where: 'Building A, 2nd floor', hours: 'Mon–Fri 8:30–17:00', reply: '2 working days', guides: ['g5', 'g1'] },
+  { id: 'fa', desc: 'Onboarding, academic appointments and this community platform.', handles: ['Onboarding', 'Buddy programme', 'Promotion and review', 'Faculty events', 'Who handles what'], where: 'Building A, 2nd floor', hours: 'Mon–Fri 8:30–17:00', reply: '1 working day', guides: ['g1'] },
+  { id: 'it', desc: 'Accounts, email, Wi-Fi, laptops and teaching technology.', handles: ['Email and accounts', 'Password reset', 'Wi-Fi', 'Laptop', 'Classroom technology', 'Software licences'], where: 'Library building, ground floor', hours: 'Mon–Sat 8:00–20:00', reply: 'Same day', guides: [] },
+  { id: 'campus', desc: 'Offices, parking, maintenance and on-campus accommodation.', handles: ['Office space', 'Parking', 'Maintenance', 'Campus accommodation', 'Room bookings', 'Security'], where: 'Building C, ground floor', hours: 'Mon–Fri 8:00–17:30', reply: '1 working day', guides: ['g7'] },
+  { id: 'research', desc: 'Grants, research funding, ethics and research contracts.', handles: ['Grants', 'Research funding', 'Ethics approval', 'Research contracts', 'Conference travel'], where: 'Building B, 4th floor', hours: 'Mon–Fri 8:30–17:00', reply: '3 working days', guides: [] },
+  { id: 'lib', desc: 'Books, journals, databases and research support.', handles: ['Journals and databases', 'Interlibrary loans', 'Course reserves', 'Research support', 'Study spaces'], where: 'Library building', hours: 'Mon–Sun 7:30–22:00', reply: '1 working day', guides: [] },
+];
+const OFFICE_KEYWORDS = {
+  io: ['visa', 'work permit', 'permit', 'residence', 'trc', 'passport', 'immigration', 'dependant', 'dependent', 'stamp'],
+  fin: ['tax', 'payroll', 'payslip', 'salary', 'reimburse', 'finalisation', 'finalization', 'invoice'],
+  hr: ['contract', 'leave', 'insurance', 'benefit', 'employment letter', 'holiday'],
+  it: ['email', 'password', 'wifi', 'wi-fi', 'laptop', 'login', 'software', 'projector'],
+  campus: ['parking', 'office space', 'maintenance', 'accommodation', 'room booking', 'key'],
+  research: ['grant', 'funding', 'ethics', 'research contract', 'conference'],
+  lib: ['library', 'journal', 'database', 'interlibrary', 'borrow'],
+};
+const OFFICE_ANSWERS = {
+  io: 'Thank you for your question. Please email us a copy of your passport and contract, and we will send the checklist for your case. A work permit and residence card usually take four to six weeks in total. The guide “Visas, work permits and residence cards” explains the general steps.',
+  fin: 'Thank you for your question. Tax is withheld from your salary each month. If the university was your only employer this year, we can do the yearly finalisation for you: reply to confirm, and we will send the authorisation form before the deadline.',
+  hr: 'Thank you for your question. We have sent the details for your case by email. The general rules are in our guide “Health insurance and dependants”.',
+};
 
 const PERSONAS = [
   { id: 'sofia', role: 'faculty', label: 'New faculty', blurb: { proposal: 'Joined CECS on 1 October with her partner and two children. Still looking for a home and a school.', revised: 'Signed her contract; arrives 9 November with her partner and two children. Has an invitation link before her VinUni account exists.' } },
@@ -85,6 +118,7 @@ const FORUMS = [
   { id: 'banking', name: 'Banking and Personal Finance Logistics', short: 'Banking', desc: 'Opening accounts, international transfers, cards, ATMs and payment apps.', mod: 'olivia', icon: 'tag', disclaimer: 'Peer comments are not financial advice. Check fees and terms with the provider.' },
   { id: 'weekend', name: 'Weekend Activities', short: 'Weekend', desc: 'Day trips, cultural events, family outings, restaurants, museums and travel ideas.', mod: 'mateo', icon: 'map', disclaimer: null },
   { id: 'newto', name: 'New to Hanoi', short: 'New to Hanoi', desc: 'General onboarding questions that do not fit another category.', mod: 'michael', icon: 'globe', disclaimer: null },
+  { id: 'paperwork', rev: true, name: 'Visas, permits and paperwork', short: 'Visas & paperwork', desc: 'Visas, work permits, residence cards, tax and other university processes.', mod: null, icon: 'file', disclaimer: 'Colleagues can share experience, but for your own case the responsible office gives the official answer.' },
   { id: 'buysell', name: 'Buy / Sell / Give Away', short: 'Buy / sell', desc: 'Furniture and household items. Optional future forum, subject to university policy.', mod: null, icon: 'swap', disclaimer: null, future: true },
 ];
 const PARTNER_TAG = { id: 'partners', short: 'Partners & families', name: 'Partners & families', desc: 'For partners and family members: language classes, jobs, friendships, life while your partner teaches.' };
@@ -152,6 +186,12 @@ const THREADS = [
     { author: 'emily', date: '2026-10-07', body: 'My husband would love this. I’ll pass it on!' }] },
 ];
 
+THREADS.push(
+  { id: 't24', forum: 'paperwork', revOnly: true, office: 'fin', title: 'Do I need to do the yearly tax finalisation myself?', author: 'noah', date: '2026-10-09', body: 'I joined in August. Is the tax finalisation something I file myself, or does the university do it for me?', replies: [
+    { author: 'fin', date: '2026-10-10', body: 'Thank you for your question. If the university is your only employer this year, we can do the finalisation for you. We will email everyone the authorisation form in January, with the deadline.' }] },
+  { id: 't25', forum: 'paperwork', revOnly: true, office: 'io', title: 'How long does the residence card take after the work permit?', author: 'marcus', date: '2026-10-14', body: 'My work permit was approved last week. Roughly how long until the residence card, and can I travel in the meantime?', replies: [] },
+);
+
 const REPORTS = [
   { id: 'r1', thread: 't5', replyIdx: null, reason: 'Phone number of a private individual posted in a reply', by: 'grace', date: '2026-10-12', status: 'open', excerpt: '“…call Mr. Tuấn directly on 09xx xxx xxx, he can also…”' },
   { id: 'r2', thread: 't16', replyIdx: null, reason: 'Possible paid promotion of a money-transfer service', by: 'samuel', date: '2026-10-13', status: 'open', excerpt: '“Use my referral code for 0 fees on your first transfer…”' },
@@ -186,6 +226,16 @@ const GUIDES = [
   { id: 'g7', title: 'Getting around', cat: 'Transportation', source: 'faculty', owner: 'kenji', reviewed: '2026-09-01', next: '2027-03-01', mins: 4, summary: 'Ride-hailing, motorbikes, cycling and getting to Nội Bài airport.', sections: [
     { h: 'Ride-hailing', body: '<p>Grab and Xanh SM both work well. At peak times (07:30–08:30, 17:00–18:30) book 10 minutes early.</p>' },
     { h: 'Airport', body: '<p>Nội Bài is 45–60 minutes from campus. Pre-book a car for early flights.</p>' }] },
+  { id: 'g9', title: 'Visas, work permits and residence cards', cat: 'Visas & work permits', source: 'official', owner: 'io', reviewed: '2026-10-01', next: '2027-04-01', mins: 7, summary: 'The three documents you need, what to prepare before you arrive, and how partners and children are covered.', sections: [
+    { h: 'The three documents', body: '<ul><li><b>A work visa</b> to enter Vietnam.</li><li><b>A work permit</b>, or confirmation that you are exempt, so you can be employed.</li><li><b>A temporary residence card (TRC)</b>, so you can stay long term without renewing a visa.</li></ul>' },
+    { h: 'Prepare before you arrive', body: '<p>The International Office will send you a checklist when you sign your contract. It usually includes degree certificates, a criminal record check, a health certificate and passport photos. Some documents must be legalised or translated, which can take several weeks, so start early.</p>' },
+    { h: 'Partners and children', body: '<p>Family members can usually get visas and residence cards through your employment. Bring legalised marriage and birth certificates, and tell the International Office who is moving with you as early as possible.</p>' },
+    { h: 'Who to ask', body: '<p>Your own case is always handled by the <b>International Office</b>. Use <a href="#/contacts">Who to contact</a> or ask them directly from Ask &amp; Discuss.</p>' }] },
+  { id: 'g10', title: 'Personal income tax', cat: 'Taxes', source: 'official', owner: 'fin', reviewed: '2026-09-15', next: '2027-03-15', mins: 5, summary: 'How tax is taken from your salary, the yearly finalisation, and the documents to keep for your home country.', sections: [
+    { h: 'Tax on your salary', body: '<p>The university withholds personal income tax from your salary each month. If you are a tax resident (generally, in Vietnam for 183 days or more in a year), progressive rates apply and income from abroad may also need to be declared.</p>' },
+    { h: 'The yearly finalisation', body: '<p>After the tax year ends, your tax is finalised. Many employees can authorise the university to do this for them. The Finance Office will tell you whether you qualify and when the deadline is.</p>' },
+    { h: 'Family deductions', body: '<p>You can usually register dependants for a tax deduction. Ask the Finance Office for the form.</p>' },
+    { h: 'Documents to keep', body: '<ul><li>Your payslips</li><li>A tax certificate from the Finance Office, for your home country’s tax return or when you leave</li><li>Records of any income outside Vietnam</li></ul>' }] },
   { id: 'g8', title: 'International food and groceries', cat: 'Food markets', source: 'faculty', owner: 'laura', reviewed: '2026-04-10', next: '2026-10-10', mins: 5, summary: 'Where faculty find ingredients from home, from supermarkets to Zalo-order delivery.', sections: [
     { h: 'Supermarkets', body: '<p>Large supermarkets in Ocean Park and Long Biên carry imported basics. Specialty items are cheaper at import stores in Tây Hồ.</p>' },
     { h: 'Ordering by Zalo', body: '<p>Many small importers take orders through Zalo and deliver on fixed days. See the Recommendations page for current ones.</p>' }] },
@@ -299,6 +349,7 @@ const CONSENTS = [
 ];
 
 const ARRIVAL_PLAN = [
+  { id: 'a0', when: '10 weeks before', title: 'Send your visa and work-permit documents to the International Office', link: 'guide/g9', done: false },
   { id: 'a1', when: '8 weeks before', title: 'Choose a neighbourhood', link: 'guide/g2', done: true },
   { id: 'a2', when: '7 weeks before', title: 'Shortlist schools and book online assessments', link: 'guide/g3', done: true },
   { id: 'a3', when: '6 weeks before', title: 'Meet your buddy on a video call', link: 'match', done: false, auto: 'match' },
