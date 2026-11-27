@@ -1,0 +1,335 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Faculty Hub: Technical Proposal</title>
+<style>
+@font-face { font-family: 'Hanken'; font-weight: 400 700; src: url('{{FONTS}}/HankenGrotesk-latin.woff2') format('woff2'); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+@font-face { font-family: 'Hanken'; font-weight: 400 700; src: url('{{FONTS}}/HankenGrotesk-latin-ext.woff2') format('woff2'); unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+@font-face { font-family: 'Hanken'; font-weight: 400 700; src: url('{{FONTS}}/HankenGrotesk-vietnamese.woff2') format('woff2'); unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB; }
+@font-face { font-family: 'Newsreader'; font-weight: 500 700; src: url('{{FONTS}}/Newsreader-latin.woff2') format('woff2'); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+@font-face { font-family: 'Newsreader'; font-weight: 500 700; src: url('{{FONTS}}/Newsreader-latin-ext.woff2') format('woff2'); unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+@font-face { font-family: 'Newsreader'; font-weight: 500 700; src: url('{{FONTS}}/Newsreader-vietnamese.woff2') format('woff2'); unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB; }
+
+:root { --navy: #1D3C73; --navy-d: #0A1834; --navy-50: #EEF2FA; --navy-100: #DCE4F4; --red: #C72027; --red-50: #FCECEF; --ink: #1B1F28; --ink2: #464E5E; --ink3: #737B8C; --line: #DDE1E8; --gold-50: #FBF4E4; --green: #1E7A4C; --green-50: #E7F4EC; --teal: #0E7A6E; }
+@page { size: A4; margin: 19mm 18mm 18mm 18mm; }
+* { box-sizing: border-box; }
+html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+body { margin: 0; font-family: 'Hanken', system-ui, sans-serif; font-size: 10.2pt; line-height: 1.55; color: var(--ink); }
+h1, h2, h3, h4 { font-family: 'Newsreader', Georgia, serif; color: var(--navy-d); font-weight: 600; margin: 0; line-height: 1.2; }
+h2.sec { font-size: 23pt; margin: 0 0 4mm; padding-top: 1mm; letter-spacing: -.2px; break-after: avoid; }
+h2.sec .n { color: var(--red); margin-right: 3mm; }
+h3 { font-size: 14pt; margin: 6mm 0 2mm; break-after: avoid; }
+h3 .n { color: var(--red); font-size: 11pt; margin-right: 2mm; font-family: 'Hanken'; font-weight: 700; }
+h4 { font-family: 'Hanken'; font-size: 9pt; text-transform: uppercase; letter-spacing: .9px; color: var(--red); font-weight: 700; margin: 4mm 0 1.5mm; break-after: avoid; }
+p { margin: 0 0 2.6mm; }
+ul, ol { margin: 0 0 3mm; padding-left: 5mm; }
+li { margin-bottom: 1mm; }
+b, strong { font-weight: 700; color: var(--navy-d); }
+.lede { font-size: 11.5pt; color: var(--ink2); line-height: 1.55; margin-bottom: 5mm; }
+.newpage { break-before: page; }
+table { break-inside: auto; } thead, tr:first-child { break-after: avoid; }
+.flow { margin-top: 11mm; }
+.muted { color: var(--ink3); }
+.small { font-size: 8.8pt; }
+.box { border-radius: 3mm; padding: 4mm 5mm; margin: 3mm 0 4mm; break-inside: avoid; }
+.box.navy { background: var(--navy-50); border-left: 1.2mm solid var(--navy); }
+.box.red { background: var(--red-50); border-left: 1.2mm solid var(--red); }
+.box.gold { background: var(--gold-50); border-left: 1.2mm solid #B88A2E; }
+.box.green { background: var(--green-50); border-left: 1.2mm solid var(--green); }
+.box h4:first-child { margin-top: 0; }
+.box p:last-child, .box ul:last-child, .box ol:last-child { margin-bottom: 0; }
+table { width: 100%; border-collapse: collapse; margin: 2mm 0 4mm; font-size: 8.9pt; break-inside: auto; }
+th { text-align: left; background: var(--navy); color: #fff; font-weight: 600; padding: 2mm 2.4mm; font-size: 8.4pt; }
+td { padding: 2mm 2.4mm; border-bottom: .3mm solid var(--line); vertical-align: top; }
+tr { break-inside: avoid; }
+tr:nth-child(even) td { background: #F7F8FA; }
+td.num, th.num { text-align: center; width: 9mm; }
+.tag { display: inline-block; padding: .2mm 2mm; border-radius: 9mm; font-size: 7.6pt; font-weight: 700; white-space: nowrap; }
+.tag.pilot { background: var(--green-50); color: var(--green); }
+.tag.later { background: #EEF0F4; color: var(--ink2); }
+.tag.chg { background: #E2F5F2; color: var(--teal); }
+figure { margin: 3mm 0 5mm; break-inside: avoid; }
+figure img { display: block; width: 100%; border: .3mm solid var(--line); border-radius: 2mm; box-shadow: 0 .6mm 2mm rgba(10, 24, 52, .10); }
+figure.w45 { width: 45%; } figure.w55 { width: 55%; } figure.w65 { width: 65%; } figure.w75 { width: 75%; } figure.w85 { width: 85%; }
+figure.c { margin-left: auto; margin-right: auto; }
+figcaption { font-size: 8.2pt; color: var(--ink3); margin-top: 1.8mm; line-height: 1.4; }
+figcaption b { color: var(--ink2); }
+.figs { display: grid; gap: 5mm; margin: 3mm 0 5mm; align-items: start; break-inside: avoid; }
+.figs.two { grid-template-columns: 1fr 1fr; } .figs.two-r { grid-template-columns: 1.35fr 1fr; } .figs.three { grid-template-columns: 1fr 1fr 1fr; }
+.figs figure { margin: 0; }
+.side { display: grid; grid-template-columns: 1fr 44%; gap: 6mm; align-items: start; margin-bottom: 2mm; }
+.side.l { grid-template-columns: 40% 1fr; }
+.side figure { margin-top: 1mm; }
+.feature { break-inside: auto; }
+.why { font-size: 9.2pt; color: var(--ink2); border-top: .3mm dashed var(--line); padding-top: 2mm; margin-top: 1mm; }
+.why b { color: var(--red); }
+.kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 3mm; margin: 3mm 0 5mm; }
+.kpi { border: .3mm solid var(--line); border-radius: 2.5mm; padding: 3mm; break-inside: avoid; }
+.kpi .v { font-family: 'Newsreader'; font-size: 20pt; font-weight: 600; color: var(--navy-d); line-height: 1; }
+.kpi .l { font-size: 8.4pt; color: var(--ink2); margin-top: 1.5mm; line-height: 1.35; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 5mm; }
+.toc { margin-top: 4mm; }
+.toc a { display: flex; align-items: baseline; gap: 2mm; color: var(--ink); text-decoration: none; padding: .8mm 0; border-bottom: .3mm solid var(--line); font-size: 9.8pt; }
+.toc a.sub { padding-left: 8mm; font-size: 8.5pt; padding-top: .45mm; padding-bottom: .45mm; color: var(--ink2); border-bottom-style: dotted; }
+.toc .n { color: var(--red); font-weight: 700; min-width: 7mm; }
+.toc .dots { flex: 1; }
+.toc .pg { font-variant-numeric: tabular-nums; color: var(--ink2); }
+.persona { display: grid; grid-template-columns: 11mm 1fr; gap: 3mm; padding: 3mm 0; border-bottom: .3mm solid var(--line); break-inside: avoid; }
+.persona .av { width: 11mm; height: 11mm; border-radius: 50%; display: grid; place-items: center; color: #fff; font-weight: 700; font-size: 9pt; }
+.timeline { position: relative; margin: 3mm 0 5mm; }
+.tl { display: grid; grid-template-columns: 30mm 1fr; gap: 4mm; padding: 2.5mm 0; border-bottom: .3mm solid var(--line); break-inside: avoid; }
+.tl .when { font-weight: 700; color: var(--red); font-size: 9.2pt; }
+.tl .what b { display: block; margin-bottom: .5mm; }
+.sign { margin-top: 8mm; display: grid; grid-template-columns: 1fr 1fr; gap: 10mm; }
+.sign div { border-top: .3mm solid var(--ink3); padding-top: 2mm; font-size: 8.8pt; color: var(--ink3); }
+.note { font-size: 8.2pt; color: var(--ink3); }
+</style>
+</head>
+<body>
+<!-- ============================ CONTENTS ============================ -->
+<section>
+  <h2 class="sec">Contents</h2>
+  <div class="toc">{{TOC}}</div>
+  <div class="box gold" style="margin-top:4mm;padding:3mm 4mm;font-size:8.8pt">
+    <h4>About this document</h4>
+    <p>This is the technical companion to the <i>International Faculty Community Platform</i> pilot proposal. It is written for VinUniversity IT, HR and Faculty Affairs, and sets out what will be built, how it connects to VinUniversity’s systems, how it is secured, and what is needed from each team to deliver a pilot by 24 December 2026. Items marked <b>[IT to confirm]</b> are proposals for discussion, not assumptions about VinUniversity’s current systems.</p>
+  </div>
+</section>
+
+<!-- ============================ 1 ============================ -->
+<section class="newpage">
+  <h2 class="sec" id="t1"><span class="n">1</span>Summary</h2>
+  <p class="lede">The Faculty Hub is a small, secure web application for VinUniversity’s international faculty. It combines two things faculty asked for: a trusted information hub and a buddy programme for newcomers. A working pilot can be ready by 24 December 2026 if IT access and HR funding are agreed in the first week of December.</p>
+
+  <h4>What it does</h4>
+  <ul>
+    <li><b>Information hub:</b> a “Who to contact” directory of university offices; official guides on visas and work permits, tax, banking, housing and healthcare, each owned and reviewed by the responsible office; and dated, faculty-recommended service providers.</li>
+    <li><b>Buddy programme:</b> newcomers ask for an experienced colleague; a coordinator in Faculty Affairs confirms each match; both receive an introduction and a check-in a few weeks later.</li>
+  </ul>
+
+  <h4>Why these two</h4>
+  <p>In the November 2026 survey of 42 international faculty, the most valued topics were visas and work permits (74%), banking, taxes and transfers (71%), and housing (60%). The most wanted feature was a “Who to contact at VinUniversity” directory (60%), and the hardest thing to resolve was understanding university processes (60%). The buddy programme serves newcomers, who were under-represented in the survey (79% of respondents had been at VinUniversity for more than a year).</p>
+
+  <h4>How it is built</h4>
+  <ul>
+    <li>Faculty sign in with their <b>VinUniversity Microsoft account</b> (single sign-on with multi-factor authentication). The Hub stores no passwords.</li>
+    <li>Staff details (name, email, unit, title, employment status) come from <b>VinUniversity’s records, read-only</b>, through a route IT chooses. The Hub never writes to VinUniversity’s HR systems.</li>
+    <li>The Hub’s own data (buddy matches, guides, providers, optional profile details) is kept in its own encrypted database on <b>VinUniversity-controlled infrastructure</b>.</li>
+  </ul>
+
+  <div class="box red">
+    <h4>Decisions needed in the first week of December</h4>
+    <ol>
+      <li><b>IT:</b> choose the platform (Section 4), the source of staff data (Section 5) and the hosting, and name a technical contact.</li>
+      <li><b>HR:</b> approve funding for the pilot build and running costs (Section 9).</li>
+      <li><b>Faculty Affairs:</b> confirm a buddy coordinator and the owner of each official guide.</li>
+    </ol>
+  </div>
+</section>
+
+<!-- ============================ 2 ============================ -->
+<section class="newpage">
+  <h2 class="sec" id="t2"><span class="n">2</span>Scope of the pilot</h2>
+  <p>The pilot is deliberately small, so it can be built, secured and reviewed properly in four weeks. A working, clickable prototype of the full concept already exists and was tested with faculty; the pilot turns the parts below into a production application.</p>
+  <table>
+    <tr><th style="width:30%">Feature</th><th>What it includes</th><th style="width:14%">Pilot</th></tr>
+    <tr><td><b>Sign-in</b></td><td>VinUniversity single sign-on; access limited to VinUniversity staff</td><td><span class="tag pilot">Pilot</span></td></tr>
+    <tr><td><b>Who to contact</b></td><td>Searchable directory of university offices: what each handles, location, hours, contact route and typical reply time</td><td><span class="tag pilot">Pilot</span></td></tr>
+    <tr><td><b>Official guides</b></td><td>Visas, work permits and residence cards; tax; banking; housing; healthcare and insurance. Each has an owning office, a review date and a “report outdated” button</td><td><span class="tag pilot">Pilot</span></td></tr>
+    <tr><td><b>Recommended providers</b></td><td>Faculty-recommended clinics, realtors and services, with the date last confirmed and a standard non-endorsement notice</td><td><span class="tag pilot">Pilot</span></td></tr>
+    <tr><td><b>Profiles</b></td><td>Pre-filled from VinUniversity records; faculty add optional details (languages, interests, topics they can help with) with per-field consent</td><td><span class="tag pilot">Pilot</span></td></tr>
+    <tr><td><b>Buddy programme</b></td><td>Buddy volunteers with a personal cap; newcomer requests; coordinator confirmation; introduction; check-in after three weeks</td><td><span class="tag pilot">Pilot</span></td></tr>
+    <tr><td><b>Administration</b></td><td>Content editing for office owners; match queue for the coordinator; user roles; audit log</td><td><span class="tag pilot">Pilot</span></td></tr>
+    <tr><td>Questions to offices</td><td>Ask an office for an official answer, with reply-time tracking</td><td><span class="tag later">Later</span></td></tr>
+    <tr><td>Pre-arrival access</td><td>Guest access for new hires before their account starts (needs a guest-account policy)</td><td><span class="tag later">Later</span></td></tr>
+    <tr><td>Community features</td><td>Discussion space, events, partner and family guest accounts</td><td><span class="tag later">Later</span></td></tr>
+  </table>
+</section>
+
+<!-- ============================ 3 ============================ -->
+<section class="flow">
+  <h2 class="sec" id="t3"><span class="n">3</span>Users and permissions</h2>
+  <p>Access follows least privilege: each role sees and changes only what it needs. Roles are assigned by Faculty Affairs and IT, never by users themselves.</p>
+  <table>
+    <tr><th style="width:24%">Role</th><th>Can do</th><th style="width:30%">Cannot do</th></tr>
+    <tr><td><b>Faculty member</b></td><td>Read the hub; edit own optional profile fields; volunteer as a buddy; request a buddy; recommend providers</td><td>See other people’s private fields; edit guides</td></tr>
+    <tr><td><b>Content owner</b> (one or two people per office)</td><td>Edit and review their own office’s guides and contact entry</td><td>Edit other offices’ content; see profiles beyond the directory</td></tr>
+    <tr><td><b>Buddy coordinator</b> (Faculty Affairs)</td><td>Confirm, change or end buddy matches; see match history and buddy workload; moderate providers</td><td>Change roles; see audit logs</td></tr>
+    <tr><td><b>Platform administrator</b> (Faculty Affairs)</td><td>Assign roles; manage offices and topics; view the audit log</td><td>Access the server or database directly</td></tr>
+    <tr><td><b>Technical administrator</b> (IT)</td><td>Run and update the service; manage hosting, backups and integrations</td><td>Read private profile fields in the application</td></tr>
+  </table>
+</section>
+
+<!-- ============================ 4 ============================ -->
+<section class="flow">
+  <h2 class="sec" id="t4"><span class="n">4</span>Architecture</h2>
+  <p class="lede">Everything runs inside VinUniversity-controlled infrastructure. Identity comes from VinUniversity’s Microsoft sign-in; staff details are read from VinUniversity’s records; the Hub keeps only its own data.</p>
+  <figure><img src="{{SHOTS}}/architecture.png" alt=""><figcaption><b>Figure.</b> Proposed architecture. Arrows show the direction of data. Staff records flow one way, into the Hub, and only the agreed fields.</figcaption></figure>
+
+  <h3 id="t4-1"><span class="n">4.1</span>Two ways to build it</h3>
+  <p>IT should choose between two options. Both meet the security requirements in Section 6.</p>
+  <table>
+    <tr><th style="width:18%"></th><th>A. Custom web application (proposed)</th><th>B. Microsoft 365 / Power Platform</th></tr>
+    <tr><td><b>What it is</b></td><td>A web application on VinUniversity hosting, at a VinUniversity subdomain, signing in through Entra ID</td><td>A Power Apps app inside Microsoft Teams, with SharePoint or Dataverse for data</td></tr>
+    <tr><td><b>Strengths</b></td><td>Works on any browser and phone; full control of the design already tested with faculty; no per-user licences; code owned by VinUniversity</td><td>Inherits Microsoft 365 security and sign-in; no new servers; likely faster security approval</td></tr>
+    <tr><td><b>Trade-offs</b></td><td>Needs hosting, a database and a security review of the code; needs a maintainer after launch</td><td>Premium Power Apps licences per user if Dataverse is used; less flexible design; harder to version-control</td></tr>
+    <tr><td><b>Best if</b></td><td>IT can provide hosting and sign-in registration by 4 December</td><td>IT prefers no new servers, or hosting cannot be ready in time</td></tr>
+  </table>
+
+  <h3 id="t4-2"><span class="n">4.2</span>Proposed technology (option A)</h3>
+  <table>
+    <tr><th style="width:26%">Layer</th><th>Proposal</th></tr>
+    <tr><td><b>Application</b></td><td>TypeScript web application (React interface, Node.js server), served from one container. No third-party scripts, trackers or fonts loaded at runtime.</td></tr>
+    <tr><td><b>Sign-in</b></td><td>Microsoft Entra ID through OpenID Connect (authorisation code flow with PKCE). MFA and device rules enforced by VinUniversity’s own Conditional Access policies.</td></tr>
+    <tr><td><b>Database</b></td><td>PostgreSQL with encryption at rest and automated, encrypted backups. Private network access only.</td></tr>
+    <tr><td><b>Hosting</b></td><td>VinUniversity servers or VinUniversity’s cloud subscription <b>[IT to confirm]</b>, with separate staging and production environments.</td></tr>
+    <tr><td><b>Domain</b></td><td>A subdomain such as <i>community.vinuni.edu.vn</i>, with a VinUniversity-managed TLS certificate <b>[IT to confirm]</b>.</td></tr>
+    <tr><td><b>Code</b></td><td>In a VinUniversity-owned repository, with code review, automated tests and dependency scanning before each release.</td></tr>
+    <tr><td><b>Secrets</b></td><td>Stored in a secrets manager or key vault, never in code or on personal devices.</td></tr>
+  </table>
+</section>
+
+<!-- ============================ 5 ============================ -->
+<section class="flow">
+  <h2 class="sec" id="t5"><span class="n">5</span>Integration with VinUniversity data</h2>
+  <p class="lede">The Hub uses VinUniversity’s data as the single source of truth for who someone is and where they work. It reads only the fields it needs, never writes back, and stops showing anyone who leaves.</p>
+
+  <h3 id="t5-1"><span class="n">5.1</span>Identity</h3>
+  <p>Sign-in is handled entirely by Entra ID. The Hub receives a signed token with the user’s identifier, name and email, and checks that they belong to an allowed group (for example, all academic staff). Disabling someone’s VinUniversity account removes their access immediately.</p>
+
+  <h3 id="t5-2"><span class="n">5.2</span>Staff records: three options for IT</h3>
+  <table>
+    <tr><th style="width:26%">Option</th><th>How it works</th><th style="width:28%">Notes</th></tr>
+    <tr><td><b>1. Entra directory</b> (simplest)</td><td>The Hub reads profile fields from Microsoft Graph with read-only, admin-approved permissions</td><td>Works if HR already keeps department and job title up to date in Entra ID</td></tr>
+    <tr><td><b>2. Read-only HR view or API</b></td><td>IT provides a read-only view or API exposing only the agreed fields</td><td>Most accurate; needs a small piece of work by the HR system’s owner</td></tr>
+    <tr><td><b>3. Scheduled export</b></td><td>HR exports the agreed fields once a day to a secure location the Hub reads</td><td>Quickest to arrange; data up to a day old</td></tr>
+  </table>
+  <p>In all three, the Hub receives only the fields below, through a service account with read-only rights, and synchronises once a day.</p>
+
+  <h3 id="t5-3"><span class="n">5.3</span>Fields</h3>
+  <table>
+    <tr><th style="width:30%">Field</th><th style="width:20%">Source</th><th>Use</th></tr>
+    <tr><td>Staff ID, name, university email</td><td>VinUniversity, read-only</td><td>Identity and the directory</td></tr>
+    <tr><td>College or unit, job title</td><td>VinUniversity, read-only</td><td>Directory and buddy suggestions</td></tr>
+    <tr><td>Start date, employment status</td><td>VinUniversity, read-only</td><td>Identifying newcomers; hiding leavers</td></tr>
+    <tr><td>International-faculty group membership</td><td>VinUniversity, read-only</td><td>Who is invited to the buddy programme. A group, not nationality, to collect less personal data</td></tr>
+    <tr><td>Languages, interests, topics they can help with</td><td>Entered by the faculty member</td><td>Directory and buddy suggestions; optional</td></tr>
+    <tr><td>Partner, children’s age ranges, broad area</td><td>Entered by the faculty member, with recorded consent</td><td>Buddy suggestions only; never shown to others; optional</td></tr>
+    <tr><td>Buddy matches, check-ins, guide edits, audit log</td><td>Created by the Hub</td><td>Running the programme and accountability</td></tr>
+  </table>
+  <div class="box navy"><h4>What the Hub does not do</h4><ul><li>It never writes to VinUniversity’s HR or identity systems.</li><li>It never stores passwords, salary, passport or visa numbers, or home addresses.</li><li>It never shares data with third parties or external analytics services.</li></ul></div>
+</section>
+
+<!-- ============================ 6 ============================ -->
+<section class="flow">
+  <h2 class="sec" id="t6"><span class="n">6</span>Security</h2>
+  <p class="lede">The Hub holds personal data about colleagues, so security is designed in from the start and checked by IT before launch. Nothing goes live without IT’s sign-off.</p>
+  <table>
+    <tr><th style="width:24%">Area</th><th>Controls</th></tr>
+    <tr><td><b>Identity and access</b></td><td>VinUniversity single sign-on only, with MFA through Conditional Access; no local accounts or passwords. Role-based permissions checked on the server for every request. Sessions expire after inactivity. Administrator roles reviewed each semester.</td></tr>
+    <tr><td><b>Data protection</b></td><td>TLS 1.2 or higher for all traffic, with HSTS. Database and backups encrypted at rest. Data kept on VinUniversity-controlled infrastructure <b>[IT to confirm location requirements]</b>. Minimum fields only (Section 5.3).</td></tr>
+    <tr><td><b>Application security</b></td><td>Built against the OWASP Top 10: parameterised database queries, output encoding, CSRF protection, strict Content Security Policy, input validation, secure cookie settings, and rate limiting. No third-party code loaded in the browser.</td></tr>
+    <tr><td><b>Secure development</b></td><td>Code review for every change; automated tests; dependency vulnerability scanning; secrets in a key vault; only fictional test data outside production; production access limited to IT.</td></tr>
+    <tr><td><b>Logging and monitoring</b></td><td>Audit log of every administrative action, content change and role change. Access and error logs sent to IT’s monitoring <b>[IT to confirm]</b>. Alerts on repeated failures.</td></tr>
+    <tr><td><b>Testing before launch</b></td><td>IT security review of the design and code; vulnerability scan of the staging environment; all critical and high findings fixed before go-live.</td></tr>
+    <tr><td><b>Resilience</b></td><td>Daily encrypted backups with a tested restore; separate staging environment for changes.</td></tr>
+    <tr><td><b>Incidents</b></td><td>Follows VinUniversity’s incident process <b>[IT to confirm]</b>; any incident affecting personal data reported to IT and Legal immediately.</td></tr>
+  </table>
+
+  <h3 id="t6-1"><span class="n">6.1</span>Privacy and compliance</h3>
+  <ul>
+    <li><b>Consent:</b> every optional personal field has its own consent, purpose and date, and can be withdrawn at any time.</li>
+    <li><b>Rights:</b> faculty can see, download and delete their optional data from their profile.</li>
+    <li><b>Retention:</b> profiles are hidden when someone leaves and their optional data deleted after a period set by policy <b>[Legal to confirm]</b>.</li>
+    <li><b>Legal review:</b> the design aims to meet Vietnam’s Law on Personal Data Protection and Decree 13/2023/NĐ-CP, including any required data-processing impact assessment. VinUniversity’s Legal or Data Protection function should confirm this before launch.</li>
+  </ul>
+</section>
+
+<!-- ============================ 7 ============================ -->
+<section class="flow">
+  <h2 class="sec" id="t7"><span class="n">7</span>What is needed from each team</h2>
+  <table>
+    <tr><th style="width:42%">Request</th><th style="width:22%">Team</th><th>Needed by</th></tr>
+    <tr><td>Choose option A or B, and the staff-data source</td><td>IT</td><td>Wed 2 December</td></tr>
+    <tr><td>Name a technical contact</td><td>IT</td><td>Wed 2 December</td></tr>
+    <tr><td>Register the application in Entra ID (redirect addresses, allowed staff group)</td><td>IT</td><td>Thu 3 December</td></tr>
+    <tr><td>Code repository and build pipeline in VinUniversity’s account</td><td>IT</td><td>Thu 3 December</td></tr>
+    <tr><td>Staging and production hosting, database and secrets store</td><td>IT</td><td>Fri 4 December</td></tr>
+    <tr><td>Subdomain and TLS certificate</td><td>IT</td><td>Fri 11 December</td></tr>
+    <tr><td>Read-only access to the agreed staff fields (test data first)</td><td>IT and HR</td><td>Fri 11 December</td></tr>
+    <tr><td>Security review slot</td><td>IT</td><td>14 to 18 December</td></tr>
+    <tr><td>Approve pilot funding</td><td>HR</td><td>Fri 4 December</td></tr>
+    <tr><td>Confirm the international-faculty group, or how to identify newcomers</td><td>HR</td><td>Fri 4 December</td></tr>
+    <tr><td>Name the buddy coordinator and an owner for each official guide</td><td>Faculty Affairs</td><td>Fri 4 December</td></tr>
+    <tr><td>Guide content (visas and permits, tax, banking, housing, healthcare) and office contact details</td><td>International Office, Finance, HR</td><td>Fri 11 December</td></tr>
+    <tr><td>Privacy review</td><td>Legal or Data Protection</td><td>Fri 18 December</td></tr>
+  </table>
+</section>
+
+<!-- ============================ 8 ============================ -->
+<section class="flow">
+  <h2 class="sec" id="t8"><span class="n">8</span>Timeline</h2>
+  <div class="timeline">
+    <div class="tl"><div class="when">27 Nov – 2 Dec</div><div class="what"><b>Agree</b>This proposal to Faculty Affairs and IT; meeting with IT; platform, data source and hosting decided; funding requested.</div></div>
+    <div class="tl"><div class="when">1 – 4 Dec</div><div class="what"><b>Set up</b>Entra registration, repository, staging environment and database. Data model, sign-in and roles built against fictional test data.</div></div>
+    <div class="tl"><div class="when">7 – 11 Dec</div><div class="what"><b>Build</b>Who to contact, guides with owner editing, recommended providers, profiles and consent, buddy programme and coordinator screens.</div></div>
+    <div class="tl"><div class="when">14 – 18 Dec</div><div class="what"><b>Connect and secure</b>Staff-data sync, audit logging, security hardening; offices load their content; IT security review and vulnerability scan.</div></div>
+    <div class="tl"><div class="when">21 – 23 Dec</div><div class="what"><b>Pilot test</b>Testing with volunteers from the 19 faculty who offered to help; fixes; go/no-go with IT.</div></div>
+    <div class="tl"><div class="when">24 Dec</div><div class="what"><b>Pilot live</b>Open to international faculty, subject to IT sign-off.</div></div>
+    <div class="tl"><div class="when">Jan – Jun 2027</div><div class="what"><b>Run and improve</b>Monthly check-ins with Faculty Affairs; questions to offices and pre-arrival access next; evaluation in June.</div></div>
+  </div>
+  <div class="box gold"><h4>What the date depends on</h4><p>The 24 December date holds only if IT access is in place by 4 December and the offices supply their content by 11 December. Each week of delay to either moves launch by about a week. If hosting cannot be ready in time, option B (Microsoft 365) is the fallback.</p></div>
+</section>
+
+<!-- ============================ 9 ============================ -->
+<section class="flow">
+  <h2 class="sec" id="t9"><span class="n">9</span>Costs</h2>
+  <p>Figures are planning estimates, to be confirmed with IT and HR.</p>
+  <table>
+    <tr><th style="width:30%">Item</th><th style="width:30%">Estimate</th><th>Notes</th></tr>
+    <tr><td><b>Pilot build</b></td><td>About 140 hours over four weeks</td><td>Design, development, testing and documentation, at a rate agreed with HR</td></tr>
+    <tr><td><b>Hosting</b></td><td>No extra cost on existing servers; roughly US$50–120 a month on a cloud subscription</td><td>One small application server, a managed database and backups <b>[IT to confirm]</b></td></tr>
+    <tr><td><b>Domain and certificate</b></td><td>No extra cost</td><td>A subdomain of vinuni.edu.vn</td></tr>
+    <tr><td><b>Licences</b></td><td>None for option A</td><td>Option B may need premium Power Apps licences per user if Dataverse is used</td></tr>
+    <tr><td><b>Security testing</b></td><td>No extra cost if done by IT</td><td>An external penetration test, if required, would be quoted separately</td></tr>
+    <tr><td><b>Running and support</b></td><td>About 4–6 hours a week, January to June 2027</td><td>Fixes, small improvements, content support for offices</td></tr>
+  </table>
+</section>
+
+<!-- ============================ 10 ============================ -->
+<section class="flow">
+  <h2 class="sec" id="t10"><span class="n">10</span>Risks</h2>
+  <table>
+    <tr><th style="width:30%">Risk</th><th>Mitigation</th></tr>
+    <tr><td><b>Access or approvals arrive late</b> (holiday period)</td><td>Agree dates and a named contact at the IT meeting; build against test data meanwhile; option B as fallback.</td></tr>
+    <tr><td><b>Staff data cannot be connected in time</b></td><td>Launch with sign-in data only (name, email) and self-entered unit; connect the staff-data sync in January.</td></tr>
+    <tr><td><b>Guide content not ready</b></td><td>Launch with the guides that are ready, starting with visas and work permits, and add the rest in January.</td></tr>
+    <tr><td><b>Security findings late in December</b></td><td>Ask for an early design review in the first week; fix critical and high findings before launch, even if it moves the date.</td></tr>
+    <tr><td><b>Single developer</b></td><td>Code in VinUniversity’s repository, documented, with IT holding administrative access, so another developer can take over.</td></tr>
+    <tr><td><b>Information goes out of date</b></td><td>Every guide has an owner and a review date; outdated reports go to the owner automatically.</td></tr>
+  </table>
+</section>
+
+<!-- ============================ A ============================ -->
+<section class="newpage">
+  <h2 class="sec" id="ta"><span class="n">A</span>Questions for the IT meeting</h2>
+  <ol>
+    <li>Do you prefer option A (custom web application) or option B (Microsoft 365 / Power Platform)?</li>
+    <li>Can the application be registered in Entra ID, and which staff group should be allowed to sign in?</li>
+    <li>Which source should staff data come from: the Entra directory, a read-only HR view or API, or a daily export? Is department and job title kept up to date in Entra ID?</li>
+    <li>Where should the application and database be hosted, and are there requirements on data location?</li>
+    <li>Can we use a subdomain such as community.vinuni.edu.vn?</li>
+    <li>What are VinUniversity’s security requirements for new applications, who does the security review, and how long does it take?</li>
+    <li>Where should code live, and is there an existing build and release process to follow?</li>
+    <li>Should logs go to an existing monitoring system?</li>
+    <li>Who will be the technical contact, and who maintains the service after the pilot?</li>
+    <li>Is the 24 December date realistic given IT’s availability in December?</li>
+  </ol>
+  <h3>Reference</h3>
+  <p>A clickable prototype of the concept, used for the faculty survey, is available on request. It uses fictional data and is not connected to any VinUniversity system.</p>
+  <div class="sign"><div>Prepared by: Nguyen Hoang Minh Tri</div><div>Date</div></div>
+</section>
+
+</body>
+</html>
